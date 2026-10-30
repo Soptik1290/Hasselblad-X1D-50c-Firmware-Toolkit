@@ -36,12 +36,33 @@ Because the menu structure and item specifications are written in pure JavaScrip
 - Replicates `MainScreen.qml`, `Menu.qml`, `SettingsGeneric.qml`, `DemoMarker.qml` (red highlight overlay on `demo: true` items), and `DemoModeIndicator.qml` (`NO STORAGE`).
 - Includes a **C++ Backend X-Ray Inspector** and **Live QRC Slot Size Checker (`zlib` level 9)**—whenever you edit any file in `victory_gui_qml/` and click reload, the simulator immediately updates the menu and calculates how many spare bytes remain in the `victory-gui` binary slot.
 
-### Launching the Simulator
+### Launching the Simulator & Direct `.cim` Bootloader
 From the repository root, run:
 ```powershell
 python ui_simulator/run_simulator.py
 ```
-This starts a local server on `http://127.0.0.1:8125/` and opens the interactive simulator in your browser.
+This starts a local server on `http://127.0.0.1:8125/` and opens the interactive bilingual (EN / CZ) simulator in your browser.
+
+#### Direct `.cim` Firmware Bootloader (`cim_emulator_loader.py`)
+You can unpack and boot **any official or custom `.cim` firmware image (`v1.20.0` – `v1.25.0`)** directly on Windows:
+1. **In the WebUI (`http://127.0.0.1:8125/`)**: Select any `.cim` file from the top dropdown and click **`⚡ Boot .CIM`** (or open the **4. `.CIM` & ARM Emulator** tab). The server decrypts the `VHABCIM` container, verifies the two-stage `PrivateHeader::Checksum`, extracts `/usr/bin/victory-gui`, `/usr/bin/configstore`, and `/etc/version` from `rootfs.tar.bz2`, dynamically locates the `DATA_BASE`, `NAMES_BASE`, and `TREE_BASE` QRC tables inside the ELF binary, unpacks all 405 QRC assets, displays an animated 640×480 U-Boot/Linux boot log, and hot-reloads the UI.
+2. **From the Command Line**:
+   ```powershell
+   python cim_emulator_loader.py --list
+   python cim_emulator_loader.py "firmware/X1D_v1_20_0.cim"
+   ```
+
+#### 5-Stage Anti-Brick Pre-Flight Sweep & Memory Counter (`verify_firmware_safety.py`)
+Before repacking or flashing any modified firmware, run the automated safety sweep (either in the **3. Anti-Brick Sweep** WebUI tab or via CLI):
+```powershell
+python verify_firmware_safety.py --fast
+```
+It verifies:
+1. **QML & JS Syntax Integrity** across all 128 QML and 9 JS files.
+2. **QRC Slot Capacity & Comment-Stripped Headroom** (confirming every modified file fits its compressed `zlib` slot, with **+60.2 KB** freed by automatic comment stripping in `patch_victory_qrc_file.py`).
+3. **Binary ELF & QRC Decompression Round-Trip** (`405/405` assets).
+4. **U-Boot A/B Rollback Protection & `rootfs` Symlink Integrity** (verifying that `hbl-upgrade` only flashes the inactive eMMC bank and never overwrites U-Boot `/dev/mtd0`, and checking `/sbin/init` + `readlink` so `hbl-post-upgrade` sets `boot_ok=1`).
+5. **`.cim` Cryptographic & Two-Stage Checksum Verification** across all firmware containers.
 
 ### Things to Try in the Simulator:
 1. **Unlocking Hidden Menu Items (`guiconfig.hideDemoItems`)**:
@@ -58,40 +79,39 @@ This starts a local server on `http://127.0.0.1:8125/` and opens the interactive
 
 ---
 
-## 2. Hidden Command-Line Flags in `/usr/bin/victory-gui`
+## 2. Command-Line Flags in `/usr/bin/victory-gui`
 
-Static analysis of `/usr/bin/victory-gui` (offsets `0x7f700..0x7f850`) revealed that the binary uses `QCommandLineParser` and supports the following CLI flags:
+Running `/usr/bin/victory-gui --help` inside the ARMv7 container reveals the exact `QCommandLineParser` options supported by the binary:
 
 | CLI Flag | Description in `victory-gui` | Effect |
 | :--- | :--- | :--- |
-| `--wedge` | `Run in Wedge Mode.` | Forces **Hasselblad X1D-50c** mode (`guiconfig.isWedge = true`) regardless of CPU OTP fuses |
-| `--albatross` | `Run in Albatross Mode.` | Forces **H6D-100c** mode |
-| `--cfv` | `Run in CFV Mode.` | Forces **907X / CFV II 50C** mode |
-| `--a6d50` | `Run in A6D 50 Mode.` | Forces **A6D-50c** mode |
-| `--a6d100` | `Run in A6D 100 Mode.` | Forces **A6D-100c** mode |
-| `--session` | `Use the DBus session bus.` | Uses the D-Bus session bus instead of `--system` (intended for desktop Linux development) |
-| `--fullscreen` | `Run in fullscreen.` | Runs in fullscreen mode |
-| `--main <path>` | *(overrides default `qrc:///main.qml`)* | Loads the root QML file from an external filesystem path instead of internal `qrc:///`! |
+| `-w, --wedge` | `Run in Wedge Mode.` | Forces **Hasselblad X1D-50c** mode (`guiconfig.isWedge = true`) regardless of CPU OTP fuses |
+| `-a, --albatross` | `Run in Albatross Mode.` | Forces **H6D-100c** mode |
+| `-c, --cfv` | `Run in CFV Mode.` | Forces **907X / CFV II 50C** mode |
+| `-k, --a6d50` | `Run in A6D 50 Mode.` | Forces **A6D-50c** mode |
+| `-l, --a6d100` | `Run in A6D 100 Mode.` | Forces **A6D-100c** mode |
+| `-s, --session` | `Use the DBus session bus.` | Uses the D-Bus session bus instead of `--system` (intended for desktop Linux development) |
+| `-f, --fullscreen` | `Run in fullscreen.` | Runs in fullscreen mode |
+| `-h, --help` / `-v, --version` | `Displays this help / version.` | Prints CLI usage and version |
 
 Additionally, the `KeyInject` class (`com.hasselblad.mockup`, offset `0x7fd90`) accepts simulated button presses over D-Bus (`menu`, `f1`..`f5`, `left`, `right`, `double_click`), used by Hasselblad developers in Gothenburg for automated GUI testing.
 
 ---
 
-## 3. Full ARM Emulation in QEMU (`qemu-system-arm`)
+## 3. Full ARMv7 Linux Rootfs Emulator on Windows (`run_arm_emulator.py`)
 
-If you want to run the actual `/usr/bin/victory-gui` ARM binary alongside the system daemons (`configstore`, `camera-daemon`, `bodystate-daemon`, `weston`) inside an emulated ARM processor on a PC, `YuHaoyua/hasselblad-x1d-reverse-engineering` documents the exact setup:
+To run the camera's extracted ARMv7 Linux `rootfs` and daemons (`configstore`, `victory-gui`) inside a real ARMv7 environment on Windows via Docker Desktop (`arm32v7` QEMU user-mode emulation) and inspect the `640×480` Weston display in your browser via **noVNC**:
 
-1. **Prerequisites**:
-   - `qemu-system-arm` installed (via QEMU for Windows or Linux/WSL2).
-   - An ARM Linux `zImage` kernel built for `imx_v6_v7_defconfig` or `vexpress-a9` with `devtmpfs`, `fbdev` (640×480), and `virtio` support.
-2. **Building an `initramfs` from the Extracted `rootfs`**:
-   - The extracted `rootfs` already contains the complete Yocto userspace (`Hasselblad Umbrella Distro 2.0.3`), including `/usr/bin/weston`, `/usr/lib/weston/fbdev-backend.so`, and `/usr/lib/weston/victory-shell.so`.
-   - Because QEMU lacks the i.MX6 Vivante GC2000 GPU, change `/usr/bin/weston.sh` from `--use-gal2d=1` to the software Pixman framebuffer backend (`--backend=fbdev-backend.so`) and launch `victory-gui` with:
-     ```sh
-     export XDG_RUNTIME_DIR=/tmp
-     export QT_WAYLAND_DISABLE_WINDOWDECORATION=1
-     /usr/bin/victory-gui -platform wayland --wedge
-     ```
-3. **When to Use QEMU vs. Our Local PC Simulator**:
-   - For **99% of menu customizations, unlocking `demo: true` options, and testing QML/JS edits**, `python ui_simulator/run_simulator.py` is much faster because it starts instantaneously without compiling an ARM kernel.
-   - QEMU is ideal when debugging binary ARM instruction patches inside `/usr/bin/victory-gui` or `/usr/bin/camera-daemon` with `gdb-multiarch`.
+```powershell
+python run_arm_emulator.py --cim "firmware/X1D_v1_25_0.cim"
+```
+
+### How It Works:
+1. **Unpacks `rootfs.tar.bz2`** from the selected `.cim` firmware into `.emulator_cache/<firmware>/rootfs_full/` (preserving Linux symlinks inside the container).
+2. **Builds & Starts the `x1d-armv7-emulator` Container (`arm_emulator/`)**:
+   - Copies the camera's D-Bus security policies (`/etc/dbus-1/system.d/com.hasselblad.*.conf`) and starts `dbus-daemon --system`.
+   - Starts the camera's native ARMv7 `/usr/bin/configstore` daemon (which registers `com.hasselblad.config` and serves all 162 camera properties) alongside `arm_emulator/mock_hardware_dbus.py` (mocking `com.hasselblad.cambody`, `com.hasselblad.camera`, `com.hasselblad.lens`, `com.hasselblad.systemmanager`, etc.).
+   - Starts a `640×480` virtual framebuffer (`Xvfb :0`), the **Weston** Wayland compositor (`640×480`), `x11vnc`, and **noVNC** on port `6080`.
+3. **Connecting via Browser (`noVNC`)**:
+   - Open **`http://127.0.0.1:6080/vnc.html?autoconnect=true`** in your browser.
+   - If you see the **noVNC** connection box in the top-right corner (`Host: 127.0.0.1`, `Port: 6080`, `Password: [empty]`), simply click the **`Connect`** button (no password is required) to view the live `640×480` ARMv7 Weston screen.

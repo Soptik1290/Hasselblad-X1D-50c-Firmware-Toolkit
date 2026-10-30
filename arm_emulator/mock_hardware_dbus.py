@@ -55,11 +55,18 @@ def main():
     bus_names = []
     objects = []
     services = [
-        ("se.hasselblad.cambody", "/Cambody"),
-        ("se.hasselblad.farm", "/Farm"),
-        ("se.hasselblad.suc", "/Suc"),
-        ("se.hasselblad.storage", "/Storage"),
-        ("se.hasselblad.upgrade", "/Upgrade"),
+        ("com.hasselblad.cambody", "/cambody"),
+        ("com.hasselblad.camera", "/"),
+        ("com.hasselblad.lens", "/lens"),
+        ("com.hasselblad.systemmanager", "/"),
+        ("com.hasselblad.storage", "/"),
+        ("com.hasselblad.power", "/power"),
+        ("com.hasselblad.video", "/"),
+        ("com.hasselblad.suc", "/suc"),
+        ("com.hasselblad.farm", "/farm"),
+        ("com.hasselblad.error", "/error"),
+        ("com.hasselblad.upgrade", "/"),
+        ("com.hasselblad.bodysync", "/bodysync"),
     ]
     for srv_name, obj_path in services:
         try:

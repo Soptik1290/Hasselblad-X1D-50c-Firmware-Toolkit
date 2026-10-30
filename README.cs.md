@@ -34,13 +34,31 @@ Tento projekt slouží k průzkumu, dešifrování, rozbalení, úpravám, loká
 
 ## Rychlý start a nástroje
 
-### 1. Spuštění interaktivního 640×480 PC UI Simulátoru (CZ / EN)
+### 1. Spuštění interaktivního 640×480 PC UI Simulátoru & `.cim` Bootloaderu (CZ / EN)
 ```powershell
 python ui_simulator/run_simulator.py
 ```
-Otevře `http://127.0.0.1:8125/` s živým menu X1D-50c, přepínačem jazyka **🇬🇧 EN / 🇨🇿 CZ**, rentgenem C++ backendu, **počítadlem paměti a QRC slotů** a **5fázovým Anti-Brick Pre-Flight testem**.
+Otevře `http://127.0.0.1:8125/` s:
+* **Přímým `.cim` Bootloaderem:** V horní liště můžete vybrat libovolný `.cim` soubor (`v1.20.0` až `v1.25.0` nebo vlastní zabalený `.cim`) a kliknout na **`⚡ Boot .CIM`** – simulátor za běhu dešifruje `rootfs.tar.bz2`, rozbalí `/usr/bin/victory-gui` + `/etc/version` + `/usr/bin/configstore`, automaticky detekuje offsety QRC tabulek, rozbalí všech 405 QML/JS/PNG zdrojů a živě načte rozhraní příslušné verze firmwaru.
+* Živým menu X1D-50c (`640×480`), přepínačem jazyka **🇬🇧 EN / 🇨🇿 CZ**, rentgenem C++ backendu, **počítadlem paměti a QRC slotů** a **5fázovým Anti-Brick Pre-Flight testem**.
 
-### 2. Samostatný Anti-Brick Pre-Flight Test & Počítadlo paměti v CLI
+### 2. Přímé rozbalení a nabootování `.cim` firmwaru z příkazové řádky (`cim_emulator_loader.py`)
+```powershell
+# Výpis dostupných .cim souborů ve složce firmware/
+python cim_emulator_loader.py --list
+
+# Dešifrování, rozbalení rootfs + victory-gui a extrakce všech 405 QRC souborů
+python cim_emulator_loader.py "firmware/X1D_v1_20_0.cim"
+```
+
+### 3. Spuštění plného ARMv7 Linux Rootfs Emulátoru (`run_arm_emulator.py`)
+```powershell
+# Vyžaduje Docker Desktop s podporou QEMU arm32v7 (binfmt)
+python run_arm_emulator.py --cim "firmware/X1D_v1_25_0.cim"
+```
+Sestaví a spustí `arm32v7` kontejner s rozbaleným `rootfs` fotoaparátu, systémovým `dbus-daemon` (včetně politik `/etc/dbus-1/system.d/com.hasselblad.*.conf`), originálním ARMv7 démonem `/usr/bin/configstore` (162 vlastností), mock D-Bus službami hardwaru a `640×480` Weston obrazovkou dostupnou v prohlížeči na `http://127.0.0.1:6080/vnc.html?autoconnect=true` (v okně noVNC případně klikněte na **Connect**).
+
+### 4. Samostatný Anti-Brick Pre-Flight Test & Počítadlo paměti v CLI
 ```powershell
 # Rychlá kontrola + přehled paměti a QRC slotů
 python verify_firmware_safety.py --fast
@@ -48,4 +66,13 @@ python verify_firmware_safety.py --fast
 # Plná hloubková kontrola (včetně průchodu celého 60MB rootfs.tar.bz2 a .cim součtů)
 python verify_firmware_safety.py
 ```
+
+---
+
+## Spolupráce a spřízněné projekty
+
+* **[duart38/Hazel-firmware](https://github.com/duart38/Hazel-firmware)** – Aktivně spolupracujeme s projektem **Hazel-firmware** od **[@duart38](https://github.com/duart38)**, protože **filmové emulace (Film Emulation) a vlastní barevné profily** patří mezi hlavní funkce, které chceme do upraveného firmwaru X1D-50c přinést.
+* **[YuHaoyua/hasselblad-x1d-reverse-engineering](https://github.com/YuHaoyua/hasselblad-x1d-reverse-engineering)** – Základní reverzní inženýrství 1. generace X1D-50c (D-Bus rozhraní, `sutest-daemon`, QEMU emulace a QRC patchování).
+* **[YuHaoyua/hasselblad-cim-firmware-extractor](https://github.com/YuHaoyua/hasselblad-cim-firmware-extractor)** – Nástroj pro dešifrování `.cim` kontejnerů.
+
 

@@ -25,8 +25,12 @@ While newer Hasselblad cameras (`X1D II 50C`, `X2D 100C`, `907X 100C`) switched 
     * **`Hide B/T Mode`** & **`AE-L when Half-pressed`**.
     * **`Eye Sensor Distance`** (`Short` / `Medium` / `Long` EVF proximity threshold).
     * **Engineering Autofocus Tuning:** custom XCD lens AF stepping motor speed (**`7000`–`31000`**, `af_cmd_speed`), FPGA Brenner contrast metric weighting (**`x+y`**, **`x+y/4`**, **`x+y/2`**), FIR contrast curve filtering (`af_fir`), full-range AF sweep (`af_full_scan`), and AF sequence logging (`af_log`).
-* **Local 640×480 PC UI Simulator (`ui_simulator/`):**
-  * Runs the live extracted `MenuItemSpecificationsWedge.js` menu definitions, original `HelveticaNeueLTStd` OTF fonts, and all 267 PNG icons in your browser at native `640×480` resolution—complete with a live `zlib` (level 9) QRC slot-headroom calculator and C++ backend X-ray inspector.
+* **Local 640×480 PC UI Simulator & Direct `.cim` Bootloader (`ui_simulator/`, `cim_emulator_loader.py`):**
+  * Dynamically decrypts, unpacks, and boots **any `.cim` firmware image (`v1.20.0` – `v1.25.0` or custom repacked `.cim`)** on Windows in seconds—auto-detecting QRC table offsets across compiler builds and running the live `MenuItemSpecificationsWedge.js` menu definitions, original `HelveticaNeueLTStd` OTF fonts, and all 267 PNG icons at native `640×480` resolution.
+* **5-Stage Anti-Brick Pre-Flight Sweep & Memory Counter (`verify_firmware_safety.py`):**
+  * Verifies QML/JS syntax, QRC slot capacity (with automatic comment-stripping that frees **+60.2 KB** of compressed space), ELF/QRC round-trip decompression, U-Boot A/B dual-slot rollback protection, `rootfs` boot symlinks (`readlink`), and two-stage `.cim` checksums before any firmware touches the camera.
+* **Full ARMv7 Linux Rootfs Emulator (`run_arm_emulator.py`, `arm_emulator/`):**
+  * Boots the extracted ARMv7 `rootfs.tar.bz2` environment inside an `arm32v7` Docker/QEMU container with `dbus-daemon`, the camera's native `/usr/bin/configstore`, mock hardware D-Bus services (`com.hasselblad.*`), and a `640×480` Weston/noVNC display (`http://127.0.0.1:6080/vnc.html?autoconnect=true`).
 
 ---
 
@@ -39,10 +43,17 @@ X1D_FirmwareDump/
 ├── hasselblad_extract.py                  # Decrypts and unpacks .cim firmware containers
 ├── hasselblad_pack.py                     # Repacks & encrypts .cim containers (with two-stage PrivateHeader checksum)
 ├── extract_victory_qrc.py                 # Extracts all 405 Qt/QML resources from /usr/bin/victory-gui
-├── patch_victory_qrc_file.py              # In-place QRC patcher (zlib level 9) for /usr/bin/victory-gui
-├── ui_simulator/                          # Interactive 640×480 PC UI Simulator & QRC Slot Inspector
-│   ├── run_simulator.py                   # Local HTTP server serving live QML/JS & icons from victory_gui_qml/
-│   ├── index.html                         # 640×480 X1D touchscreen & physical button/wheel simulator
+├── patch_victory_qrc_file.py              # In-place QRC patcher (zlib level 9 + optional comment stripper)
+├── verify_firmware_safety.py              # 5-Stage Anti-Brick Pre-Flight Test Sweep & Memory Counter
+├── cim_emulator_loader.py                 # Direct .cim Firmware Unpacker & Bootloader for Windows / WebUI
+├── run_arm_emulator.py                    # One-click launcher for the ARMv7 Docker/QEMU Linux Rootfs Emulator
+├── arm_emulator/                          # ARMv7 Linux container setup (D-Bus, configstore, Weston, noVNC)
+│   ├── Dockerfile                         # arm32v7 environment for running X1D-50c ARM binaries
+│   ├── entrypoint_arm.sh                  # Container boot script (D-Bus policies, configstore, Weston, noVNC)
+│   └── mock_hardware_dbus.py              # Mock com.hasselblad.* D-Bus services for off-camera execution
+├── ui_simulator/                          # Interactive 640×480 PC UI Simulator (EN/CZ), Memory Counter & Sweep
+│   ├── run_simulator.py                   # Local HTTP server & REST API (/api/cim-boot, /api/safety-sweep, etc.)
+│   ├── index.html                         # 640×480 X1D touchscreen, .cim bootloader & engineering workspace
 │   └── fonts/                             # Original HelveticaNeueLTStd OTF fonts from rootfs
 ├── docs/                                  # Complete English Technical Documentation
 │   ├── 01-architecture-and-hardware.md    # i.MX6Q hardware, coprocessors (FARM, SUC, FX3, SPC), Umbrella distro
@@ -50,7 +61,7 @@ X1D_FirmwareDump/
 │   ├── 03-gui-qml-and-hidden-features.md  # victory-gui QML architecture, Easter Egg & hidden demo:true options
 │   ├── 04-patching-and-repacking-cim.md   # Qt Resource binary format, in-place patching & .cim header specs
 │   ├── 05-cpp-backend-and-feature-analysis.md # Deep C++ daemon analysis (what actually works on X1D hardware)
-│   ├── 06-pc-ui-emulation.md              # Local PC UI simulator, hidden victory-gui CLI flags & QEMU setup
+│   ├── 06-pc-ui-emulation.md              # Local PC UI simulator, .cim Bootloader & ARMv7 Docker/QEMU Emulator
 │   └── 07-firmware-version-comparison.md  # Full comparison across all 6 releases (v1.20.0 to v1.25.0)
 ├── dokumentace/                           # Complete Czech Technical Documentation (Česká dokumentace)
 │   ├── 01-architektura-a-hardware.md
@@ -94,17 +105,34 @@ X1D_FirmwareDump/
 
 ## Quickstart & Tools
 
-### 1. Launch the Interactive 640×480 PC UI Simulator (EN / CZ)
+### 1. Launch the Interactive 640×480 PC UI Simulator & `.cim` Bootloader (EN / CZ)
 ```powershell
 python ui_simulator/run_simulator.py
 ```
 Opens `http://127.0.0.1:8125/` in your browser with:
+* **Direct `.cim` Bootloader:** Select any `.cim` file (`v1.20.0` – `v1.25.0` or custom) in the top bar and click **`⚡ Boot .CIM`** to decrypt `rootfs.tar.bz2`, extract `/usr/bin/victory-gui` + `/etc/version` + `/usr/bin/configstore`, unpack all 405 QRC assets, and hot-reload the 640×480 camera UI with a U-Boot/Linux boot log.
 * Live 640×480 X1D-50c UI, physical button/dial controls, and **EN / CZ language switch**.
 * Interactive **C++ Backend X-Ray** (`victory-gui` ↔ `configstore` ↔ `msg2dbus` ↔ `camera-daemon`).
 * **Memory & Storage Counter** (QRC `DATA_BASE` pool, comment-stripped `+60.2 KB` headroom, and eMMC/NOR/MCU/RAM budgets).
 * **5-Stage Anti-Brick Pre-Flight Sweep** verifying QML/JS syntax, QRC slot fit, ELF/QRC decompression, U-Boot A/B rollback protection, `rootfs` boot symlinks (`readlink`), and two-stage `.cim` checksums.
 
-### 2. Run the Standalone Anti-Brick Pre-Flight Sweep & Memory Counter
+### 2. Boot & Unpack Any `.cim` Firmware from CLI (`cim_emulator_loader.py`)
+```powershell
+# List all available .cim files in firmware/
+python cim_emulator_loader.py --list
+
+# Decrypt, extract rootfs + victory-gui, and unpack all 405 QRC assets for a specific .cim
+python cim_emulator_loader.py "firmware/X1D_v1_20_0.cim"
+```
+
+### 3. Launch the Full ARMv7 Linux Rootfs Emulator (`run_arm_emulator.py`)
+```powershell
+# Requires Docker Desktop with QEMU arm32v7 binfmt support
+python run_arm_emulator.py --cim "firmware/X1D_v1_25_0.cim"
+```
+Builds and boots the `arm32v7` container with the camera's extracted `rootfs`, `dbus-daemon` (with `/etc/dbus-1/system.d/com.hasselblad.*.conf`), the native ARMv7 `/usr/bin/configstore` daemon (162 camera properties), mock hardware D-Bus services, and a `640×480` Weston display accessible in your browser at `http://127.0.0.1:6080/vnc.html?autoconnect=true` (click **Connect** in the noVNC panel if prompted).
+
+### 4. Run the Standalone Anti-Brick Pre-Flight Sweep & Memory Counter
 ```powershell
 # Instant sweep + memory counter
 python verify_firmware_safety.py --fast
@@ -113,17 +141,17 @@ python verify_firmware_safety.py --fast
 python verify_firmware_safety.py
 ```
 
-### 3. Decrypt & Extract a `.cim` Firmware Image
+### 5. Decrypt & Extract a `.cim` Firmware Image
 ```powershell
 python hasselblad_extract.py "firmware/X1D_v1_25_0.cim" -o "X1D_v1_25_0_extracted"
 ```
 
-### 4. Extract Qt/QML/JS/PNG Resources from `victory-gui`
+### 6. Extract Qt/QML/JS/PNG Resources from `victory-gui`
 ```powershell
 python extract_victory_qrc.py "X1D_v1_25_0_extracted/victory-gui" -o "victory_gui_qml"
 ```
 
-### 5. Patch a Modified QML/JS File Back into `victory-gui`
+### 7. Patch a Modified QML/JS File Back into `victory-gui`
 ```powershell
 python patch_victory_qrc_file.py `
   "X1D_v1_25_0_extracted/victory-gui" `
@@ -133,7 +161,7 @@ python patch_victory_qrc_file.py `
 ```
 *(Automatically strips `//` and `/* */` comments if needed, unlocking **+60.2 KB** of compressed space across `victory-gui`—including **+1,119 B** in `MenuItemSpecificationsWedge.js` and **+1,893 B** in `SettingsGeneric.qml`.)*
 
-### 6. Repack & Encrypt a Custom `.cim` Firmware Container
+### 8. Repack & Encrypt a Custom `.cim` Firmware Container
 ```powershell
 python hasselblad_pack.py `
   -t "firmware/X1D_v1_25_0.cim" `
@@ -143,7 +171,10 @@ python hasselblad_pack.py `
 
 ---
 
-## Related Projects & Acknowledgements
+## Collaborations, Related Projects & Acknowledgements
+
+### Active Collaboration – Film Emulation & Custom Color Profiles
+* **[duart38/Hazel-firmware](https://github.com/duart38/Hazel-firmware)** – We are actively collaborating with **[@duart38](https://github.com/duart38)** (*Hazel-firmware*), as custom **Film Emulation & Color Profiles** are one of the flagship features planned for the Hasselblad X1D-50c custom firmware toolkit. Check out the Hazel-firmware project for complementary Hasselblad firmware research and custom look development!
 
 ### 1st-Generation X1D-50c / Umbrella Platform
 * **[YuHaoyua/hasselblad-x1d-reverse-engineering](https://github.com/YuHaoyua/hasselblad-x1d-reverse-engineering)** – Foundational reverse-engineering research on the 1st-gen X1D-50c (D-Bus APIs, `sutest-daemon` protocol, USB shell access, QEMU emulation, and QRC resource patching).

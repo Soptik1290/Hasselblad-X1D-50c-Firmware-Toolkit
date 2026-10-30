@@ -36,12 +36,33 @@ Protože samotná struktura všech menu a voleb je definována v čistém JavaSc
 - Replikuje chování `MainScreen.qml`, `Menu.qml`, `SettingsGeneric.qml`, `DemoMarker.qml` (červené zvýraznění `demo: true` položek) i `DemoModeIndicator.qml` (`NO STORAGE`).
 - Obsahuje vpravo **Rentgen C++ Backendu** a **Živou kontrolu QRC slotů (zlib level 9)** – jakmile upravíš libovolný soubor ve `victory_gui_qml/` a klikneš na **„Znovu načíst živé QML/JS ze složky“**, simulátor ti okamžitě ukáže upravené menu i to, kolik volných bajtů zbývá ve slotu uvnitř binárky `victory-gui`.
 
-### Jak simulátor spustit
+### Jak simulátor a přímý `.cim` Bootloader spustit
 V kořenové složce projektu stačí spustit:
 ```powershell
 python ui_simulator/run_simulator.py
 ```
-Skript spustí lokální server na `http://127.0.0.1:8125/` a otevře simulátor v prohlížeči.
+Skript spustí lokální server na `http://127.0.0.1:8125/` a otevře dvojjazyčný (CZ / EN) simulátor v prohlížeči.
+
+#### Přímý `.cim` Firmware Bootloader (`cim_emulator_loader.py`)
+Přímo na Windows můžeš rozbalit a nabootovat **libovolný oficiální nebo upravený `.cim` firmware (`v1.20.0` až `v1.25.0`)**:
+1. **Ve WebUI (`http://127.0.0.1:8125/`)**: V horní liště vyber libovolný `.cim` soubor a klikni na **`⚡ Boot .CIM`** (nebo otevři záložku **4. `.CIM` & ARM Emulátor**). Server dešifruje kontejner `VHABCIM`, ověří dvoufázový `PrivateHeader::Checksum`, vytáhne `/usr/bin/victory-gui`, `/usr/bin/configstore` a `/etc/version` z `rootfs.tar.bz2`, automaticky v ELF binárce najde QRC tabulky (`DATA_BASE`, `NAMES_BASE`, `TREE_BASE`), rozbalí všech 405 QRC zdrojů, zobrazí na displeji `640×480` animovaný U-Boot/Linux boot log a živě přepne celé UI na danou verzi firmwaru.
+2. **Z příkazové řádky**:
+   ```powershell
+   python cim_emulator_loader.py --list
+   python cim_emulator_loader.py "firmware/X1D_v1_20_0.cim"
+   ```
+
+#### 5fázový Anti-Brick Pre-Flight Test & Počítadlo paměti (`verify_firmware_safety.py`)
+Před zabalením nebo nahráním upraveného firmwaru spusť automatický bezpečnostní test (v záložce **3. Anti-Brick Test** ve WebUI nebo v terminálu):
+```powershell
+python verify_firmware_safety.py --fast
+```
+Test kontroluje:
+1. **Syntaxi všech 128 QML a 9 JS souborů**.
+2. **Kapacitu QRC slotů a rezervu po ořezu komentářů** (ověří, že se každý soubor po `zlib` kompresi vejde do svého slotu; automatické odstranění komentářů v `patch_victory_qrc_file.py` uvolní **+60,2 KB** komprimovaného místa).
+3. **Binární ELF a QRC dekompresi** (`405/405` zdrojů).
+4. **U-Boot A/B ochranu proti bricknutí a symlinky v `rootfs`** (ověří, že `hbl-upgrade` zapisuje pouze do neaktivní A/B banky, nikdy nepřepisuje U-Boot `/dev/mtd0`, a zkontroluje symlinky `/sbin/init` + `readlink`, aby `hbl-post-upgrade` korektně nastavil `boot_ok=1`).
+5. **Kryptografickou integritu a dvoufázový kontrolní součet `.cim` kontejnerů**.
 
 ### Co si v simulátoru můžeš hned vyzkoušet:
 1. **Odemknutí skrytých položek (`guiconfig.hideDemoItems`)**:
@@ -58,40 +79,39 @@ Skript spustí lokální server na `http://127.0.0.1:8125/` a otevře simulátor
 
 ---
 
-## 2. Skryté příkazové přepínače přímo v binárce `/usr/bin/victory-gui`
+## 2. Příkazové přepínače přímo v binárce `/usr/bin/victory-gui`
 
-Při statické analýze `/usr/bin/victory-gui` (offset `0x7f700..0x7f850`) jsme objevili, že samotná binárka používá třídu `QCommandLineParser` a podporuje tyto přepínače příkazové řádky:
+Spuštění `/usr/bin/victory-gui --help` uvnitř ARMv7 kontejneru vypíše přesné přepínače třídy `QCommandLineParser`:
 
 | Přepínač | Popis v binárce (`victory-gui`) | Význam |
 | :--- | :--- | :--- |
-| `--wedge` | `Run in Wedge Mode.` | Vynutí režim **Hasselblad X1D-50c** (`guiconfig.isWedge = true`) bez ohledu na OTP sériové číslo v CPU |
-| `--albatross` | `Run in Albatross Mode.` | Vynutí režim **H6D-100c** |
-| `--cfv` | `Run in CFV Mode.` | Vynutí režim **907X / CFV II 50C** |
-| `--a6d50` | `Run in A6D 50 Mode.` | Vynutí režim **A6D-50c** |
-| `--a6d100` | `Run in A6D 100 Mode.` | Vynutí režim **A6D-100c** |
-| `--session` | `Use the DBus session bus.` | Místo systémové D-Bus sběrnice (`--system`) použije uživatelskou session sběrnici (pro vývoj na Linuxu) |
-| `--fullscreen` | `Run in fullscreen.` | Celoobrazovkový režim |
-| `--main <cesta>` | *(přepíše výchozí `qrc:///main.qml`)* | Umožní načíst hlavní QML soubor mimo interní `qrc:///`! |
+| `-w, --wedge` | `Run in Wedge Mode.` | Vynutí režim **Hasselblad X1D-50c** (`guiconfig.isWedge = true`) bez ohledu na OTP sériové číslo v CPU |
+| `-a, --albatross` | `Run in Albatross Mode.` | Vynutí režim **H6D-100c** |
+| `-c, --cfv` | `Run in CFV Mode.` | Vynutí režim **907X / CFV II 50C** |
+| `-k, --a6d50` | `Run in A6D 50 Mode.` | Vynutí režim **A6D-50c** |
+| `-l, --a6d100` | `Run in A6D 100 Mode.` | Vynutí režim **A6D-100c** |
+| `-s, --session` | `Use the DBus session bus.` | Místo systémové D-Bus sběrnice (`--system`) použije uživatelskou session sběrnici (pro vývoj na Linuxu) |
+| `-f, --fullscreen` | `Run in fullscreen.` | Celoobrazovkový režim |
+| `-h, --help` / `-v, --version` | `Displays this help / version.` | Vypíše nápovědu a verzi |
 
-Кromě toho třída `KeyInject` (`com.hasselblad.mockup`, offset `0x7fd90`) přijímá přes D-Bus simulované stisky kláves (`menu`, `f1`..`f5`, `left`, `right`, `double_click`), které vývojáři v Göteborgu používali při automatizovaném testování GUI.
+Kromě toho třída `KeyInject` (`com.hasselblad.mockup`, offset `0x7fd90`) přijímá přes D-Bus simulované stisky kláves (`menu`, `f1`..`f5`, `left`, `right`, `double_click`), které vývojáři v Göteborgu používali při automatizovaném testování GUI.
 
 ---
 
-## 3. Plná ARM emulace v QEMU (`qemu-system-arm`)
+## 3. Plný ARMv7 Linux Rootfs Emulátor na Windows (`run_arm_emulator.py`)
 
-Pokud chceš spustit přímo binárku `/usr/bin/victory-gui` spolu s daemony (`configstore`, `camera-daemon`, `bodystate-daemon`, `weston`) v emulovaném ARM procesoru na PC, projekt `YuHaoyua/hasselblad-x1d-reverse-engineering` ukazuje přesný postup:
+Pokud chceš na Windows spustit přímo rozbalený ARMv7 Linux `rootfs` fotoaparátu a jeho démony (`configstore`, `victory-gui`) v emulovaném ARMv7 kontejneru přes Docker Desktop (`arm32v7` QEMU user-mode emulace) a zobrazit si `640×480` Weston obrazovku v prohlížeči přes **noVNC**:
 
-1. **Co je potřeba**:
-   - Nainstalované `qemu-system-arm` (balíček QEMU pro Windows nebo Linux/WSL2).
-   - Linuxový kernel `zImage` zkompilovaný pro `imx_v6_v7_defconfig` nebo `vexpress-a9` s podporou `devtmpfs`, `fbdev` (640×480) a `virtio`.
-2. **Sestavení `initramfs` z rozbaleného `rootfs`**:
-   - V `rootfs` je již kompletní Yocto uživatelský prostor (`Hasselblad Umbrella Distro 2.0.3`), včetně `/usr/bin/weston`, `/usr/lib/weston/fbdev-backend.so` a `/usr/lib/weston/victory-shell.so`.
-   - Pro běh v QEMU (kde není grafický akcelerátor Vivante GC2000 z i.MX6) se ve skriptu `/usr/bin/weston.sh` upraví spuštění Westonu z `--use-gal2d=1` na čistý softwarový Pixman framebuffer (`--backend=fbdev-backend.so`) a `victory-gui` se spustí s přepínačem:
-     ```sh
-     export XDG_RUNTIME_DIR=/tmp
-     export QT_WAYLAND_DISABLE_WINDOWDECORATION=1
-     /usr/bin/victory-gui -platform wayland --wedge
-     ```
-3. **Kdy použít QEMU vs. náš lokální simulátor**:
-   - Pro **99 % úprav menu, odemykání `demo: true` položek a testování QML/JS změn** je mnohem rychlejší náš lokální simulátor `python ui_simulator/run_simulator.py`, protože nabíhá okamžitě a nepotřebuje kompilovat ARM kernel.
-   - QEMU se hodí ve chvíli, kdy bys chtěl ladit binární patche přímo v ARM instrukcích `/usr/bin/victory-gui` nebo `/usr/bin/camera-daemon` pomocí `gdb-multiarch`.
+```powershell
+python run_arm_emulator.py --cim "firmware/X1D_v1_25_0.cim"
+```
+
+### Jak to funguje a jak se připojit v noVNC:
+1. **Rozbalení `rootfs.tar.bz2`** z vybraného `.cim` firmwaru do `.emulator_cache/<firmware>/rootfs_full/` (včetně linuxových symlinků uvnitř kontejneru).
+2. **Sestavení a start kontejneru `x1d-armv7-emulator` (`arm_emulator/`)**:
+   - Zkopíruje D-Bus bezpečnostní politiky fotoaparátu (`/etc/dbus-1/system.d/com.hasselblad.*.conf`) a spustí `dbus-daemon --system`.
+   - Spustí originální ARMv7 démon `/usr/bin/configstore` z firmwaru (který zaregistruje `com.hasselblad.config` a načte všech 162 konfiguračních vlastností fotoaparátu) spolu s `arm_emulator/mock_hardware_dbus.py` (simulující `com.hasselblad.cambody`, `com.hasselblad.camera`, `com.hasselblad.lens`, `com.hasselblad.systemmanager` atd.).
+   - Spustí virtuální framebuffer `640×480` (`Xvfb :0`), Wayland kompozitor **Weston** (`640×480`), `x11vnc` a webový klient **noVNC** na portu `6080`.
+3. **Připojení v prohlížeči (`noVNC`)**:
+   - Otevři **`http://127.0.0.1:6080/vnc.html?autoconnect=true`**.
+   - Pokud v pravém horním rohu vidíš okénko **noVNC** (`Host: 127.0.0.1`, `Port: 6080`, `Password: [prázdné]`), stačí kliknout na tlačítko **`Connect`** (heslo se nevyplňuje) – zobrazí se živá `640×480` plocha kompozitoru Weston běžícího v ARMv7 kontejneru.

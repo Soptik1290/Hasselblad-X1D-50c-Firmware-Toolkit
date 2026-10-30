@@ -32,24 +32,30 @@ cp -f /usr/lib/arm-linux-gnueabihf/mesa-egl/libEGL.so.1* "$X1D_ROOT/usr/lib/" 2>
 cp -f /usr/lib/arm-linux-gnueabihf/mesa-egl/libGLESv2.so.2* "$X1D_ROOT/usr/lib/" 2>/dev/null || cp -f /usr/lib/arm-linux-gnueabihf/libGLESv2.so.2* "$X1D_ROOT/usr/lib/" 2>/dev/null || true
 
 # Bind system directories
-mkdir -p "$X1D_ROOT/tmp" "$X1D_ROOT/var/run/dbus"
+mkdir -p "$X1D_ROOT/tmp" "$X1D_ROOT/var/run/dbus" "$X1D_ROOT/usr/lib/arm-linux-gnueabihf" "$X1D_ROOT/lib/arm-linux-gnueabihf" "$X1D_ROOT/usr/share/glvnd"
 mount --bind /proc "$X1D_ROOT/proc" 2>/dev/null || true
 mount --bind /sys "$X1D_ROOT/sys" 2>/dev/null || true
 mount --bind /dev "$X1D_ROOT/dev" 2>/dev/null || true
 mount --bind /tmp "$X1D_ROOT/tmp" 2>/dev/null || true
+mount --bind /usr/lib/arm-linux-gnueabihf "$X1D_ROOT/usr/lib/arm-linux-gnueabihf" 2>/dev/null || true
+mount --bind /lib/arm-linux-gnueabihf "$X1D_ROOT/lib/arm-linux-gnueabihf" 2>/dev/null || true
+mount --bind /usr/share/glvnd "$X1D_ROOT/usr/share/glvnd" 2>/dev/null || true
 
-# Start system D-Bus
+# Copy Hasselblad D-Bus system policies and start system D-Bus
+cp -f "$X1D_ROOT/etc/dbus-1/system.d/"*.conf /etc/dbus-1/system.d/ 2>/dev/null || true
 mkdir -p /var/run/dbus
 rm -f /var/run/dbus/pid
 dbus-daemon --system --fork
 mount --bind /var/run/dbus "$X1D_ROOT/var/run/dbus" 2>/dev/null || true
 
-# Start Mock Hardware D-Bus services (cambody, farm, suc, storage)
+# Start Mock Hardware D-Bus services (com.hasselblad.*)
 python3 /emu/mock_hardware_dbus.py &
 
 # Start real ARMv7 configstore from X1D-50c rootfs
 echo "[*] Starting real ARMv7 /usr/bin/configstore daemon..."
-chroot "$X1D_ROOT" /usr/bin/configstore &
+chroot "$X1D_ROOT" /usr/bin/env \
+    LD_LIBRARY_PATH=/usr/lib:/lib:/usr/lib/arm-linux-gnueabihf:/lib/arm-linux-gnueabihf \
+    /usr/bin/configstore &
 sleep 1
 
 # Start 640x480 virtual X11 + Weston Wayland compositor + VNC + noVNC
@@ -68,13 +74,14 @@ x11vnc -display :0 -forever -shared -nopw -quiet &
 websockify --web=/usr/share/novnc/ 6080 localhost:5900 &
 
 echo "========================================================================"
-echo " [+] ARMv7 Emulator Running! Open http://127.0.0.1:6080/vnc.html"
+echo " [+] ARMv7 Emulator Running! Open http://127.0.0.1:6080/vnc.html?autoconnect=true"
 echo "========================================================================"
 
 # Launch the real ARMv7 victory-gui binary inside the X1D rootfs
 chroot "$X1D_ROOT" /usr/bin/env \
     XDG_RUNTIME_DIR=/tmp \
     WAYLAND_DISPLAY=wayland-0 \
+    LD_LIBRARY_PATH=/usr/lib:/lib:/usr/lib/arm-linux-gnueabihf:/lib/arm-linux-gnueabihf \
     LIBGL_ALWAYS_SOFTWARE=1 \
     QT_WAYLAND_DISABLE_WINDOWDECORATION=1 \
-    /usr/bin/victory-gui -platform wayland --wedge --main || tail -f /dev/null
+    /usr/bin/victory-gui -platform wayland --wedge || tail -f /dev/null

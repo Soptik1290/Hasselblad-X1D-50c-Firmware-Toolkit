@@ -72,7 +72,7 @@ def main():
         check=True,
     )
 
-    url = f"http://127.0.0.1:{args.port}/vnc.html"
+    url = f"http://127.0.0.1:{args.port}/vnc.html?autoconnect=true&resize=scale"
     print(f"[*] Starting ARMv7 X1D-50c container on {url} ...")
     webbrowser.open(url)
     subprocess.run(
