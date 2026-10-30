@@ -23,8 +23,18 @@ SIM_DIR = Path(__file__).resolve().parent
 if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
 
+import urllib.parse
 from verify_firmware_safety import run_preflight_sweep, compute_memory_and_slot_stats
 from patch_victory_qrc_file import strip_qml_js_comments
+from cim_emulator_loader import list_available_cim_images, boot_and_unpack_cim
+from run_arm_emulator import check_docker_status
+
+ACTIVE_STATE = {
+    "cim_id": "live_workspace",
+    "qml_dir": QML_DIR,
+    "version": "1.25.0",
+    "manifest": None,
+}
 
 
 def get_zlib_status():
@@ -105,10 +115,56 @@ class X1DSimulatorHandler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(data)
             return
 
+        if path == "/api/cim-list":
+            payload = {
+                "active_id": ACTIVE_STATE["cim_id"],
+                "active_version": ACTIVE_STATE["version"],
+                "active_manifest": ACTIVE_STATE["manifest"],
+                "images": list_available_cim_images(),
+            }
+            data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+            return
+
+        if path == "/api/arm-status":
+            data = json.dumps(check_docker_status(), ensure_ascii=False).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+            return
+
+        if path == "/api/boot-cim":
+            qs = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            cim_id = qs.get("id", ["live_workspace"])[0]
+            force = qs.get("force", ["0"])[0] == "1"
+            try:
+                manifest = boot_and_unpack_cim(cim_id, force_reextract=force)
+                ACTIVE_STATE["cim_id"] = manifest["id"]
+                ACTIVE_STATE["qml_dir"] = Path(manifest["qml_dir"]).resolve()
+                ACTIVE_STATE["version"] = manifest.get("version", "1.25.0")
+                ACTIVE_STATE["manifest"] = manifest
+                data = json.dumps(manifest, ensure_ascii=False).encode("utf-8")
+                self.send_response(200)
+            except Exception as exc:
+                data = json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=False).encode("utf-8")
+                self.send_response(400)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+            return
+
         if path.startswith("/qml/"):
             rel = path[len("/qml/"):]
-            target = (QML_DIR / rel).resolve()
-            if target.is_file() and str(target).startswith(str(QML_DIR.resolve())):
+            active_qml_root = ACTIVE_STATE["qml_dir"].resolve()
+            target = (active_qml_root / rel).resolve()
+            if target.is_file() and str(target).startswith(str(active_qml_root)):
                 ext = target.suffix.lower()
                 ctype = {
                     ".js": "application/javascript; charset=utf-8",
@@ -141,12 +197,20 @@ class X1DSimulatorHandler(http.server.SimpleHTTPRequestHandler):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Spustí lokální PC simulátor UI Hasselblad X1D-50c")
+    parser = argparse.ArgumentParser(description="Spustí lokální PC simulátor a .cim Bootloader pro Hasselblad X1D-50c")
     parser.add_argument("--port", type=int, default=8125, help="Port lokálního HTTP serveru (výchozí: 8125)")
+    parser.add_argument("--cim", type=str, default=None, help="Volitelně rovnou rozbalit a nabootovat zadaný .cim soubor ze složky firmware/")
     parser.add_argument("--no-browser", action="store_true", help="Nespouštět automaticky webový prohlížeč")
     args = parser.parse_args()
 
-    if not QML_DIR.exists():
+    if args.cim:
+        print(f"[*] Bootuji a rozbaluji firmware {args.cim} ...")
+        manifest = boot_and_unpack_cim(args.cim)
+        ACTIVE_STATE["cim_id"] = manifest["id"]
+        ACTIVE_STATE["qml_dir"] = Path(manifest["qml_dir"]).resolve()
+        ACTIVE_STATE["version"] = manifest.get("version", "1.25.0")
+        ACTIVE_STATE["manifest"] = manifest
+    elif not QML_DIR.exists():
         print(f"[!] Chyba: Složka {QML_DIR} neexistuje. Nejprve rozbal QRC zdroje pomocí extract_victory_qrc.py.")
         sys.exit(1)
 

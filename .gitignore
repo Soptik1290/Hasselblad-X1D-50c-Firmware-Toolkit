@@ -6,6 +6,7 @@ __pycache__/
 # Official encrypted firmware blobs & large extracted rootfs archives (>50 MB)
 firmware/*.cim
 *_extracted/
+.cim_boot_cache/
 *.tar.bz2
 *.tar.gz
 

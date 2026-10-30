@@ -1054,15 +1054,19 @@
 
   <header>
     <h1>
-      <span id="hdrTitle">Hasselblad X1D-50c (`victory-gui`) – Interactive PC UI Simulator & Toolkit</span>
-      <span class="badge">FW v1.25.0 (Wedge)</span>
+      <span id="hdrTitle">Hasselblad X1D-50c (`victory-gui`) – Interactive PC UI Simulator &amp; Toolkit</span>
+      <span id="hdrFwBadge" class="badge">FW v1.25.0 (Wedge)</span>
     </h1>
-    <div style="display:flex; gap:10px; align-items:center;">
+    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+      <select id="selCimImage" style="background:#14161b; color:#fff; border:1px solid #3e4451; padding:6px 10px; border-radius:6px; font-size:12px; font-weight:600;">
+        <option value="live_workspace">🔧 Live Workspace (victory_gui_qml/)</option>
+      </select>
+      <button id="btnBootCim" class="hw-btn orange" onclick="bootSelectedCim()">🚀 Boot .cim</button>
       <div class="lang-switch">
         <button id="btnLangEn" class="lang-btn active" onclick="setLang('en')">🇬🇧 EN</button>
         <button id="btnLangCs" class="lang-btn" onclick="setLang('cs')">🇨🇿 CZ</button>
       </div>
-      <button id="btnReloadQml" class="hw-btn orange" onclick="reloadLiveQml()">↻ Reload Live QML/JS</button>
+      <button id="btnReloadQml" class="hw-btn" onclick="reloadLiveQml()">↻ Reload QML/JS</button>
     </div>
   </header>
 
@@ -1103,9 +1107,10 @@
     <!-- RIGHT: LIVE MODDING, MEMORY COUNTER & ANTI-BRICK SWEEP -->
     <div class="inspector-col">
       <div class="inspector-tabs">
-        <button id="tabBtnXray" class="insp-tab-btn active" onclick="switchInspectorTab('xray')">🔧 Modding &amp; C++ X-Ray</button>
-        <button id="tabBtnMem" class="insp-tab-btn" onclick="switchInspectorTab('mem')">💾 Memory &amp; QRC Slots</button>
-        <button id="tabBtnSweep" class="insp-tab-btn" onclick="switchInspectorTab('sweep')">🛡️ Anti-Brick Sweep</button>
+        <button id="tabBtnXray" class="insp-tab-btn active" onclick="switchInspectorTab('xray')">🔧 Modding &amp; X-Ray</button>
+        <button id="tabBtnMem" class="insp-tab-btn" onclick="switchInspectorTab('mem')">💾 Memory &amp; QRC</button>
+        <button id="tabBtnSweep" class="insp-tab-btn" onclick="switchInspectorTab('sweep')">🛡️ Anti-Brick</button>
+        <button id="tabBtnBoot" class="insp-tab-btn" onclick="switchInspectorTab('boot')">🖥️ .cim &amp; ARM Emu</button>
       </div>
 
       <!-- TAB 1: MODDING & C++ X-RAY -->
@@ -1229,6 +1234,39 @@
               <li><strong>One-shot trial boot (<code>upgrade=1</code>):</strong> On reboot, U-Boot sees <code>upgrade=1</code>, immediately <strong>clears <code>upgrade</code> and saves env</strong> before booting the new slot with <code>status=1</code>.</li>
               <li><strong>Automatic rollback:</strong> Only after Linux + D-Bus + <code>upgrade-daemon</code> successfully start does <code>hbl-post-upgrade</code> commit <code>current_bootpart</code>. If the new slot fails to boot, simply power-cycling the camera boots right back into your working firmware!</li>
             </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 4: .CIM BOOT CONSOLE & REAL ARMV7 EMULATOR -->
+      <div id="tabPaneBoot" style="display:none; flex-direction:column; gap:16px;">
+        <div class="card">
+          <h2>
+            <span id="bootConsoleTitle">1. Direct `.cim` Bootloader &amp; UART Serial Console (`ttymxc0`)</span>
+            <span id="bootActiveBadge" class="status-pill ok">Live Workspace</span>
+          </h2>
+          <div id="bootMetaSummary" style="font-size:12px; color:var(--text-muted); margin-bottom:8px;">
+            Select any official (`v1.20.0` – `v1.25.0`) or custom `.cim` file in the top bar and click <strong>🚀 Boot .cim</strong> to decrypt, verify checksums, extract `rootfs.tar.bz2` + `victory-gui` QRC assets, and boot it live!
+          </div>
+          <pre id="bootConsoleLog" style="background:#0b0d10; color:#69f0ae; border:1px solid #282e38; border-radius:8px; padding:12px; font-family:Consolas, monospace; font-size:11.5px; max-height:260px; overflow-y:auto; margin:0; white-space:pre-wrap;">[U-Boot 2015.04] Ready. Select a .cim image above and click "🚀 Boot .cim" to run full unpack &amp; boot sequence.</pre>
+        </div>
+
+        <div class="card">
+          <h2>
+            <span id="armEmuTitle">2. Real ARMv7 Linux Rootfs Emulator (Docker + QEMU `armhf` + Mesa)</span>
+            <span id="armDockerBadge" class="status-pill exp">Checking Docker...</span>
+          </h2>
+          <div id="armEmuBody" style="font-size:12.5px; line-height:1.55; color:#d0d7de;">
+            Want to execute the <strong>actual compiled 32-bit ARMv7 ELF binaries</strong> (<code>/usr/bin/configstore</code>, <code>/usr/bin/victory-gui</code>, <code>dbus-daemon</code>) directly from <code>rootfs.tar.bz2</code>?
+            <div style="margin-top:8px; background:#14161b; border:1px solid #262b36; border-radius:8px; padding:10px 12px; font-family:Consolas, monospace; font-size:12px; color:#ffb74d;">
+              # 1. Unpack &amp; boot any .cim in CLI:<br>
+              python cim_emulator_loader.py X1D_v1_20_0.cim<br><br>
+              # 2. Launch full ARMv7 Linux Rootfs container + noVNC (port 6080):<br>
+              python run_arm_emulator.py
+            </div>
+            <div style="margin-top:8px; font-size:11.5px; color:var(--text-muted);">
+              <code>arm_emulator/</code> replaces the proprietary Freescale Vivante <code>/dev/galcore</code> GPU driver with ARMhf Mesa Software OpenGL ES 2.0 (<code>llvmpipe/swrast</code>) and runs a D-Bus hardware bridge (<code>mock_hardware_dbus.py</code>) + Weston + noVNC on <code>http://127.0.0.1:6080/vnc.html</code>.
+            </div>
           </div>
         </div>
       </div>
@@ -1774,11 +1812,96 @@
       document.getElementById("tabBtnXray").classList.toggle("active", tab === "xray");
       document.getElementById("tabBtnMem").classList.toggle("active", tab === "mem");
       document.getElementById("tabBtnSweep").classList.toggle("active", tab === "sweep");
+      document.getElementById("tabBtnBoot").classList.toggle("active", tab === "boot");
       document.getElementById("tabPaneXray").style.display = (tab === "xray") ? "flex" : "none";
       document.getElementById("tabPaneMem").style.display = (tab === "mem") ? "flex" : "none";
       document.getElementById("tabPaneSweep").style.display = (tab === "sweep") ? "flex" : "none";
+      document.getElementById("tabPaneBoot").style.display = (tab === "boot") ? "flex" : "none";
       if (tab === "mem" && !state.lastMemoryData) loadMemoryStats();
       if (tab === "sweep" && !state.lastSweepData) runPreflightSweep(false);
+    }
+
+    async function loadCimList() {
+      try {
+        const resp = await fetch("/api/cim-list?t=" + Date.now());
+        const data = await resp.json();
+        const sel = document.getElementById("selCimImage");
+        if (sel && data.images) {
+          sel.innerHTML = data.images.map(img => {
+            const label = img.is_live
+              ? "🔧 Live Workspace (victory_gui_qml/)"
+              : `📦 ${img.filename} (FW v${img.version}${img.cached ? " • Cached" : ""})`;
+            const selected = img.id === data.active_id ? "selected" : "";
+            return `<option value="${img.id}" ${selected}>${label}</option>`;
+          }).join("");
+        }
+        const armResp = await fetch("/api/arm-status?t=" + Date.now());
+        const arm = await armResp.json();
+        const armBadge = document.getElementById("armDockerBadge");
+        if (armBadge) {
+          armBadge.className = "status-pill " + (arm.running ? "ok" : (arm.installed ? "exp" : "stub"));
+          armBadge.textContent = arm.running ? "Docker Ready" : (arm.installed ? "Docker Installed (Stopped)" : "Docker Not Found");
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function bootSelectedCim() {
+      const sel = document.getElementById("selCimImage");
+      const cimId = sel ? sel.value : "live_workspace";
+      const scr = document.getElementById("screen");
+
+      // Show hardware U-Boot + Linux boot screen inside 640x480 display
+      if (scr) {
+        scr.innerHTML = `
+          <div style="width:640px; height:480px; background:#050608; color:#69f0ae; font-family:Consolas, monospace; font-size:13px; padding:18px; display:flex; flex-direction:column; justify-content:space-between;">
+            <div>
+              <div style="color:#de4200; font-size:20px; font-weight:bold; margin-bottom:8px;">HASSELBLAD X1D-50c BOOTLOADER (U-Boot 2015.04)</div>
+              <div>[*] Target Image: <strong style="color:#fff">${cimId}</strong></div>
+              <div>[*] Decrypting AES-128-CBC (4KB chunk IV reset) &amp; verifying two-stage PrivateHeader::Checksum...</div>
+              <div>[*] Unpacking rootfs.tar.bz2 &amp; auto-detecting QRC tables in /usr/bin/victory-gui...</div>
+            </div>
+            <div style="text-align:center; color:#fff; font-size:32px; letter-spacing:4px; font-family:'Helvetica Neue LT Std', sans-serif;">HASSELBLAD</div>
+            <div style="color:#9ba3b0; font-size:12px;">console=ttymxc0,115200 root=/dev/mmcblk3p4 ro quiet mem=512M status=1</div>
+          </div>
+        `;
+      }
+
+      try {
+        const resp = await fetch("/api/boot-cim?id=" + encodeURIComponent(cimId) + "&t=" + Date.now());
+        const manifest = await resp.json();
+        if (!manifest.ok) {
+          alert("Boot failed: " + manifest.error);
+          renderScreen();
+          return;
+        }
+
+        // Update firmware version badge & About screen versionID
+        const fwVer = manifest.version || "1.25.0";
+        SETTING_META.versionID.val = fwVer;
+        const badge = document.getElementById("hdrFwBadge");
+        if (badge) badge.textContent = `FW v${fwVer} (Wedge)`;
+
+        const bootBadge = document.getElementById("bootActiveBadge");
+        if (bootBadge) bootBadge.textContent = `${manifest.filename} (${manifest.elapsed_sec}s)`;
+
+        const logPre = document.getElementById("bootConsoleLog");
+        if (logPre && manifest.boot_log) {
+          logPre.textContent = manifest.boot_log.join("\n");
+        }
+
+        // Brief pause so user sees the U-Boot splash on the 640x480 screen, then boot into QML UI
+        await new Promise(r => setTimeout(r, 650));
+        const persona = document.getElementById("selPersona").value;
+        await loadMenuSpecScript(persona);
+        await loadCimList();
+        switchInspectorTab("boot");
+        showToast(`Booted ${manifest.filename} (FW v${fwVer})!`);
+      } catch (e) {
+        console.error(e);
+        renderScreen();
+      }
     }
 
     function getVal(name) {
@@ -2528,6 +2651,7 @@
 
     // Inicializace při načtení stránky
     window.addEventListener("DOMContentLoaded", async () => {
+      await loadCimList();
       await loadMenuSpecScript("wedge");
       await loadZlibStatus();
       await loadMemoryStats();
