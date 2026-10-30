@@ -1,0 +1,13 @@
+<RCC>
+    <qresource prefix="/">
+        <file>translations/victory_fr_FR.qm</file>
+        <file>translations/victory_zh_CN.qm</file>
+        <file>translations/victory_it_IT.qm</file>
+        <file>translations/victory_de_DE.qm</file>
+        <file>translations/victory_es_ES.qm</file>
+        <file>translations/victory_ja_JP.qm</file>
+        <file>translations/victory_ko_KR.qm</file>
+        <file>translations/victory_ru_RU.qm</file>
+        <file>translations/victory_sv_SE.qm</file>
+    </qresource>
+</RCC>

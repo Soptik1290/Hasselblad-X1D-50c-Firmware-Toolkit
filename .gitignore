@@ -1,0 +1,16 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Official encrypted firmware blobs & large extracted rootfs archives (>50 MB)
+firmware/*.cim
+*_extracted/
+*.tar.bz2
+*.tar.gz
+
+# OS / IDE files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

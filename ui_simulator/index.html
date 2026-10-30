@@ -1,0 +1,1953 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <title>Hasselblad X1D-50c (v1.25.0) – PC UI Simulátor & QML Inspektor</title>
+  <style>
+    @font-face {
+      font-family: 'Helvetica Neue LT Std';
+      src: url('/fonts/HelveticaNeueLTStd-Lt_1.otf') format('opentype');
+      font-weight: normal;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: 'Helvetica Neue LT Std';
+      src: url('/fonts/HelveticaNeueLTStd-Bd_1.otf') format('opentype');
+      font-weight: bold;
+      font-style: normal;
+    }
+
+    :root {
+      --hbl-orange: #de4200;
+      --hbl-orange-dark: #852800;
+      --hbl-line: #58595b;
+      --hbl-wedge-bar: #222222;
+      --bg-dark: #111317;
+      --panel-bg: #1a1d24;
+      --panel-border: #2c313c;
+      --text-main: #f0f2f5;
+      --text-muted: #9ba3b0;
+      --ok-green: #39b54a;
+      --warn-amber: #f5a623;
+      --err-red: #e53935;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+    }
+
+    body {
+      margin: 0;
+      padding: 20px;
+      background: var(--bg-dark);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    header {
+      width: 100%;
+      max-width: 1380px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--panel-border);
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .badge {
+      background: var(--hbl-orange);
+      color: #fff;
+      font-size: 12px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .workspace {
+      display: flex;
+      gap: 24px;
+      width: 100%;
+      max-width: 1380px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+
+    /* === CAMERA CHASSIS === */
+    .camera-chassis {
+      background: linear-gradient(145deg, #23262b, #16181b);
+      border: 2px solid #343840;
+      border-radius: 18px;
+      padding: 22px 26px 26px 26px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .chassis-top-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      background: #141619;
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid #282c34;
+    }
+
+    .wheel-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .hw-btn {
+      background: #282c34;
+      color: #e4e7eb;
+      border: 1px solid #3e4451;
+      border-radius: 6px;
+      padding: 6px 11px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.12s;
+    }
+
+    .hw-btn:hover {
+      background: #363b46;
+      border-color: var(--hbl-orange);
+    }
+
+    .hw-btn:active {
+      background: var(--hbl-orange);
+      color: #fff;
+    }
+
+    .hw-btn.orange {
+      background: var(--hbl-orange);
+      border-color: #ff5714;
+      color: #fff;
+    }
+
+    .body-row {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+
+    /* === 640x480 TOUCH WINDOW === */
+    #screen {
+      width: 640px;
+      height: 480px;
+      background: #000;
+      position: relative;
+      overflow: hidden;
+      border: 2px solid #333;
+      font-family: 'Helvetica Neue LT Std', 'Arial Narrow', sans-serif;
+      color: #fff;
+    }
+
+    .side-hw-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .side-hw-buttons .hw-btn {
+      width: 64px;
+      height: 52px;
+      border-radius: 50%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      line-height: 1.2;
+      padding: 0;
+    }
+
+    /* === STATUS ROW === */
+    .status-row {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      z-index: 30;
+      pointer-events: none;
+    }
+
+    .status-left, .status-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card-badge {
+      width: 28px;
+      height: 28px;
+      border: 2px solid #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: bold;
+      background: #000;
+    }
+
+    .card-badge.active {
+      background: var(--hbl-orange);
+      border-color: var(--hbl-orange);
+    }
+
+    .no-storage-badge {
+      background: red;
+      border: 2px solid #fff;
+      color: #fff;
+      font-weight: bold;
+      font-size: 13px;
+      line-height: 1.05;
+      padding: 2px 8px;
+      text-align: center;
+    }
+
+    /* === CONTROL SCREEN (640x480) === */
+    .ctrl-screen {
+      width: 640px;
+      height: 480px;
+      position: relative;
+      background: #000;
+    }
+
+    .ctrl-top-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 640px;
+      height: 104px;
+      border-bottom: 2px solid var(--hbl-line);
+      display: flex;
+      align-items: center;
+      padding: 0 18px;
+      justify-content: space-between;
+    }
+
+    .exp-mode-badge {
+      font-size: 68px;
+      font-weight: bold;
+      color: #fff;
+      cursor: pointer;
+      padding: 0 10px;
+    }
+
+    .exp-mode-badge:hover {
+      color: var(--hbl-orange);
+    }
+
+    .ctrl-main-grid {
+      position: absolute;
+      top: 104px;
+      left: 0;
+      width: 640px;
+      height: 272px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 155px 117px;
+    }
+
+    .ctrl-cell {
+      border-right: 1px solid #2b2c2e;
+      border-bottom: 1px solid #2b2c2e;
+      position: relative;
+      padding: 10px 18px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .ctrl-cell:hover {
+      background: #141414;
+    }
+
+    .ctrl-cell .lbl {
+      font-size: 32px;
+      color: #aaa;
+      letter-spacing: 0.5px;
+    }
+
+    .ctrl-cell .val-lg {
+      font-size: 92px;
+      line-height: 0.95;
+      color: #fff;
+    }
+
+    .ctrl-cell .val-md {
+      font-size: 62px;
+      line-height: 1;
+      color: #fff;
+    }
+
+    .wheel-hint {
+      position: absolute;
+      top: 8px;
+      right: 12px;
+      font-size: 16px;
+      color: var(--hbl-orange);
+      letter-spacing: 0.5px;
+    }
+
+    .ctrl-bottom-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 640px;
+      height: 104px;
+      border-top: 2px solid var(--hbl-line);
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+    }
+
+    .ctrl-bot-item {
+      border-right: 1px solid #2b2c2e;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .ctrl-bot-item:hover {
+      background: var(--hbl-orange);
+    }
+
+    .ctrl-bot-item .bot-title {
+      font-size: 22px;
+      color: #aaa;
+    }
+
+    .ctrl-bot-item:hover .bot-title {
+      color: #fff;
+    }
+
+    .ctrl-bot-item .bot-val {
+      font-size: 38px;
+      color: #fff;
+    }
+
+    /* === MAIN MENU SCREEN === */
+    .main-menu-screen {
+      width: 640px;
+      height: 480px;
+      position: relative;
+      background: #000;
+    }
+
+    .menu-header-title {
+      position: absolute;
+      top: 26px;
+      left: 0;
+      text-align: center;
+      font-size: 20px;
+      letter-spacing: 1px;
+      color: #fff;
+      text-transform: uppercase;
+      pointer-events: none;
+    }
+
+    .build-banner {
+      position: absolute;
+      top: 4px;
+      left: 0;
+      text-align: center;
+      font-size: 18px;
+      color: #ff5252;
+      pointer-events: none;
+    }
+
+    .fav-grid {
+      position: absolute;
+      top: 52px;
+      left: 9px;
+      width: 462px;
+      height: 420px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(3, 140px);
+    }
+
+    .fav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border-radius: 8px;
+      padding: 6px;
+      position: relative;
+    }
+
+    .fav-item:hover {
+      background: #1f1f1f;
+      outline: 2px solid var(--hbl-orange);
+    }
+
+    .fav-item img {
+      max-width: 74px;
+      max-height: 74px;
+      object-fit: contain;
+    }
+
+    .fav-item span {
+      margin-top: 6px;
+      font-size: 26px;
+      color: #fff;
+      text-align: center;
+      line-height: 1.05;
+    }
+
+    .wedge-right-bar {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 160px;
+      height: 480px;
+      background: var(--hbl-wedge-bar);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 28px;
+    }
+
+    .wedge-cat-btn {
+      width: 145px;
+      height: 105px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border-radius: 6px;
+      border: 2px solid transparent;
+    }
+
+    .wedge-cat-btn:hover {
+      border-color: var(--hbl-orange);
+      background: rgba(222, 66, 0, 0.18);
+    }
+
+    .wedge-cat-btn img {
+      max-width: 135px;
+      max-height: 95px;
+    }
+
+    /* === LEVEL 1 & LEVEL 2 LIST VIEWS === */
+    .menu-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 640px;
+      height: 480px;
+      background: #000;
+      border-left: 3px solid var(--hbl-line);
+      z-index: 40;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .menu-top-header {
+      height: 58px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 18px 4px 18px;
+      border-bottom: 1px solid #222;
+      flex-shrink: 0;
+    }
+
+    .back-btn {
+      color: var(--hbl-orange);
+      font-size: 28px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 2px 8px;
+    }
+
+    .back-btn:hover {
+      background: #1b1b1b;
+      border-radius: 4px;
+    }
+
+    .menu-top-title {
+      font-size: 22px;
+      color: #fff;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .menu-list {
+      flex: 1;
+      overflow-y: auto;
+      padding-bottom: 24px;
+    }
+
+    .menu-list::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .menu-list::-webkit-scrollbar-thumb {
+      background: var(--hbl-orange);
+    }
+
+    .menu-row-lvl1 {
+      height: 94px;
+      display: flex;
+      align-items: center;
+      padding: 0 24px 0 54px;
+      cursor: pointer;
+      position: relative;
+      border-bottom: 1px solid #141414;
+    }
+
+    .menu-row-lvl1:hover, .menu-row-lvl1.selected {
+      background: var(--hbl-orange);
+    }
+
+    .menu-row-lvl1 img {
+      width: 56px;
+      height: 56px;
+      object-fit: contain;
+      margin-right: 16px;
+    }
+
+    .menu-row-lvl1 .lvl1-text {
+      font-size: 52px;
+      color: #fff;
+      line-height: 1;
+    }
+
+    /* DemoMarker.qml replica */
+    .demo-marker {
+      position: absolute;
+      inset: 0;
+      background: rgba(255, 0, 0, 0.30);
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    .demo-tag {
+      position: absolute;
+      right: 12px;
+      top: 6px;
+      font-size: 14px;
+      background: rgba(229, 57, 53, 0.85);
+      color: #fff;
+      padding: 1px 6px;
+      border-radius: 3px;
+      z-index: 6;
+      letter-spacing: 0.5px;
+    }
+
+    .secret-tag {
+      position: absolute;
+      right: 12px;
+      top: 6px;
+      font-size: 14px;
+      background: var(--ok-green);
+      color: #000;
+      font-weight: bold;
+      padding: 1px 6px;
+      border-radius: 3px;
+      z-index: 6;
+    }
+
+    /* Level 2 SettingsGeneric rows */
+    .subheader-row {
+      padding: 20px 24px 6px 36px;
+      border-bottom: 2px solid var(--hbl-orange);
+      font-size: 44px;
+      color: var(--hbl-orange);
+      line-height: 1;
+    }
+
+    .setting-row {
+      min-height: 82px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 28px 8px 46px;
+      border-bottom: 1px solid #191919;
+      position: relative;
+      cursor: pointer;
+    }
+
+    .setting-row:hover {
+      background: #141414;
+    }
+
+    .setting-row.active-inspect {
+      outline: 2px solid var(--hbl-orange);
+      background: #1a120e;
+    }
+
+    .setting-label {
+      font-size: 38px;
+      color: #fff;
+      line-height: 1.05;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .setting-subtext {
+      font-size: 22px;
+      color: #aaa;
+    }
+
+    .setting-control {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      z-index: 10;
+    }
+
+    /* QML Controls replicas */
+    .qml-dropdown {
+      min-width: 195px;
+      height: 52px;
+      background: #000;
+      border: 2px solid #fff;
+      color: #fff;
+      font-family: 'Helvetica Neue LT Std', sans-serif;
+      font-size: 34px;
+      padding: 0 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+    }
+
+    .qml-dropdown:hover {
+      border-color: var(--hbl-orange);
+    }
+
+    .qml-unit {
+      font-size: 32px;
+      color: #ccc;
+    }
+
+    .qml-checkbox {
+      width: 34px;
+      height: 34px;
+      border: 2px solid #fff;
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .qml-checkbox.checked {
+      background: var(--hbl-orange);
+      border-color: var(--hbl-orange);
+    }
+
+    .qml-checkbox.checked::after {
+      content: "✓";
+      font-size: 26px;
+      color: #fff;
+      font-weight: bold;
+    }
+
+    .qml-boolswitch {
+      width: 84px;
+      height: 40px;
+      border: 2px solid #fff;
+      background: #555;
+      position: relative;
+      transition: background 0.15s;
+    }
+
+    .qml-boolswitch.on {
+      background: var(--hbl-orange);
+    }
+
+    .qml-boolswitch .knob {
+      width: 34px;
+      height: 32px;
+      background: #fff;
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      transition: left 0.15s;
+    }
+
+    .qml-boolswitch.on .knob {
+      left: 44px;
+    }
+
+    .qml-button {
+      height: 56px;
+      min-width: 210px;
+      border: 3px solid var(--hbl-orange);
+      background: transparent;
+      color: #fff;
+      font-family: 'Helvetica Neue LT Std', sans-serif;
+      font-size: 36px;
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .qml-button:active {
+      background: #fff;
+      color: #000;
+    }
+
+    /* Popover modal inside 640x480 */
+    .popover-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.82);
+      z-index: 80;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .popover-box {
+      width: 496px;
+      max-height: 410px;
+      background: #000;
+      border: 2px solid #646464;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .popover-header {
+      padding: 12px 18px;
+      font-size: 24px;
+      color: var(--hbl-orange);
+      border-bottom: 1px solid #333;
+      text-transform: uppercase;
+    }
+
+    .popover-options {
+      overflow-y: auto;
+      max-height: 340px;
+    }
+
+    .popover-opt {
+      padding: 14px 24px;
+      font-size: 40px;
+      color: #fff;
+      cursor: pointer;
+      border-bottom: 1px solid #1a1a1a;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .popover-opt:hover, .popover-opt.active {
+      background: var(--hbl-orange);
+    }
+
+    /* Toast notification */
+    .toast {
+      position: absolute;
+      bottom: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--hbl-orange);
+      color: #fff;
+      padding: 8px 18px;
+      font-size: 26px;
+      border: 2px solid #fff;
+      z-index: 100;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .toast.show {
+      opacity: 1;
+    }
+
+    /* === RIGHT INSPECTOR PANEL === */
+    .inspector-col {
+      flex: 1;
+      min-width: 390px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      padding: 16px 18px;
+    }
+
+    .card h2 {
+      margin: 0 0 12px 0;
+      font-size: 15px;
+      color: #fff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--panel-border);
+      padding-bottom: 8px;
+    }
+
+    .toggle-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .toggle-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      background: #14161b;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid #252932;
+    }
+
+    .toggle-item code {
+      color: #ffb74d;
+      font-size: 12px;
+    }
+
+    .xray-box {
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .xray-grid {
+      display: grid;
+      grid-template-columns: 135px 1fr;
+      gap: 6px 10px;
+      margin-top: 8px;
+    }
+
+    .xray-grid .k {
+      color: var(--text-muted);
+    }
+
+    .xray-grid .v {
+      font-family: Consolas, monospace;
+      color: #e6edf3;
+      word-break: break-word;
+    }
+
+    .status-pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .status-pill.ok { background: rgba(57, 181, 74, 0.2); color: #5ce06e; border: 1px solid #39b54a; }
+    .status-pill.exp { background: rgba(245, 166, 35, 0.2); color: #ffc14d; border: 1px solid #f5a623; }
+    .status-pill.stub { background: rgba(229, 57, 53, 0.2); color: #ff7976; border: 1px solid #e53935; }
+
+    table.slot-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    table.slot-table th, table.slot-table td {
+      text-align: left;
+      padding: 6px 8px;
+      border-bottom: 1px solid #262a34;
+    }
+
+    table.slot-table th {
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>
+      <span>Hasselblad X1D-50c (`victory-gui`) – Interaktivní PC Simulátor</span>
+      <span class="badge">FW v1.25.0 (Wedge)</span>
+    </h1>
+    <div style="display:flex; gap:10px;">
+      <button class="hw-btn orange" onclick="reloadLiveQml()">↻ Znovu načíst živé QML/JS ze složky</button>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <!-- LEFT: CAMERA CHASSIS & 640x480 SCREEN -->
+    <div class="camera-chassis">
+      <div class="chassis-top-controls">
+        <div class="wheel-group">
+          <span>Přední kolečko:</span>
+          <button class="hw-btn" onclick="turnWheel('front', -1)">◀</button>
+          <button class="hw-btn" onclick="turnWheel('front', 1)">▶</button>
+        </div>
+        <div class="wheel-group">
+          <button class="hw-btn" onclick="pressTopBtn('AF_MF')">AF/MF</button>
+          <button class="hw-btn" onclick="pressTopBtn('ISO_WB')">ISO/WB</button>
+        </div>
+        <div class="wheel-group">
+          <span>Zadní kolečko:</span>
+          <button class="hw-btn" onclick="turnWheel('rear', -1)">◀</button>
+          <button class="hw-btn" onclick="turnWheel('rear', 1)">▶</button>
+        </div>
+      </div>
+
+      <div class="body-row">
+        <!-- 640x480 SCREEN -->
+        <div id="screen"></div>
+
+        <!-- RIGHT SIDE PHYSICAL BUTTONS ON X1D BODY -->
+        <div class="side-hw-buttons">
+          <button class="hw-btn" title="AE-L tlačítko" onclick="pressTopBtn('AE_L')">AE-L</button>
+          <button class="hw-btn" title="AF-D tlačítko" onclick="pressTopBtn('AF_D')">AF-D</button>
+          <button class="hw-btn orange" title="Otevřít/zavřít Hlavní Menu" onclick="toggleMainMenu()">MENU</button>
+          <button class="hw-btn" title="Domovská obrazovka / Zpět (X)" onclick="goControlScreen()">✕<br><span style="font-size:9px">CTRL</span></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: LIVE MODDING & C++ BACKEND X-RAY PANEL -->
+    <div class="inspector-col">
+      <div class="card">
+        <h2>
+          <span>1. Živé přepínače (`guiconfig` & `DemoState`)</span>
+          <span style="font-size:12px; color:var(--text-muted)">Okamžitý efekt v UI</span>
+        </h2>
+        <div class="toggle-list">
+          <label class="toggle-item">
+            <span>Skrýt nedokončené/inženýrské položky (<code>guiconfig.hideDemoItems</code>)</span>
+            <input type="checkbox" id="chkHideDemo" checked onchange="onToggleFlags()" />
+          </label>
+          <label class="toggle-item">
+            <span>Červené zvýraznění <code>demo: true</code> položek (<code>DemoState.demoOn</code>)</span>
+            <input type="checkbox" id="chkDemoOn" checked onchange="onToggleFlags()" />
+          </label>
+          <label class="toggle-item">
+            <span>Servisní Easter Egg (<code>guiconfig.showSecretMenuItems</code>)<br><small style="color:var(--text-muted)">Tip: Nebo 5× klepni na „Firmware: 1.25.0“ v General Settings → About!</small></span>
+            <input type="checkbox" id="chkSecret" onchange="onToggleFlags()" />
+          </label>
+          <div class="toggle-item">
+            <span>Profil těla (<code>MenuItemImporter.js</code>):</span>
+            <select id="selPersona" onchange="onChangePersona()" style="background:#232730; color:#fff; border:1px solid #444; padding:4px 8px; border-radius:4px;">
+              <option value="wedge">Wedge – Hasselblad X1D-50c</option>
+              <option value="victory">Victory – Hasselblad H6D-50c/100c</option>
+              <option value="cfv">Idun – 907X / CFV II 50C</option>
+              <option value="a6d">A6D – Průmyslová kamera A6D</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>
+          <span>2. Rentgen C++ Backendu (QML ↔ D-Bus ↔ Daemony)</span>
+          <span style="font-size:12px; color:var(--text-muted)">Klikni na položku v menu</span>
+        </h2>
+        <div id="xrayContent" class="xray-box">
+          <div style="color:var(--text-muted)">
+            Klikni na libovolnou položku v 640×480 menu vlevo (nebo odemkni skryté funkce odškrtnutím <code>guiconfig.hideDemoItems</code>) a zobrazí se její přesná vazba v C++ binárkách <code>victory-gui</code>, <code>configstore</code>, <code>msg2dbus</code> a <code>camera-daemon</code>.
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>
+          <span>3. Kontrola QRC slotů pro In-Place Patch (`victory-gui`)</span>
+          <span style="font-size:12px; color:var(--text-muted)">zlib level 9</span>
+        </h2>
+        <table class="slot-table">
+          <thead>
+            <tr>
+              <th>Soubor ve `victory_gui_qml/`</th>
+              <th>Potřeba / Slot</th>
+              <th>Rezerva</th>
+            </tr>
+          </thead>
+          <tbody id="zlibTableBody">
+            <tr><td colspan="3">Načítám stav slotů...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // === 1. MOCK PROSTŘEDÍ PRO PŘÍMÉ SPUŠTĚNÍ MenuItemSpecifications*.js ===
+    function qsTranslate(ctx, str) { return str; }
+    function QT_TRANSLATE_NOOP(ctx, str) { return str; }
+    function qsTr(str) { return str; }
+
+    var Config = { Raw: 0, RawJpg: 1, Jpg: 2 };
+    var Cambody = { CapabilityGetSetAFmode: 1, CapabilityContinuousDrive: 2 };
+    var Lens = { HCLens: 1, HCCLens: 2, XCLens: 3, lens_family: 3, has_divided_scan_range: true };
+    var BodySync = { DmFullauto: 99, currentDialMode: 1 };
+    var ContentModel = { STORAGE_ABSENT: 0, card0Status: 1, card1Status: 1 };
+
+    var guiconfig = {
+      isWedge: true,
+      hideDemoItems: true,
+      showSecretMenuItems: false,
+      emptyString: ""
+    };
+    var DemoState = { demoOn: true };
+
+    var configstore = {
+      eshutter: false,
+      CustomOption_FocusPeaking: true,
+      focusBracketingActive: false,
+      image_format: 0
+    };
+    var camera = {};
+    var farm = {};
+    var system = {};
+    var suc = { lensVersion: "0.5.3" };
+    var prodinfo = { wifiAvailable: true };
+    var cambody = { capabilities: 3 };
+
+    // === 2. DATABÁZE C++ BACKENDU A VOLBY PRO POLOŽKY ===
+    const SETTING_META = {
+      // Skryté AF ladicí volby (100% funkční v C++)
+      af_fir: {
+        type: "bool", val: false, status: "exp", statusText: "Funkční v C++ (Ladění AF)",
+        cppSetter: "ConfigStoreProxy::setAf_fir(bool)",
+        dbus: "se.hasselblad.configstore -> af_fir",
+        daemon: "msg2dbus (FarmHandler -> FPGA FIR filtr kontrastní křivky)",
+        notes: "Zapíná FIR vyhlazovací filtr nad měřením kontrastu během CDAF skenu objektivu."
+      },
+      af_log: {
+        type: "bool", val: false, status: "exp", statusText: "Funkční v C++ (Ladění AF)",
+        cppSetter: "ConfigStoreProxy::setAf_log(bool)",
+        dbus: "se.hasselblad.configstore -> af_log",
+        daemon: "msg2dbus -> logování CDAF průběhu",
+        notes: "Ukládá telemetrii ostřicího kroku pro inženýrskou diagnostiku."
+      },
+      af_full_scan: {
+        type: "bool", val: false, status: "exp", statusText: "Funkční v C++ (Ladění AF)",
+        cppSetter: "ConfigStoreProxy::setAf_full_scan(bool)",
+        dbus: "se.hasselblad.configstore -> af_full_scan",
+        daemon: "msg2dbus -> af_cmd_scan_request",
+        notes: "Vynutí proskenování celého rozsahu krokového motoru objektivu XCD."
+      },
+      fpga_debug: {
+        type: "dropdown", val: "x + y", options: ["x + y", "x + y/4", "x + y/2"],
+        status: "exp", statusText: "100% funkční (Brenner FPGA registr)",
+        cppSetter: "SettingsMiddleLayer::setFpga_debug(QString)",
+        dbus: "se.hasselblad.configstore -> fpga_debug (0..2)",
+        daemon: "msg2dbus (FarmHandler -> FARM FPGA Brenner gradient)",
+        notes: "Mění vážení horizontálního a vertikálního kontrastu v čipu FARM FPGA."
+      },
+      DebugAfSpeedEnable: {
+        type: "bool", val: false, status: "exp", statusText: "100% funkční (Povolení vlastní rychlosti AF)",
+        cppSetter: "ConfigStoreProxy::setDebugAfSpeedEnable(bool)",
+        dbus: "se.hasselblad.configstore -> DebugAfSpeedEnable",
+        daemon: "msg2dbus (SucHandler -> af_cmd_speed)",
+        notes: "Povoluje přepsání výchozí rychlosti krokového motoru objektivu hodnotou z DebugAfSpeed."
+      },
+      DebugAfSpeed: {
+        type: "dropdown", val: "21000",
+        options: ["7000", "9000", "11000", "13000", "15000", "17000", "19000", "21000", "23000", "25000", "27000", "29000", "31000"],
+        status: "exp", statusText: "100% funkční (Rychlost AF motoru XCD)",
+        cppSetter: "SettingsMiddleLayer::setDebugAfSpeed(QString)",
+        dbus: "se.hasselblad.configstore -> DebugAfSpeed",
+        daemon: "msg2dbus (SucHandler -> af_cmd_speed do XCD objektivu)",
+        notes: "13 diskrétních rychlostí motoru (7000 až 31000) přímo v SettingsMiddleLayer (offset 0x1bf2d8)."
+      },
+      DebugAfMode: {
+        type: "dropdown", val: "Normal", options: ["Normal", "Debug 1", "Debug 2"],
+        status: "exp", statusText: "Funkční v C++ (Režim AF)",
+        cppSetter: "SettingsMiddleLayer::setDebugAfMode(QString)",
+        dbus: "se.hasselblad.configstore -> DebugAfMode",
+        daemon: "msg2dbus (SucHandler)",
+        notes: "Přepíná interní režim vyhodnocení autofokusu."
+      },
+
+      // Skryté Custom Buttons (AE-L a AF-D)
+      Userbutton_AELockFunction: {
+        type: "dropdown", val: "AE Lock",
+        options: ["AE Lock", "AF Drive", "Focus Assist", "Start Liveview", "Zoom In", "Crop Mode", "Drive Mode", "Exposure Sim", "None"],
+        status: "ok", statusText: "100% funkční na X1D-50c!",
+        cppSetter: "SettingsMiddleLayer::setUserbutton_AELockFunction(QString)",
+        dbus: "se.hasselblad.configstore -> Userbutton_AELockFunction",
+        daemon: "bodystate-daemon (GPIOKeys::onUserbutton_AELockFunction @ 0x160c0)",
+        notes: "Plně naimplementováno v bodystate-daemon pro fyzické tlačítko AE-L. Stačí smazat demo: true!"
+      },
+      Userbutton_AFDriveFunction: {
+        type: "dropdown", val: "AF Drive",
+        options: ["AF Drive", "AE Lock", "Focus Assist", "Start Liveview", "Zoom In", "Crop Mode", "Drive Mode", "Exposure Sim", "None"],
+        status: "ok", statusText: "100% funkční na X1D-50c!",
+        cppSetter: "SettingsMiddleLayer::setUserbutton_AFDriveFunction(QString)",
+        dbus: "se.hasselblad.configstore -> Userbutton_AFDriveFunction",
+        daemon: "bodystate-daemon (GPIOKeys::onUserbutton_AFDriveFunction @ 0x160b4)",
+        notes: "Plně naimplementováno v bodystate-daemon pro fyzické tlačítko AF-D. Stačí smazat demo: true!"
+      },
+      Userbutton_AFMFFunction: {
+        type: "dropdown", val: "AF / MF", options: ["AF / MF", "Focus Assist", "Zoom In", "Crop Mode", "None"],
+        status: "ok", statusText: "Standardní funkce X1D",
+        cppSetter: "SettingsMiddleLayer::setUserbutton_AFMFFunction(QString)",
+        dbus: "se.hasselblad.configstore -> Userbutton_AFMFFunction",
+        daemon: "bodystate-daemon (GPIOKeys)"
+      },
+      Userbutton_ISOWBFunction: {
+        type: "dropdown", val: "ISO / WB", options: ["ISO / WB", "Focus Assist", "Zoom In", "Crop Mode", "None"],
+        status: "ok", statusText: "Standardní funkce X1D",
+        cppSetter: "SettingsMiddleLayer::setUserbutton_ISOWBFunction(QString)",
+        dbus: "se.hasselblad.configstore -> Userbutton_ISOWBFunction",
+        daemon: "bodystate-daemon (GPIOKeys::onUserbutton_IsoWbFunction @ 0x160a8)"
+      },
+      Userbutton_StopDownFunction: {
+        type: "dropdown", val: "Stop Down", options: ["Stop Down", "Focus Assist", "Zoom In", "Crop Mode", "Exposure Sim", "None"],
+        status: "ok", statusText: "Standardní funkce X1D",
+        cppSetter: "SettingsMiddleLayer::setUserbutton_StopDownFunction(QString)",
+        dbus: "se.hasselblad.configstore -> Userbutton_StopDownFunction",
+        daemon: "bodystate-daemon (GPIOKeys)"
+      },
+
+      // Skryté Configuration volby
+      CustomOption_RearApertureWheel: {
+        type: "dropdown", val: "Aperture", options: ["Aperture", "Shutterspeed"],
+        status: "ok", statusText: "100% funkční na X1D-50c!",
+        cppSetter: "SettingsMiddleLayer::setCustomOption_RearApertureWheel(QString)",
+        dbus: "se.hasselblad.configstore -> CustomOption_RearApertureWheel",
+        daemon: "msg2dbus (SucHandler)",
+        notes: "Prohodí funkci předního a zadního příkazového kolečka v manuálním režimu M! (Vyzkoušej kolečka nahoře nad displejem.)"
+      },
+      CustomOption_HideBTmode: {
+        type: "bool", val: false,
+        status: "ok", statusText: "100% funkční na X1D-50c!",
+        cppSetter: "SettingsMiddleLayer::setCustomOption_HideBTmode(bool)",
+        dbus: "se.hasselblad.configstore -> CustomOption_HideBTmode",
+        daemon: "camera-daemon (ConfigstoreProxy::CustomOption_HideBTmodeChanged)",
+        notes: "Skryje režimy Bulb (B) a Time (T) při běžném otáčení kolečka času závěrky."
+      },
+      CustomOption_AElockAtHalfpress: {
+        type: "bool", val: false,
+        status: "ok", statusText: "100% funkční na X1D-50c!",
+        cppSetter: "SettingsMiddleLayer::setCustomOption_AElockAtHalfpress(bool)",
+        dbus: "se.hasselblad.configstore -> CustomOption_AElockAtHalfpress",
+        daemon: "msg2dbus (SucHandler)",
+        notes: "Uzamkne měření expozice (AE-L) při namáčknutí spouště do poloviny."
+      },
+
+      // Skryté Display & Quality volby
+      Eyesensor_Distance: {
+        type: "dropdown", val: "Medium", options: ["Short", "Medium", "Long"],
+        status: "ok", statusText: "100% funkční na X1D-50c!",
+        cppSetter: "SettingsMiddleLayer::setEyesensor_Distance(QString)",
+        dbus: "se.hasselblad.configstore -> Eyesensor_Distance (0..2)",
+        daemon: "msg2dbus (SucHandler -> IR senzor hledáčku)",
+        notes: "Nastavuje citlivost optického senzoru přiblížení oka u EVF hledáčku."
+      },
+      compress_3fr: {
+        type: "bool", val: false,
+        status: "exp", statusText: "Funkční v storage-daemon (Experimentální)",
+        cppSetter: "ConfigStoreProxy::setCompress_3fr(bool)",
+        dbus: "se.hasselblad.configstore -> compress_3fr",
+        daemon: "storage-daemon (ConfigstoreProxy::compress_3frChanged)",
+        notes: "Zapíná bezztrátovou kompresi RAW souborů .3FR při zápisu v storage-daemon."
+      },
+      jpg_size: {
+        type: "dropdown", val: "12.8", options: ["12.8", "50"],
+        status: "exp", statusText: "Funkční v storage-daemon",
+        cppSetter: "SettingsMiddleLayer::setJpg_size(QString)",
+        dbus: "se.hasselblad.configstore -> jpg_size (Quarter / Full)",
+        daemon: "storage-daemon (ConfigstoreProxy::jpg_sizeChanged)",
+        notes: "Přepíná rozlišení generovaných JPEG náhledů mezi 12.8 MP (Quarter) a plným rozlišením."
+      },
+
+      // Servisní Easter Egg volby
+      ram_only_mode: {
+        type: "bool", val: false,
+        status: "ok", statusText: "Easter Egg funkce (Service)",
+        cppSetter: "FarmProxy::setRam_only_mode(int)",
+        dbus: "se.hasselblad.farm -> ram_only_mode",
+        daemon: "msg2dbus (FarmHandler) + DemoModeIndicator.qml",
+        notes: "Aktivuje červený indikátor NO STORAGE na hlavním displeji; snímky se neukládají na SD kartu."
+      },
+      thumbwheel_mode: {
+        type: "dropdown", val: "Original", options: ["Original", "Adjusted"],
+        status: "ok", statusText: "Easter Egg funkce (Service)",
+        cppSetter: "GuiConfig::setThumbwheel_mode(QString)",
+        dbus: "/usr/bin/prodconfig-tool --thumbwheel-mode",
+        daemon: "msg2dbus (SucHandler)",
+        notes: "Upravuje citlivost a debouncing předního a zadního rolovacího kolečka."
+      },
+      fwUpdateRetry: {
+        type: "button", val: "",
+        status: "ok", statusText: "Easter Egg funkce (Service)",
+        cppSetter: "GuiConfig::fwUpdateRetry()",
+        dbus: "se.hasselblad.upgrade",
+        daemon: "upgrade-daemon",
+        notes: "Umožňuje vynutit opakovanou instalaci firmwaru."
+      },
+      versionID: {
+        type: "textbutton", val: "1.25.0",
+        status: "ok", statusText: "Easter Egg spouštěč (5× klepnutí)",
+        cppSetter: "GuiConfiguration::wantToSeeFWUpdateRetryClicked()",
+        dbus: "guiconfig.showSecretMenuItems = true",
+        daemon: "victory-gui (SettingsGeneric.qml:951)",
+        notes: "Opakovaným klepnutím na tento řádek přímo na foťáku odemkneš 3 tajné položky v menu Service!"
+      },
+
+      // Neimplementované placeholdery
+      contrast: {
+        type: "slider", val: 50,
+        status: "stub", statusText: "Neaktivní UI placeholder",
+        cppSetter: "Pouze lokální QML vlastnost",
+        dbus: "Žádné D-Bus napojení v configstore",
+        daemon: "Není napojeno",
+        notes: "Pouze posuvník Brightness (BACKLIGHT_brightness) je reálně napojen na PWM podsvícení displeje."
+      },
+      gpsOn: {
+        type: "bool", val: false,
+        status: "stub", statusText: "Vyžaduje externí GPS modul",
+        cppSetter: "SettingsMiddleLayer::setGpsOn(bool)",
+        dbus: "se.hasselblad.gps",
+        daemon: "msg2dbus (NmeaSentence)",
+        notes: "V první generaci X1D-50c není interní GPS modul osazen."
+      }
+    };
+
+    // Výchozí hodnoty pro běžné položky
+    const DEFAULT_VALUES = {
+      WIFI_power: true,
+      WIFI_mode: "2.4",
+      GUI_idle_timeout: "10",
+      SYS_standby_idle_timeout: "5",
+      power_from_usb: true,
+      aspectRatio: "4:3 (Full)",
+      crop_mode_opacity: 60,
+      ImageOrientation: "Auto",
+      CustomOption_StepsInc: "1/3",
+      CustomOption_AdjStepsInc: "1/3",
+      CustomOption_TrueExpEnabled: true,
+      eshutter: false,
+      CustomOption_LowFlashDisableInverter: true,
+      FlashMode: "Normal",
+      CustomOption_FlashExpPrio: false,
+      CustomOption_RangeExpLock: true,
+      AELockResetAfterExposure: true,
+      focus_size: "2.8",
+      focus_point_reset: "Never",
+      FocusScanRange: "Full",
+      CustomOption_AfLed: "Auto",
+      MFAid: "Zoom",
+      FocusPeakingColor: "Orange",
+      selfTimerActive: false,
+      SelftimerDelay: "2",
+      CustomOption_ExitStay: "Exit",
+      SelftimerBlinkLed: true,
+      CustomOption_QuickAdjustOn: true,
+      SV_auto_max: "3200",
+      SV_auto_min: "100",
+      shutter_speed_limit: "1/60",
+      max_aperture: "2.8",
+      imageRating: false,
+      Video_Resolution: "HD (1080p)",
+      video_noise: "Normal",
+      LiveVideoOverlayIndex: "Standard",
+      BACKLIGHT_brightness: 75,
+      exposureSimulationAuto: true,
+      exposureSimulationManual: true,
+      ZoomLevel: "50%",
+      CustomOption_LiveViewEVFOnly: false,
+      CustomOption_ShowPreview: true,
+      EVFPreviewTimeout: "2",
+      OverExposureWarning: false,
+      touchpad_position: "Right Half",
+      evf_tp_move_focus: true,
+      evf_tp_image_browse: true,
+      hdmi_tp_move_focus: true,
+      soundLevel: "Medium",
+      keyClick: false,
+      exposureWarningSound: false,
+      readyAfterExposureSound: false,
+      afSucceededSound: true,
+      languageIndex: "English",
+      resetProfiles: false,
+      lensVersion: "0.5.3 (XCD 45mm)",
+      SuSerial: "US160107042",
+      lensCounter: "4 812",
+      primary_volume_image_raw: "SD 1",
+      storage_mode: "Overflow",
+      image_format: "RAW (3FR)",
+      jpg_quality: "Normal",
+      color_profile: "sRGB",
+      image_noise: "Normal"
+    };
+
+    // Stav simulátoru
+    const state = {
+      screenMode: "main_menu", // "control" | "main_menu" | "lvl1" | "lvl2"
+      currentCategory: null,   // "camera" | "video" | "settings"
+      currentCategoryTitle: "",
+      currentSubListName: null,
+      currentSubListTitle: "",
+      aboutTapCount: 0,
+      popover: null,
+      // Hodnoty expozice na Control Screenu
+      expMode: "M",
+      apertures: ["2.8", "3.2", "3.5", "4.0", "4.5", "5.6", "6.3", "8.0", "11", "16", "22", "32"],
+      apIdx: 0,
+      shutters: ["1\"", "1/2", "1/4", "1/8", "1/15", "1/30", "1/60", "1/125", "1/250", "1/500", "1/1000", "1/2000"],
+      shIdx: 8,
+      isos: ["100", "200", "400", "800", "1600", "3200", "6400", "12800", "25600"],
+      isoIdx: 0,
+      focusMode: "AF-S",
+      favorites: [
+        { text: "Quality", icon: "LargeIconQuality", settingsList: "cameraSettingsQuality", cat: "CAMERA SETTINGS" },
+        { text: "Autofocus", icon: "LargeIconAutofocus", settingsList: "cameraSettingsAutofocus", cat: "CAMERA SETTINGS" },
+        { text: "Custom Buttons", icon: "LargeIconCustomButtons", settingsList: "cameraSettingsCustomButtons", cat: "CAMERA SETTINGS" },
+        { text: "Configuration", icon: "LargeIconConfiguration", settingsList: "cameraSettingsConfiguration", cat: "CAMERA SETTINGS" },
+        { text: "Exposure", icon: "LargeIconExposure", settingsList: "cameraSettingsExposure", cat: "CAMERA SETTINGS" },
+        { text: "Display", icon: "LargeIconDisplay", settingsList: "generalSettingsDisplay", cat: "GENERAL SETTINGS" },
+        { text: "Storage", icon: "LargeIconStorage", settingsList: "generalSettingsStorage", cat: "GENERAL SETTINGS" },
+        { text: "Service", icon: "LargeIconService", settingsList: "generalSettingsService", cat: "GENERAL SETTINGS" },
+        { text: "About", icon: "LargeIconAbout", settingsList: "generalSettingsAbout", cat: "GENERAL SETTINGS" }
+      ]
+    };
+
+    function getVal(name) {
+      if (SETTING_META[name] && SETTING_META[name].val !== undefined) return SETTING_META[name].val;
+      if (DEFAULT_VALUES[name] !== undefined) return DEFAULT_VALUES[name];
+      return "Standard";
+    }
+
+    function setVal(name, v) {
+      if (SETTING_META[name]) SETTING_META[name].val = v;
+      else DEFAULT_VALUES[name] = v;
+    }
+
+    // === 3. DYNAMICKÉ NAČTENÍ MenuItemSpecifications*.js ZE SLOŽKY victory_gui_qml ===
+    async function loadMenuSpecScript(persona) {
+      const fileMap = {
+        wedge: "/qml/settings/scripts/MenuItemSpecificationsWedge.js",
+        victory: "/qml/settings/scripts/MenuItemSpecifications.js",
+        cfv: "/qml/settings/scripts/MenuItemSpecificationsCFV.js",
+        a6d: "/qml/settings/scripts/MenuItemSpecificationsA6D.js"
+      };
+      const url = fileMap[persona] + "?t=" + Date.now();
+      const resp = await fetch(url);
+      const code = await resp.text();
+      // Spustíme definice v globálním kontextu okna
+      (1, eval)(code);
+      guiconfig.isWedge = (persona === "wedge");
+      renderScreen();
+    }
+
+    async function loadZlibStatus() {
+      try {
+        const resp = await fetch("/api/zlib-status?t=" + Date.now());
+        const items = await resp.json();
+        const tbody = document.getElementById("zlibTableBody");
+        tbody.innerHTML = items.map(it => {
+          const badgeColor = it.fits_in_slot ? "var(--ok-green)" : "var(--err-red)";
+          return `<tr>
+            <td><code>${it.file}</code></td>
+            <td>${it.needed_bytes} / ${it.slot_capacity} B</td>
+            <td style="color:${badgeColor}; font-weight:600">${it.slack_bytes >= 0 ? '+' + it.slack_bytes : it.slack_bytes} B</td>
+          </tr>`;
+        }).join("");
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function reloadLiveQml() {
+      const persona = document.getElementById("selPersona").value;
+      await loadMenuSpecScript(persona);
+      await loadZlibStatus();
+      showToast("Živé QML/JS soubory načteny!");
+    }
+
+    function onToggleFlags() {
+      guiconfig.hideDemoItems = document.getElementById("chkHideDemo").checked;
+      DemoState.demoOn = document.getElementById("chkDemoOn").checked;
+      guiconfig.showSecretMenuItems = document.getElementById("chkSecret").checked;
+      renderScreen();
+    }
+
+    function onChangePersona() {
+      const persona = document.getElementById("selPersona").value;
+      loadMenuSpecScript(persona);
+    }
+
+    // === 4. VYKRESLENÍ 640x480 OBRAZOVKY ===
+    function renderScreen() {
+      const scr = document.getElementById("screen");
+      let html = "";
+
+      // Status bar
+      const rightOffset = (guiconfig.isWedge && state.screenMode === "main_menu") ? "160px" : "0px";
+      const isRamOnly = getVal("ram_only_mode") === true;
+      html += `
+        <div class="status-row" style="right:${rightOffset}">
+          <div class="status-left">
+            ${isRamOnly
+              ? `<div class="no-storage-badge">NO<br>STORAGE</div>`
+              : `<div class="card-badge active">1</div><div class="card-badge">2</div>`
+            }
+            <img src="/qml/icons/statusRowWiFi.png" style="height:26px" onerror="this.style.display='none'" />
+          </div>
+          <div class="status-right">
+            <img src="/qml/icons/SmallBattery.png" style="height:24px" onerror="this.style.display='none'" />
+          </div>
+        </div>
+      `;
+
+      if (state.screenMode === "control") {
+        html += renderControlScreen();
+      } else if (state.screenMode === "main_menu") {
+        html += renderMainMenu();
+      } else if (state.screenMode === "lvl1") {
+        html += renderLevel1Menu();
+      } else if (state.screenMode === "lvl2") {
+        html += renderLevel2Menu();
+      }
+
+      if (state.popover) {
+        html += renderPopover();
+      }
+
+      html += `<div id="toast" class="toast"></div>`;
+      scr.innerHTML = html;
+    }
+
+    function renderControlScreen() {
+      const frontIsAperture = getVal("CustomOption_RearApertureWheel") === "Aperture";
+      const apWheelHint = frontIsAperture ? "Přední kolečko" : "Zadní kolečko";
+      const shWheelHint = frontIsAperture ? "Zadní kolečko" : "Přední kolečko";
+
+      return `
+        <div class="ctrl-screen">
+          <div class="ctrl-top-bar">
+            <div class="exp-mode-badge" onclick="cycleExpMode()" title="Klikni pro změnu expozičního režimu">${state.expMode}</div>
+            <div style="font-size:28px; color:#ccc; margin-right:110px">XCD 45mm f/3.5</div>
+          </div>
+
+          <div class="ctrl-main-grid">
+            <div class="ctrl-cell" onclick="turnWheel('${frontIsAperture ? 'front' : 'rear'}', 1)">
+              <span class="wheel-hint">${apWheelHint}</span>
+              <span class="lbl">APERTURE</span>
+              <span class="val-lg"><span style="font-size:52px">ƒ/</span>${state.apertures[state.apIdx]}</span>
+            </div>
+            <div class="ctrl-cell" onclick="turnWheel('${frontIsAperture ? 'rear' : 'front'}', 1)">
+              <span class="wheel-hint">${shWheelHint}</span>
+              <span class="lbl">SHUTTER SPEED</span>
+              <span class="val-lg">${state.shutters[state.shIdx]}</span>
+            </div>
+            <div class="ctrl-cell" onclick="cycleIso()">
+              <span class="lbl">ISO</span>
+              <span class="val-md">${state.isos[state.isoIdx]}</span>
+            </div>
+            <div class="ctrl-cell">
+              <span class="lbl">EXPOSURE SCALE</span>
+              <span class="val-md">0.0 <span style="font-size:34px; color:#999">EV</span></span>
+            </div>
+          </div>
+
+          <div class="ctrl-bottom-bar">
+            <div class="ctrl-bot-item" onclick="openFocusModePopover()">
+              <span class="bot-title">FOCUS</span>
+              <span class="bot-val">${state.focusMode}</span>
+            </div>
+            <div class="ctrl-bot-item">
+              <span class="bot-title">METERING</span>
+              <span class="bot-val">Centre</span>
+            </div>
+            <div class="ctrl-bot-item">
+              <span class="bot-title">WHITE BAL</span>
+              <span class="bot-val">Daylight</span>
+            </div>
+            <div class="ctrl-bot-item">
+              <span class="bot-title">DRIVE</span>
+              <span class="bot-val">Single</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderMainMenu() {
+      const centerW = guiconfig.isWedge ? "480px" : "640px";
+      const favHtml = state.favorites.map(f => `
+        <div class="fav-item" onclick="openSubMenuDirect('${f.settingsList}', '${f.text}', '${f.cat}')">
+          <img src="/qml/icons/${f.icon}.png" onerror="this.src='/qml/icons/settings_icon.png'" />
+          <span>${f.text}</span>
+        </div>
+      `).join("");
+
+      return `
+        <div class="main-menu-screen">
+          ${!guiconfig.hideDemoItems ? `<div class="build-banner" style="width:${centerW}">Build: 1.25.0</div>` : ""}
+          <div class="menu-header-title" style="width:${centerW}">MAIN MENU</div>
+
+          <div class="fav-grid">
+            ${favHtml}
+          </div>
+
+          <div class="wedge-right-bar">
+            <div class="wedge-cat-btn" title="Camera Settings" onclick="openCategory('camera')">
+              <img src="/qml/icons/camera_icon_wedge.png" />
+            </div>
+            <div class="wedge-cat-btn" title="Video Settings" onclick="openCategory('video')">
+              <img src="/qml/icons/video_icon_wedge.png" />
+            </div>
+            <div class="wedge-cat-btn" title="General Settings" onclick="openCategory('settings')">
+              <img src="/qml/icons/settings_icon_wedge.png" />
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function getCategoryItems(cat) {
+      if (cat === "camera") return window.cameraMenuItems || [];
+      if (cat === "video") return window.videoMenuItems || [];
+      if (cat === "settings") return (typeof window.getSettingsMenuItems === "function") ? window.getSettingsMenuItems(true) : (window.settingsMenuItems || []);
+      return [];
+    }
+
+    function renderLevel1Menu() {
+      const rawItems = getCategoryItems(state.currentCategory);
+      // Přesná logika z Menu.qml řádek 29-36:
+      const visibleItems = rawItems.filter(v => {
+        const isDemo = (typeof v.demo !== "undefined") && (v.demo !== undefined && v.demo);
+        return !isDemo || !guiconfig.hideDemoItems;
+      });
+
+      const rowsHtml = visibleItems.map(v => {
+        const isDemo = v.demo === true;
+        const iconSrc = v.settingsList ? `/qml/icons/${v.settingsList}.png` : `/qml/icons/${v.icon}`;
+        return `
+          <div class="menu-row-lvl1" onclick="openSubMenu('${v.settingsList}', '${v.itemText}')">
+            ${(isDemo && DemoState.demoOn) ? `<div class="demo-marker"></div>` : ""}
+            ${isDemo ? `<span class="demo-tag">demo: true</span>` : ""}
+            <img src="${iconSrc}" onerror="this.style.opacity='0.2'" />
+            <span class="lvl1-text">${v.itemText}</span>
+          </div>
+        `;
+      }).join("");
+
+      return `
+        <div class="menu-overlay">
+          <div class="menu-top-header">
+            <div class="back-btn" onclick="goMainMenu()">◀ Zpět</div>
+            <div class="menu-top-title">${state.currentCategoryTitle}</div>
+            <div style="width:60px"></div>
+          </div>
+          <div class="menu-list">
+            ${rowsHtml}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderLevel2Menu() {
+      let rawList = [];
+      try {
+        rawList = window.getSettingsList(state.currentSubListName) || [];
+      } catch (e) {
+        rawList = [];
+      }
+
+      // Přesná filtrovací logika ze SettingsGeneric.qml:
+      // 1) validCheck (např. guiconfig.showSecretMenuItems)
+      // 2) demo příznak vs guiconfig.hideDemoItems
+      const visibleList = rawList.filter(item => {
+        if (item.validCheck) {
+          try {
+            if (!eval(item.validCheck)) return false;
+          } catch (e) {}
+        }
+        const isDemo = item.demo === true;
+        if (isDemo && guiconfig.hideDemoItems) return false;
+        return true;
+      });
+
+      const rowsHtml = visibleList.map(item => {
+        if (item.editType === 9) { // SUBHEADER
+          return `<div class="subheader-row">${item.text1}</div>`;
+        }
+
+        const isDemo = item.demo === true;
+        const isSecret = item.validCheck === "guiconfig.showSecretMenuItems";
+        const val = getVal(item.name);
+        let ctrlHtml = "";
+
+        if (item.editType === 1) { // DROPDOWN
+          ctrlHtml = `
+            <div class="qml-dropdown" onclick="event.stopPropagation(); openSettingDropdown('${item.name}', '${item.text1}')">
+              <span>${val}</span>
+              <span style="font-size:20px; color:var(--hbl-orange)">▼</span>
+            </div>
+            ${item.text2 ? `<span class="qml-unit">${item.text2}</span>` : ""}
+          `;
+        } else if (item.editType === 2) { // CHECKBOX
+          ctrlHtml = `<div class="qml-checkbox ${val ? 'checked' : ''}" onclick="event.stopPropagation(); toggleBoolSetting('${item.name}')"></div>`;
+        } else if (item.editType === 4) { // BOOL SWITCH
+          ctrlHtml = `
+            <div class="qml-boolswitch ${val ? 'on' : ''}" onclick="event.stopPropagation(); toggleBoolSetting('${item.name}')">
+              <div class="knob"></div>
+            </div>
+          `;
+        } else if (item.editType === 3) { // BUTTON
+          ctrlHtml = `<button class="qml-button" onclick="event.stopPropagation(); triggerButtonSetting('${item.name}', '${item.text1}')">${item.text1}</button>`;
+        } else if (item.editType === 5) { // SLIDER
+          ctrlHtml = `<input type="range" min="0" max="100" value="${val}" onchange="setVal('${item.name}', this.value); inspectSetting('${item.name}', '${item.text1}')" style="width:160px; accent-color:var(--hbl-orange);" />`;
+        } else if (item.editType === 7 || item.editType === 8) { // TEXT / TEXTBUTTON
+          ctrlHtml = `<span style="font-size:38px; color:#ccc">${val}</span>`;
+        } else {
+          ctrlHtml = `<span style="font-size:32px; color:#888">${val}</span>`;
+        }
+
+        const cleanLabel = item.text1.replace(/<img[^>]*>/g, "[Auto]");
+
+        return `
+          <div class="setting-row" onclick="onRowClick('${item.name}', '${cleanLabel.replace(/'/g, "")}', ${item.editType})">
+            ${(isDemo && DemoState.demoOn) ? `<div class="demo-marker"></div>` : ""}
+            ${isDemo ? `<span class="demo-tag">demo: true</span>` : ""}
+            ${isSecret ? `<span class="secret-tag">Easter Egg</span>` : ""}
+            <div class="setting-label">
+              <span>${item.editType === 3 ? "" : cleanLabel}</span>
+              ${(item.text2 && item.editType !== 1) ? `<span class="setting-subtext">${item.text2}</span>` : ""}
+            </div>
+            <div class="setting-control">
+              ${ctrlHtml}
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      return `
+        <div class="menu-overlay">
+          <div class="menu-top-header">
+            <div class="back-btn" onclick="goBackFromLvl2()">◀ ${state.currentCategoryTitle || "MAIN MENU"}</div>
+            <div class="menu-top-title">${state.currentSubListTitle}</div>
+            <div style="width:60px"></div>
+          </div>
+          <div class="menu-list">
+            ${rowsHtml || `<div style="padding:40px; font-size:32px; color:#777; text-align:center;">Žádné viditelné položky (odemkni hideDemoItems vpravo).</div>`}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderPopover() {
+      const p = state.popover;
+      const optsHtml = p.options.map(opt => `
+        <div class="popover-opt ${opt === p.current ? 'active' : ''}" onclick="selectPopoverOption('${opt}')">
+          <span>${opt}</span>
+          ${opt === p.current ? `<span>●</span>` : ""}
+        </div>
+      `).join("");
+
+      return `
+        <div class="popover-backdrop" onclick="closePopover()">
+          <div class="popover-box" onclick="event.stopPropagation()">
+            <div class="popover-header">${p.title}</div>
+            <div class="popover-options">
+              ${optsHtml}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // === 5. INTERAKCE A EASTER EGG ===
+    function openCategory(cat) {
+      state.currentCategory = cat;
+      state.currentCategoryTitle = cat === "camera" ? "CAMERA SETTINGS" : (cat === "video" ? "VIDEO SETTINGS" : "GENERAL SETTINGS");
+      state.screenMode = "lvl1";
+      renderScreen();
+    }
+
+    function openSubMenu(settingsList, title) {
+      if (settingsList === "cameraSettingsGreyBalanceTool" || settingsList === "generalSettingsSpiritLevel") {
+        showToast(title + " (speciální QML pohled)");
+        return;
+      }
+      state.currentSubListName = settingsList;
+      state.currentSubListTitle = title;
+      state.screenMode = "lvl2";
+      renderScreen();
+    }
+
+    function openSubMenuDirect(settingsList, title, catTitle) {
+      state.currentCategory = null;
+      state.currentCategoryTitle = catTitle;
+      state.currentSubListName = settingsList;
+      state.currentSubListTitle = title;
+      state.screenMode = "lvl2";
+      renderScreen();
+    }
+
+    function goMainMenu() {
+      state.screenMode = "main_menu";
+      renderScreen();
+    }
+
+    function goBackFromLvl2() {
+      if (state.currentCategory) {
+        state.screenMode = "lvl1";
+      } else {
+        state.screenMode = "main_menu";
+      }
+      renderScreen();
+    }
+
+    function goControlScreen() {
+      state.popover = null;
+      state.screenMode = "control";
+      renderScreen();
+    }
+
+    function toggleMainMenu() {
+      state.popover = null;
+      if (state.screenMode === "control") {
+        state.screenMode = "main_menu";
+      } else {
+        state.screenMode = "control";
+      }
+      renderScreen();
+    }
+
+    function onRowClick(name, label, editType) {
+      inspectSetting(name, label);
+
+      // Easter Egg v About: klepání na Firmware: 1.25.0 (versionID)
+      if (name === "versionID") {
+        state.aboutTapCount++;
+        if (state.aboutTapCount >= 5 && !guiconfig.showSecretMenuItems) {
+          guiconfig.showSecretMenuItems = true;
+          document.getElementById("chkSecret").checked = true;
+          showToast("Easter Egg odemknut! (Viz General Settings → Service)");
+        } else if (!guiconfig.showSecretMenuItems) {
+          showToast(`Easter Egg: ještě ${5 - state.aboutTapCount}× klepni!`);
+        }
+        return;
+      }
+
+      if (editType === 2 || editType === 4) {
+        toggleBoolSetting(name);
+      } else if (editType === 1) {
+        openSettingDropdown(name, label);
+      }
+    }
+
+    function toggleBoolSetting(name) {
+      const cur = Boolean(getVal(name));
+      setVal(name, !cur);
+      inspectSetting(name, name);
+      renderScreen();
+    }
+
+    function openSettingDropdown(name, title) {
+      inspectSetting(name, title);
+      const meta = SETTING_META[name];
+      const options = (meta && meta.options) ? meta.options : ["Standard", "Option 1", "Option 2"];
+      state.popover = {
+        type: "setting",
+        name: name,
+        title: title,
+        options: options,
+        current: String(getVal(name))
+      };
+      renderScreen();
+    }
+
+    function openFocusModePopover() {
+      // PopoverFocusMode.qml: model: guiconfig.isWedge ? grid_model_wedge : grid_model
+      const options = (!guiconfig.isWedge || !guiconfig.hideDemoItems)
+        ? ["AF-S (Single)", "AF-C (Continuous - H6D)", "True Focus (AF-T - H6D)", "MF (Manual)"]
+        : ["AF-S", "MF"];
+      state.popover = {
+        type: "focusMode",
+        title: "FOCUS MODE (PopoverFocusMode.qml)",
+        options: options,
+        current: state.focusMode
+      };
+      inspectFocusMode();
+      renderScreen();
+    }
+
+    function selectPopoverOption(opt) {
+      if (!state.popover) return;
+      if (state.popover.type === "setting") {
+        setVal(state.popover.name, opt);
+        inspectSetting(state.popover.name, state.popover.title);
+      } else if (state.popover.type === "focusMode") {
+        state.focusMode = opt.split(" ")[0];
+      }
+      state.popover = null;
+      renderScreen();
+    }
+
+    function closePopover() {
+      state.popover = null;
+      renderScreen();
+    }
+
+    function triggerButtonSetting(name, label) {
+      inspectSetting(name, label);
+      if (name === "Usage") {
+        openSubMenu("generalSettingsUsage", "Usage");
+        return;
+      }
+      showToast(`Akce spuštěna: ${label}`);
+    }
+
+    function turnWheel(which, dir) {
+      if (state.screenMode !== "control") {
+        state.screenMode = "control";
+      }
+      const frontIsAperture = getVal("CustomOption_RearApertureWheel") === "Aperture";
+      const adjustAperture = (which === "front" && frontIsAperture) || (which === "rear" && !frontIsAperture);
+
+      if (adjustAperture) {
+        state.apIdx = Math.max(0, Math.min(state.apertures.length - 1, state.apIdx + dir));
+      } else {
+        state.shIdx = Math.max(0, Math.min(state.shutters.length - 1, state.shIdx + dir));
+      }
+      renderScreen();
+    }
+
+    function cycleExpMode() {
+      const modes = ["M", "A", "S", "P", "Auto"];
+      const idx = (modes.indexOf(state.expMode) + 1) % modes.length;
+      state.expMode = modes[idx];
+      renderScreen();
+    }
+
+    function cycleIso() {
+      state.isoIdx = (state.isoIdx + 1) % state.isos.length;
+      renderScreen();
+    }
+
+    function pressTopBtn(btn) {
+      if (btn === "AF_MF") {
+        state.focusMode = (state.focusMode === "MF") ? "AF-S" : "MF";
+        showToast(`Režim ostření: ${state.focusMode}`);
+        renderScreen();
+      } else if (btn === "AE_L") {
+        const fn = getVal("Userbutton_AELockFunction");
+        inspectSetting("Userbutton_AELockFunction", "AE-L Button");
+        showToast(`Tlačítko AE-L → ${fn}`);
+      } else if (btn === "AF_D") {
+        const fn = getVal("Userbutton_AFDriveFunction");
+        inspectSetting("Userbutton_AFDriveFunction", "AF-D Button");
+        showToast(`Tlačítko AF-D → ${fn}`);
+      } else if (btn === "ISO_WB") {
+        const fn = getVal("Userbutton_ISOWBFunction");
+        showToast(`Tlačítko ISO/WB → ${fn}`);
+      }
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById("toast");
+      if (!t) return;
+      t.textContent = msg;
+      t.classList.add("show");
+      setTimeout(() => {
+        if (t) t.classList.remove("show");
+      }, 2200);
+    }
+
+    // === 6. RENTGEN C++ BACKENDU V PRAVÉM PANELU ===
+    function inspectSetting(name, label) {
+      const meta = SETTING_META[name] || {
+        status: "ok",
+        statusText: "Standardní produkční funkce X1D",
+        cppSetter: `ConfigStoreProxy::set_${name}(...)`,
+        dbus: `se.hasselblad.configstore -> ${name}`,
+        daemon: "camera-daemon / msg2dbus",
+        notes: "Standardní položka viditelná v oficiálním firmwaru X1D v1.25.0."
+      };
+
+      const pillClass = meta.status === "ok" ? "ok" : (meta.status === "exp" ? "exp" : "stub");
+      const curVal = getVal(name);
+
+      document.getElementById("xrayContent").innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <strong style="font-size:15px; color:#fff">${label} (<code>${name}</code>)</strong>
+          <span class="status-pill ${pillClass}">${meta.statusText}</span>
+        </div>
+        <div class="xray-grid">
+          <div class="k">Aktuální hodnota:</div>
+          <div class="v" style="color:var(--hbl-orange); font-weight:bold">${curVal}</div>
+          <div class="k">C++ metoda v GUI:</div>
+          <div class="v">${meta.cppSetter}</div>
+          <div class="k">D-Bus vlastnost:</div>
+          <div class="v">${meta.dbus}</div>
+          <div class="k">Cílový daemon / HW:</div>
+          <div class="v">${meta.daemon}</div>
+        </div>
+        ${meta.notes ? `<div style="margin-top:10px; padding:8px 10px; background:#14161b; border-left:3px solid var(--hbl-orange); color:#d0d7de; font-size:12.5px;">${meta.notes}</div>` : ""}
+      `;
+    }
+
+    function inspectFocusMode() {
+      document.getElementById("xrayContent").innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <strong style="font-size:15px; color:#fff">Focus Mode (<code>PopoverFocusMode.qml</code>)</strong>
+          <span class="status-pill stub">AF-C a True Focus pouze pro H6D</span>
+        </div>
+        <div class="xray-grid">
+          <div class="k">QML podmínka:</div>
+          <div class="v">model: guiconfig.isWedge ? grid_model_wedge : grid_model</div>
+          <div class="k">Stavový automat X1D:</div>
+          <div class="v">WedgeStateMachine::checkFocusMode() @ 0x32860</div>
+          <div class="k">Chování v C++:</div>
+          <div class="v">Testuje pouze FocusMode == 3 (Focus_MAN) vs != 3</div>
+        </div>
+        <div style="margin-top:10px; padding:8px 10px; background:#14161b; border-left:3px solid var(--err-red); color:#d0d7de; font-size:12.5px;">
+          V <code>camera-daemon</code> třída <code>WedgeStateMachine</code> porovnává pouze <code>CMP r3, #3</code> (manuální ostření). Pro jakoukoliv jinou hodnotu (<code>AF-S=1</code>, <code>AF-C=2</code>, <code>AF-T=6</code>) volá jednorázové kontrastní ostření <code>WedgeStateMachine::findFocus()</code>.
+        </div>
+      `;
+    }
+
+    // Inicializace při načtení stránky
+    window.addEventListener("DOMContentLoaded", async () => {
+      await loadMenuSpecScript("wedge");
+      await loadZlibStatus();
+    });
+  </script>
+</body>
+</html>
