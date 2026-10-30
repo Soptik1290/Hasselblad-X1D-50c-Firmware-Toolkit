@@ -29,3 +29,23 @@ Tento projekt slouží k průzkumu, dešifrování, rozbalení, úpravám, loká
    * Jak používat lokální 640×480 PC simulátor (`ui_simulator/run_simulator.py`), skryté CLI přepínače binárky `victory-gui` (`--wedge`, `--session`, `--main`) a plnou ARM emulaci v QEMU.
 7. **[07 – Porovnání všech 6 verzí firmwaru (`dokumentace/07-porovnani-verzi-firmwaru.md`)](dokumentace/07-porovnani-verzi-firmwaru.md)**
    * Kompletní srovnání verzí `v1.20.0`, `v1.20.1`, `v1.21.0`, `v1.22.0`, `v1.24.0` a `v1.25.0`: velikosti a hashe kontejnerů, vývoj koprocesorů (`FARM`, `FX3`, `SPC`, `SUC`), přidané funkce (zvuková odezva ALSA/TFA9882 ve `v1.21.0`, Focus Bracketing ve `v1.22.0`, 4µm krokování nových XCD objektivů ve `v1.24.0`) a ověření dvoufázového `PrivateHeader::Checksum`.
+
+---
+
+## Rychlý start a nástroje
+
+### 1. Spuštění interaktivního 640×480 PC UI Simulátoru (CZ / EN)
+```powershell
+python ui_simulator/run_simulator.py
+```
+Otevře `http://127.0.0.1:8125/` s živým menu X1D-50c, přepínačem jazyka **🇬🇧 EN / 🇨🇿 CZ**, rentgenem C++ backendu, **počítadlem paměti a QRC slotů** a **5fázovým Anti-Brick Pre-Flight testem**.
+
+### 2. Samostatný Anti-Brick Pre-Flight Test & Počítadlo paměti v CLI
+```powershell
+# Rychlá kontrola + přehled paměti a QRC slotů
+python verify_firmware_safety.py --fast
+
+# Plná hloubková kontrola (včetně průchodu celého 60MB rootfs.tar.bz2 a .cim součtů)
+python verify_firmware_safety.py
+```
+

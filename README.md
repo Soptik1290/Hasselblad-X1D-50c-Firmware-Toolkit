@@ -94,23 +94,36 @@ X1D_FirmwareDump/
 
 ## Quickstart & Tools
 
-### 1. Launch the Interactive 640×480 PC UI Simulator
+### 1. Launch the Interactive 640×480 PC UI Simulator (EN / CZ)
 ```powershell
 python ui_simulator/run_simulator.py
 ```
-Opens `http://127.0.0.1:8125/` in your browser with the live X1D-50c menu, physical button/dial controls, C++ backend inspector, and QRC slot size calculator.
+Opens `http://127.0.0.1:8125/` in your browser with:
+* Live 640×480 X1D-50c UI, physical button/dial controls, and **EN / CZ language switch**.
+* Interactive **C++ Backend X-Ray** (`victory-gui` ↔ `configstore` ↔ `msg2dbus` ↔ `camera-daemon`).
+* **Memory & Storage Counter** (QRC `DATA_BASE` pool, comment-stripped `+60.2 KB` headroom, and eMMC/NOR/MCU/RAM budgets).
+* **5-Stage Anti-Brick Pre-Flight Sweep** verifying QML/JS syntax, QRC slot fit, ELF/QRC decompression, U-Boot A/B rollback protection, `rootfs` boot symlinks (`readlink`), and two-stage `.cim` checksums.
 
-### 2. Decrypt & Extract a `.cim` Firmware Image
+### 2. Run the Standalone Anti-Brick Pre-Flight Sweep & Memory Counter
+```powershell
+# Instant sweep + memory counter
+python verify_firmware_safety.py --fast
+
+# Full deep sweep (scans all 60 MB rootfs.tar.bz2 symlinks & .cim stream checksums)
+python verify_firmware_safety.py
+```
+
+### 3. Decrypt & Extract a `.cim` Firmware Image
 ```powershell
 python hasselblad_extract.py "firmware/X1D_v1_25_0.cim" -o "X1D_v1_25_0_extracted"
 ```
 
-### 3. Extract Qt/QML/JS/PNG Resources from `victory-gui`
+### 4. Extract Qt/QML/JS/PNG Resources from `victory-gui`
 ```powershell
 python extract_victory_qrc.py "X1D_v1_25_0_extracted/victory-gui" -o "victory_gui_qml"
 ```
 
-### 4. Patch a Modified QML/JS File Back into `victory-gui`
+### 5. Patch a Modified QML/JS File Back into `victory-gui`
 ```powershell
 python patch_victory_qrc_file.py `
   "X1D_v1_25_0_extracted/victory-gui" `
@@ -118,8 +131,9 @@ python patch_victory_qrc_file.py `
   "victory_gui_qml/settings/scripts/MenuItemSpecificationsWedge.js" `
   -o "X1D_v1_25_0_extracted/victory-gui.patched"
 ```
+*(Automatically strips `//` and `/* */` comments if needed, unlocking **+60.2 KB** of compressed space across `victory-gui`—including **+1,119 B** in `MenuItemSpecificationsWedge.js` and **+1,893 B** in `SettingsGeneric.qml`.)*
 
-### 5. Repack & Encrypt a Custom `.cim` Firmware Container
+### 6. Repack & Encrypt a Custom `.cim` Firmware Container
 ```powershell
 python hasselblad_pack.py `
   -t "firmware/X1D_v1_25_0.cim" `

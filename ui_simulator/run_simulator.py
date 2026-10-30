@@ -20,6 +20,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 QML_DIR = BASE_DIR / "victory_gui_qml"
 SIM_DIR = Path(__file__).resolve().parent
 
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
+from verify_firmware_safety import run_preflight_sweep, compute_memory_and_slot_stats
+from patch_victory_qrc_file import strip_qml_js_comments
+
 
 def get_zlib_status():
     """Spočítá aktuální velikost klíčových QML/JS souborů v QRC slotu pro in-place patchování do victory-gui."""
@@ -28,27 +34,36 @@ def get_zlib_status():
         ("settings/SettingsGeneric.qml", 9968, 1),
         ("mainmenu/MainScreen.qml", 9128, 1),
         ("mainmenu/Menu.qml", 4583, 1),
+        ("controlscreen/ControlScreen.qml", 8157, 1),
+        ("common/TouchWindow.qml", 18120, 1),
+        ("main.qml", 8676, 1),
+        ("components/popups/PopoverFocusMode.qml", 1184, 1),
+        ("scripts/KeyMapsWedge.js", 6684, 0),
         ("DemoState.qml", 86, 0),
         ("DemoMarker.qml", 346, 0),
-        ("components/popups/PopoverFocusMode.qml", 1184, 1),
     ]
     results = []
     for rel_path, slot_cap, flags in tracked:
         fp = QML_DIR / rel_path
         if fp.exists():
             raw = fp.read_bytes()
+            stripped = strip_qml_js_comments(raw) if rel_path.endswith((".qml", ".js")) else raw
             if flags & 1:
                 needed = 8 + len(zlib.compress(raw, 9))
+                needed_stripped = 8 + len(zlib.compress(stripped, 9))
             else:
                 needed = 4 + len(raw)
+                needed_stripped = 4 + len(stripped)
             results.append({
                 "file": rel_path,
                 "compressed": bool(flags & 1),
                 "raw_size": len(raw),
                 "needed_bytes": needed,
+                "needed_stripped_bytes": needed_stripped,
                 "slot_capacity": slot_cap,
                 "slack_bytes": slot_cap - needed,
-                "fits_in_slot": needed <= slot_cap,
+                "slack_stripped_bytes": slot_cap - needed_stripped,
+                "fits_in_slot": needed <= slot_cap or needed_stripped <= slot_cap,
             })
     return results
 
@@ -64,6 +79,25 @@ class X1DSimulatorHandler(http.server.SimpleHTTPRequestHandler):
 
         if path == "/api/zlib-status":
             data = json.dumps(get_zlib_status(), ensure_ascii=False).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+            return
+
+        if path == "/api/memory-stats":
+            data = json.dumps(compute_memory_and_slot_stats(), ensure_ascii=False).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+            return
+
+        if path == "/api/preflight-sweep":
+            deep = "deep=1" in self.path
+            data = json.dumps(run_preflight_sweep(fast_mode=not deep), ensure_ascii=False).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(data)))

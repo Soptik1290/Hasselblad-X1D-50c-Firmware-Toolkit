@@ -896,17 +896,173 @@
       color: var(--text-muted);
       font-weight: 500;
     }
+
+    /* === INSPECTOR TABS & MEMORY / SWEEP UI === */
+    .inspector-tabs {
+      display: flex;
+      gap: 8px;
+      background: #14161b;
+      padding: 6px;
+      border-radius: 10px;
+      border: 1px solid var(--panel-border);
+    }
+
+    .insp-tab-btn {
+      flex: 1;
+      background: transparent;
+      color: var(--text-muted);
+      border: 1px solid transparent;
+      border-radius: 7px;
+      padding: 8px 10px;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .insp-tab-btn:hover {
+      color: #fff;
+      background: #1f232c;
+    }
+
+    .insp-tab-btn.active {
+      background: var(--hbl-orange);
+      color: #fff;
+      border-color: #ff5714;
+    }
+
+    .lang-switch {
+      display: inline-flex;
+      background: #14161b;
+      border: 1px solid var(--panel-border);
+      border-radius: 7px;
+      overflow: hidden;
+    }
+
+    .lang-btn {
+      background: transparent;
+      color: var(--text-muted);
+      border: none;
+      padding: 6px 11px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .lang-btn.active {
+      background: var(--hbl-orange);
+      color: #fff;
+    }
+
+    .mem-bar-wrap {
+      margin-bottom: 12px;
+      background: #14161b;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid #252932;
+    }
+
+    .mem-bar-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-size: 12.5px;
+      margin-bottom: 5px;
+    }
+
+    .mem-bar-track {
+      width: 100%;
+      height: 8px;
+      background: #262b36;
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .mem-bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.25s ease;
+    }
+
+    .mem-note {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .sweep-stage {
+      background: #14161b;
+      border: 1px solid #262b36;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 10px;
+    }
+
+    .sweep-stage-hdr {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 600;
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+
+    .sweep-check {
+      font-size: 12px;
+      padding: 4px 0 4px 10px;
+      border-left: 2px solid #2c313c;
+      margin-top: 4px;
+    }
+
+    .sweep-check .detail {
+      color: var(--text-muted);
+      font-family: Consolas, monospace;
+      font-size: 11.5px;
+      margin-top: 2px;
+    }
+
+    .verdict-banner {
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 13.5px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .verdict-banner.pass {
+      background: rgba(57, 181, 74, 0.16);
+      border: 1px solid var(--ok-green);
+      color: #69f0ae;
+    }
+
+    .verdict-banner.fail {
+      background: rgba(229, 57, 53, 0.18);
+      border: 1px solid var(--err-red);
+      color: #ff8a80;
+    }
   </style>
 </head>
 <body>
 
   <header>
     <h1>
-      <span>Hasselblad X1D-50c (`victory-gui`) – Interaktivní PC Simulátor</span>
+      <span id="hdrTitle">Hasselblad X1D-50c (`victory-gui`) – Interactive PC UI Simulator & Toolkit</span>
       <span class="badge">FW v1.25.0 (Wedge)</span>
     </h1>
-    <div style="display:flex; gap:10px;">
-      <button class="hw-btn orange" onclick="reloadLiveQml()">↻ Znovu načíst živé QML/JS ze složky</button>
+    <div style="display:flex; gap:10px; align-items:center;">
+      <div class="lang-switch">
+        <button id="btnLangEn" class="lang-btn active" onclick="setLang('en')">🇬🇧 EN</button>
+        <button id="btnLangCs" class="lang-btn" onclick="setLang('cs')">🇨🇿 CZ</button>
+      </div>
+      <button id="btnReloadQml" class="hw-btn orange" onclick="reloadLiveQml()">↻ Reload Live QML/JS</button>
     </div>
   </header>
 
@@ -915,7 +1071,7 @@
     <div class="camera-chassis">
       <div class="chassis-top-controls">
         <div class="wheel-group">
-          <span>Přední kolečko:</span>
+          <span id="lblFrontWheel">Front Wheel:</span>
           <button class="hw-btn" onclick="turnWheel('front', -1)">◀</button>
           <button class="hw-btn" onclick="turnWheel('front', 1)">▶</button>
         </div>
@@ -924,7 +1080,7 @@
           <button class="hw-btn" onclick="pressTopBtn('ISO_WB')">ISO/WB</button>
         </div>
         <div class="wheel-group">
-          <span>Zadní kolečko:</span>
+          <span id="lblRearWheel">Rear Wheel:</span>
           <button class="hw-btn" onclick="turnWheel('rear', -1)">◀</button>
           <button class="hw-btn" onclick="turnWheel('rear', 1)">▶</button>
         </div>
@@ -936,75 +1092,145 @@
 
         <!-- RIGHT SIDE PHYSICAL BUTTONS ON X1D BODY -->
         <div class="side-hw-buttons">
-          <button class="hw-btn" title="AE-L tlačítko" onclick="pressTopBtn('AE_L')">AE-L</button>
-          <button class="hw-btn" title="AF-D tlačítko" onclick="pressTopBtn('AF_D')">AF-D</button>
-          <button class="hw-btn orange" title="Otevřít/zavřít Hlavní Menu" onclick="toggleMainMenu()">MENU</button>
-          <button class="hw-btn" title="Domovská obrazovka / Zpět (X)" onclick="goControlScreen()">✕<br><span style="font-size:9px">CTRL</span></button>
+          <button class="hw-btn" title="AE-L Button" onclick="pressTopBtn('AE_L')">AE-L</button>
+          <button class="hw-btn" title="AF-D Button" onclick="pressTopBtn('AF_D')">AF-D</button>
+          <button class="hw-btn orange" title="Open/Close Main Menu" onclick="toggleMainMenu()">MENU</button>
+          <button class="hw-btn" title="Control Screen / Cancel (X)" onclick="goControlScreen()">✕<br><span style="font-size:9px">CTRL</span></button>
         </div>
       </div>
     </div>
 
-    <!-- RIGHT: LIVE MODDING & C++ BACKEND X-RAY PANEL -->
+    <!-- RIGHT: LIVE MODDING, MEMORY COUNTER & ANTI-BRICK SWEEP -->
     <div class="inspector-col">
-      <div class="card">
-        <h2>
-          <span>1. Živé přepínače (`guiconfig` & `DemoState`)</span>
-          <span style="font-size:12px; color:var(--text-muted)">Okamžitý efekt v UI</span>
-        </h2>
-        <div class="toggle-list">
-          <label class="toggle-item">
-            <span>Skrýt nedokončené/inženýrské položky (<code>guiconfig.hideDemoItems</code>)</span>
-            <input type="checkbox" id="chkHideDemo" checked onchange="onToggleFlags()" />
-          </label>
-          <label class="toggle-item">
-            <span>Červené zvýraznění <code>demo: true</code> položek (<code>DemoState.demoOn</code>)</span>
-            <input type="checkbox" id="chkDemoOn" checked onchange="onToggleFlags()" />
-          </label>
-          <label class="toggle-item">
-            <span>Servisní Easter Egg (<code>guiconfig.showSecretMenuItems</code>)<br><small style="color:var(--text-muted)">Tip: Nebo 5× klepni na „Firmware: 1.25.0“ v General Settings → About!</small></span>
-            <input type="checkbox" id="chkSecret" onchange="onToggleFlags()" />
-          </label>
-          <div class="toggle-item">
-            <span>Profil těla (<code>MenuItemImporter.js</code>):</span>
-            <select id="selPersona" onchange="onChangePersona()" style="background:#232730; color:#fff; border:1px solid #444; padding:4px 8px; border-radius:4px;">
-              <option value="wedge">Wedge – Hasselblad X1D-50c</option>
-              <option value="victory">Victory – Hasselblad H6D-50c/100c</option>
-              <option value="cfv">Idun – 907X / CFV II 50C</option>
-              <option value="a6d">A6D – Průmyslová kamera A6D</option>
-            </select>
+      <div class="inspector-tabs">
+        <button id="tabBtnXray" class="insp-tab-btn active" onclick="switchInspectorTab('xray')">🔧 Modding &amp; C++ X-Ray</button>
+        <button id="tabBtnMem" class="insp-tab-btn" onclick="switchInspectorTab('mem')">💾 Memory &amp; QRC Slots</button>
+        <button id="tabBtnSweep" class="insp-tab-btn" onclick="switchInspectorTab('sweep')">🛡️ Anti-Brick Sweep</button>
+      </div>
+
+      <!-- TAB 1: MODDING & C++ X-RAY -->
+      <div id="tabPaneXray" style="display:flex; flex-direction:column; gap:16px;">
+        <div class="card">
+          <h2>
+            <span id="card1Title">1. Live Runtime Flags (`guiconfig` &amp; `DemoState`)</span>
+            <span id="card1Sub" style="font-size:12px; color:var(--text-muted)">Instant UI effect</span>
+          </h2>
+          <div class="toggle-list">
+            <label class="toggle-item">
+              <span id="lblHideDemo">Hide unfinished/engineering items (<code>guiconfig.hideDemoItems</code>)</span>
+              <input type="checkbox" id="chkHideDemo" checked onchange="onToggleFlags()" />
+            </label>
+            <label class="toggle-item">
+              <span id="lblDemoOn">Red overlay on <code>demo: true</code> items (<code>DemoState.demoOn</code>)</span>
+              <input type="checkbox" id="chkDemoOn" checked onchange="onToggleFlags()" />
+            </label>
+            <label class="toggle-item">
+              <span id="lblSecret">Service Easter Egg (<code>guiconfig.showSecretMenuItems</code>)<br><small style="color:var(--text-muted)">Tip: Or tap "Firmware: 1.25.0" 5× in General Settings → About!</small></span>
+              <input type="checkbox" id="chkSecret" onchange="onToggleFlags()" />
+            </label>
+            <div class="toggle-item">
+              <span id="lblPersona">Camera Body Persona (<code>MenuItemImporter.js</code>):</span>
+              <select id="selPersona" onchange="onChangePersona()" style="background:#232730; color:#fff; border:1px solid #444; padding:4px 8px; border-radius:4px;">
+                <option value="wedge">Wedge – Hasselblad X1D-50c</option>
+                <option value="victory">Victory – Hasselblad H6D-50c/100c</option>
+                <option value="cfv">Idun – 907X / CFV II 50C</option>
+                <option value="a6d">A6D – Aerial / Industrial A6D</option>
+              </select>
+            </div>
           </div>
+        </div>
+
+        <div class="card">
+          <h2>
+            <span id="card2Title">2. C++ Backend X-Ray (QML ↔ D-Bus ↔ Daemons)</span>
+            <span id="card2Sub" style="font-size:12px; color:var(--text-muted)">Click any menu item</span>
+          </h2>
+          <div id="xrayContent" class="xray-box">
+            <div id="xrayPlaceholder" style="color:var(--text-muted)">
+              Click any item in the 640×480 menu on the left (or unlock hidden items by unchecking <code>guiconfig.hideDemoItems</code>) to inspect its exact C++ bindings across <code>victory-gui</code>, <code>configstore</code>, <code>msg2dbus</code>, and <code>camera-daemon</code>.
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>
+            <span id="card3Title">3. Quick QRC Slot Fit (`victory-gui` In-Place Patch)</span>
+            <span style="font-size:12px; color:var(--text-muted)">zlib level 9</span>
+          </h2>
+          <table class="slot-table">
+            <thead>
+              <tr>
+                <th id="thFile">File in `victory_gui_qml/`</th>
+                <th id="thNeed">Needed / Slot</th>
+                <th id="thSlack">Free (Raw / No-Cmt)</th>
+              </tr>
+            </thead>
+            <tbody id="zlibTableBody">
+              <tr><td colspan="3">Loading slot status...</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
-      <div class="card">
-        <h2>
-          <span>2. Rentgen C++ Backendu (QML ↔ D-Bus ↔ Daemony)</span>
-          <span style="font-size:12px; color:var(--text-muted)">Klikni na položku v menu</span>
-        </h2>
-        <div id="xrayContent" class="xray-box">
-          <div style="color:var(--text-muted)">
-            Klikni na libovolnou položku v 640×480 menu vlevo (nebo odemkni skryté funkce odškrtnutím <code>guiconfig.hideDemoItems</code>) a zobrazí se její přesná vazba v C++ binárkách <code>victory-gui</code>, <code>configstore</code>, <code>msg2dbus</code> a <code>camera-daemon</code>.
-          </div>
+      <!-- TAB 2: MEMORY & STORAGE COUNTER -->
+      <div id="tabPaneMem" style="display:none; flex-direction:column; gap:16px;">
+        <div class="card">
+          <h2>
+            <span id="memCard1Title">1. Hardware Flash, eMMC &amp; RAM Memory Counter</span>
+            <button class="hw-btn" style="padding:3px 9px; font-size:11px;" onclick="loadMemoryStats()">↻ Refresh</button>
+          </h2>
+          <div id="hwBudgetsContainer">Loading memory counters...</div>
+        </div>
+
+        <div class="card">
+          <h2>
+            <span id="memCard2Title">2. Detailed QRC Resource Slots (`DATA_BASE` = 898,636 B)</span>
+            <span id="memPoolBadge" class="status-pill ok">+60.2 KB with comment strip</span>
+          </h2>
+          <div id="memPoolSummary" style="font-size:12px; color:var(--text-muted); margin-bottom:10px;"></div>
+          <table class="slot-table">
+            <thead>
+              <tr>
+                <th>QRC Resource</th>
+                <th>Raw</th>
+                <th>zlib-9 / Slot</th>
+                <th>Free</th>
+                <th>Free (No-Cmt)</th>
+              </tr>
+            </thead>
+            <tbody id="detailedSlotTableBody">
+              <tr><td colspan="5">Loading QRC slot breakdown...</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
-      <div class="card">
-        <h2>
-          <span>3. Kontrola QRC slotů pro In-Place Patch (`victory-gui`)</span>
-          <span style="font-size:12px; color:var(--text-muted)">zlib level 9</span>
-        </h2>
-        <table class="slot-table">
-          <thead>
-            <tr>
-              <th>Soubor ve `victory_gui_qml/`</th>
-              <th>Potřeba / Slot</th>
-              <th>Rezerva</th>
-            </tr>
-          </thead>
-          <tbody id="zlibTableBody">
-            <tr><td colspan="3">Načítám stav slotů...</td></tr>
-          </tbody>
-        </table>
+      <!-- TAB 3: ANTI-BRICK PRE-FLIGHT SWEEP -->
+      <div id="tabPaneSweep" style="display:none; flex-direction:column; gap:16px;">
+        <div class="card">
+          <h2>
+            <span id="sweepCardTitle">5-Stage Anti-Brick Pre-Flight Verification Sweep</span>
+            <div style="display:flex; gap:6px;">
+              <button id="btnSweepFast" class="hw-btn orange" style="padding:4px 10px; font-size:11.5px;" onclick="runPreflightSweep(false)">⚡ Fast Sweep</button>
+              <button id="btnSweepDeep" class="hw-btn" style="padding:4px 10px; font-size:11.5px;" onclick="runPreflightSweep(true)">🔍 Deep 60MB Sweep</button>
+            </div>
+          </h2>
+          <div id="sweepVerdictBox"></div>
+          <div id="sweepStagesContainer">Running pre-flight checks...</div>
+        </div>
+
+        <div class="card">
+          <h2 id="abCardTitle">🛡️ Hardware Dual-Slot A/B Auto-Rollback Safety Net</h2>
+          <div id="abCardBody" style="font-size:12.5px; line-height:1.55; color:#d0d7de;">
+            The 1st-gen X1D-50c has a built-in hardware safety net in <strong>U-Boot (`IS25LQ040B` SPI NOR)</strong> and <strong>eMMC (`mmcblk3`)</strong>:
+            <ul style="margin:8px 0 0 0; padding-left:18px;">
+              <li><strong>SPI NOR U-Boot is never touched:</strong> <code>hbl-upgrade</code> explicitly skips flashing U-Boot.</li>
+              <li><strong>Inactive slot only:</strong> If you are running on Slot A (<code>mmcblk3p1/p2</code>), the update formats and writes only Slot B (<code>mmcblk3p3/p4</code>), leaving your working OS 100% intact.</li>
+              <li><strong>One-shot trial boot (<code>upgrade=1</code>):</strong> On reboot, U-Boot sees <code>upgrade=1</code>, immediately <strong>clears <code>upgrade</code> and saves env</strong> before booting the new slot with <code>status=1</code>.</li>
+              <li><strong>Automatic rollback:</strong> Only after Linux + D-Bus + <code>upgrade-daemon</code> successfully start does <code>hbl-post-upgrade</code> commit <code>current_bootpart</code>. If the new slot fails to boot, simply power-cycling the camera boots right back into your working firmware!</li>
+            </ul>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -1042,205 +1268,250 @@
     var prodinfo = { wifiAvailable: true };
     var cambody = { capabilities: 3 };
 
-    // === 2. DATABÁZE C++ BACKENDU A VOLBY PRO POLOŽKY ===
+    // === 2. BILINGUAL C++ BACKEND METADATA (EN / CZ) ===
     const SETTING_META = {
-      // Skryté AF ladicí volby (100% funkční v C++)
+      // Hidden AF debug options (100% functional in C++)
       af_fir: {
-        type: "bool", val: false, status: "exp", statusText: "Funkční v C++ (Ladění AF)",
+        type: "bool", val: false, status: "exp",
+        statusText_en: "Functional in C++ (AF Tuning)", statusText: "Funkční v C++ (Ladění AF)",
         cppSetter: "ConfigStoreProxy::setAf_fir(bool)",
         dbus: "se.hasselblad.configstore -> af_fir",
-        daemon: "msg2dbus (FarmHandler -> FPGA FIR filtr kontrastní křivky)",
+        daemon: "msg2dbus (FarmHandler -> FPGA FIR contrast filter)",
+        notes_en: "Enables the FIR smoothing filter over contrast measurements during lens CDAF scanning.",
         notes: "Zapíná FIR vyhlazovací filtr nad měřením kontrastu během CDAF skenu objektivu."
       },
       af_log: {
-        type: "bool", val: false, status: "exp", statusText: "Funkční v C++ (Ladění AF)",
+        type: "bool", val: false, status: "exp",
+        statusText_en: "Functional in C++ (AF Tuning)", statusText: "Funkční v C++ (Ladění AF)",
         cppSetter: "ConfigStoreProxy::setAf_log(bool)",
         dbus: "se.hasselblad.configstore -> af_log",
-        daemon: "msg2dbus -> logování CDAF průběhu",
+        daemon: "msg2dbus -> CDAF sequence telemetry logger",
+        notes_en: "Logs CDAF step telemetry for engineering diagnostics.",
         notes: "Ukládá telemetrii ostřicího kroku pro inženýrskou diagnostiku."
       },
       af_full_scan: {
-        type: "bool", val: false, status: "exp", statusText: "Funkční v C++ (Ladění AF)",
+        type: "bool", val: false, status: "exp",
+        statusText_en: "Functional in C++ (AF Tuning)", statusText: "Funkční v C++ (Ladění AF)",
         cppSetter: "ConfigStoreProxy::setAf_full_scan(bool)",
         dbus: "se.hasselblad.configstore -> af_full_scan",
         daemon: "msg2dbus -> af_cmd_scan_request",
+        notes_en: "Forces a full-range stepper motor scan on the XCD lens.",
         notes: "Vynutí proskenování celého rozsahu krokového motoru objektivu XCD."
       },
       fpga_debug: {
         type: "dropdown", val: "x + y", options: ["x + y", "x + y/4", "x + y/2"],
-        status: "exp", statusText: "100% funkční (Brenner FPGA registr)",
+        status: "exp",
+        statusText_en: "100% Functional (Brenner FPGA Register)", statusText: "100% funkční (Brenner FPGA registr)",
         cppSetter: "SettingsMiddleLayer::setFpga_debug(QString)",
         dbus: "se.hasselblad.configstore -> fpga_debug (0..2)",
         daemon: "msg2dbus (FarmHandler -> FARM FPGA Brenner gradient)",
+        notes_en: "Changes horizontal vs. vertical contrast gradient weighting inside the FARM FPGA.",
         notes: "Mění vážení horizontálního a vertikálního kontrastu v čipu FARM FPGA."
       },
       DebugAfSpeedEnable: {
-        type: "bool", val: false, status: "exp", statusText: "100% funkční (Povolení vlastní rychlosti AF)",
+        type: "bool", val: false, status: "exp",
+        statusText_en: "100% Functional (Custom AF Speed Enable)", statusText: "100% funkční (Povolení vlastní rychlosti AF)",
         cppSetter: "ConfigStoreProxy::setDebugAfSpeedEnable(bool)",
         dbus: "se.hasselblad.configstore -> DebugAfSpeedEnable",
         daemon: "msg2dbus (SucHandler -> af_cmd_speed)",
+        notes_en: "Allows overriding default XCD lens stepper speed with the value selected in DebugAfSpeed.",
         notes: "Povoluje přepsání výchozí rychlosti krokového motoru objektivu hodnotou z DebugAfSpeed."
       },
       DebugAfSpeed: {
         type: "dropdown", val: "21000",
         options: ["7000", "9000", "11000", "13000", "15000", "17000", "19000", "21000", "23000", "25000", "27000", "29000", "31000"],
-        status: "exp", statusText: "100% funkční (Rychlost AF motoru XCD)",
+        status: "exp",
+        statusText_en: "100% Functional (XCD Lens AF Motor Speed)", statusText: "100% funkční (Rychlost AF motoru XCD)",
         cppSetter: "SettingsMiddleLayer::setDebugAfSpeed(QString)",
         dbus: "se.hasselblad.configstore -> DebugAfSpeed",
-        daemon: "msg2dbus (SucHandler -> af_cmd_speed do XCD objektivu)",
+        daemon: "msg2dbus (SucHandler -> af_cmd_speed to XCD lens)",
+        notes_en: "13 discrete stepper speeds (7000 to 31000) wired in SettingsMiddleLayer (offset 0x1bf2d8).",
         notes: "13 diskrétních rychlostí motoru (7000 až 31000) přímo v SettingsMiddleLayer (offset 0x1bf2d8)."
       },
       DebugAfMode: {
         type: "dropdown", val: "Normal", options: ["Normal", "Debug 1", "Debug 2"],
-        status: "exp", statusText: "Funkční v C++ (Režim AF)",
+        status: "exp",
+        statusText_en: "Functional in C++ (AF Mode)", statusText: "Funkční v C++ (Režim AF)",
         cppSetter: "SettingsMiddleLayer::setDebugAfMode(QString)",
         dbus: "se.hasselblad.configstore -> DebugAfMode",
         daemon: "msg2dbus (SucHandler)",
+        notes_en: "Switches internal autofocus evaluation mode.",
         notes: "Přepíná interní režim vyhodnocení autofokusu."
       },
 
-      // Skryté Custom Buttons (AE-L a AF-D)
+      // Hidden Custom Buttons (AE-L and AF-D)
       Userbutton_AELockFunction: {
         type: "dropdown", val: "AE Lock",
         options: ["AE Lock", "AF Drive", "Focus Assist", "Start Liveview", "Zoom In", "Crop Mode", "Drive Mode", "Exposure Sim", "None"],
-        status: "ok", statusText: "100% funkční na X1D-50c!",
+        status: "ok",
+        statusText_en: "100% Functional on X1D-50c!", statusText: "100% funkční na X1D-50c!",
         cppSetter: "SettingsMiddleLayer::setUserbutton_AELockFunction(QString)",
         dbus: "se.hasselblad.configstore -> Userbutton_AELockFunction",
         daemon: "bodystate-daemon (GPIOKeys::onUserbutton_AELockFunction @ 0x160c0)",
+        notes_en: "Fully implemented in bodystate-daemon for the physical AE-L button (all 33 actions). Just remove demo: true!",
         notes: "Plně naimplementováno v bodystate-daemon pro fyzické tlačítko AE-L. Stačí smazat demo: true!"
       },
       Userbutton_AFDriveFunction: {
         type: "dropdown", val: "AF Drive",
         options: ["AF Drive", "AE Lock", "Focus Assist", "Start Liveview", "Zoom In", "Crop Mode", "Drive Mode", "Exposure Sim", "None"],
-        status: "ok", statusText: "100% funkční na X1D-50c!",
+        status: "ok",
+        statusText_en: "100% Functional on X1D-50c!", statusText: "100% funkční na X1D-50c!",
         cppSetter: "SettingsMiddleLayer::setUserbutton_AFDriveFunction(QString)",
         dbus: "se.hasselblad.configstore -> Userbutton_AFDriveFunction",
         daemon: "bodystate-daemon (GPIOKeys::onUserbutton_AFDriveFunction @ 0x160b4)",
+        notes_en: "Fully implemented in bodystate-daemon for the physical AF-D button (all 33 actions). Just remove demo: true!",
         notes: "Plně naimplementováno v bodystate-daemon pro fyzické tlačítko AF-D. Stačí smazat demo: true!"
       },
       Userbutton_AFMFFunction: {
         type: "dropdown", val: "AF / MF", options: ["AF / MF", "Focus Assist", "Zoom In", "Crop Mode", "None"],
-        status: "ok", statusText: "Standardní funkce X1D",
+        status: "ok",
+        statusText_en: "Standard Stock X1D Feature", statusText: "Standardní funkce X1D",
         cppSetter: "SettingsMiddleLayer::setUserbutton_AFMFFunction(QString)",
         dbus: "se.hasselblad.configstore -> Userbutton_AFMFFunction",
         daemon: "bodystate-daemon (GPIOKeys)"
       },
       Userbutton_ISOWBFunction: {
         type: "dropdown", val: "ISO / WB", options: ["ISO / WB", "Focus Assist", "Zoom In", "Crop Mode", "None"],
-        status: "ok", statusText: "Standardní funkce X1D",
+        status: "ok",
+        statusText_en: "Standard Stock X1D Feature", statusText: "Standardní funkce X1D",
         cppSetter: "SettingsMiddleLayer::setUserbutton_ISOWBFunction(QString)",
         dbus: "se.hasselblad.configstore -> Userbutton_ISOWBFunction",
         daemon: "bodystate-daemon (GPIOKeys::onUserbutton_IsoWbFunction @ 0x160a8)"
       },
       Userbutton_StopDownFunction: {
         type: "dropdown", val: "Stop Down", options: ["Stop Down", "Focus Assist", "Zoom In", "Crop Mode", "Exposure Sim", "None"],
-        status: "ok", statusText: "Standardní funkce X1D",
+        status: "ok",
+        statusText_en: "Standard Stock X1D Feature", statusText: "Standardní funkce X1D",
         cppSetter: "SettingsMiddleLayer::setUserbutton_StopDownFunction(QString)",
         dbus: "se.hasselblad.configstore -> Userbutton_StopDownFunction",
         daemon: "bodystate-daemon (GPIOKeys)"
       },
 
-      // Skryté Configuration volby
+      // Hidden Configuration options
       CustomOption_RearApertureWheel: {
         type: "dropdown", val: "Aperture", options: ["Aperture", "Shutterspeed"],
-        status: "ok", statusText: "100% funkční na X1D-50c!",
+        status: "ok",
+        statusText_en: "100% Functional on X1D-50c!", statusText: "100% funkční na X1D-50c!",
         cppSetter: "SettingsMiddleLayer::setCustomOption_RearApertureWheel(QString)",
         dbus: "se.hasselblad.configstore -> CustomOption_RearApertureWheel",
         daemon: "msg2dbus (SucHandler)",
+        notes_en: "Swaps front and rear command dial functions in Manual (M) mode! (Try turning the dials above the screen.)",
         notes: "Prohodí funkci předního a zadního příkazového kolečka v manuálním režimu M! (Vyzkoušej kolečka nahoře nad displejem.)"
       },
       CustomOption_HideBTmode: {
         type: "bool", val: false,
-        status: "ok", statusText: "100% funkční na X1D-50c!",
+        status: "ok",
+        statusText_en: "100% Functional on X1D-50c!", statusText: "100% funkční na X1D-50c!",
         cppSetter: "SettingsMiddleLayer::setCustomOption_HideBTmode(bool)",
         dbus: "se.hasselblad.configstore -> CustomOption_HideBTmode",
         daemon: "camera-daemon (ConfigstoreProxy::CustomOption_HideBTmodeChanged)",
+        notes_en: "Hides Bulb (B) and Time (T) modes when scrolling shutter speeds.",
         notes: "Skryje režimy Bulb (B) a Time (T) při běžném otáčení kolečka času závěrky."
       },
       CustomOption_AElockAtHalfpress: {
         type: "bool", val: false,
-        status: "ok", statusText: "100% funkční na X1D-50c!",
+        status: "ok",
+        statusText_en: "100% Functional on X1D-50c!", statusText: "100% funkční na X1D-50c!",
         cppSetter: "SettingsMiddleLayer::setCustomOption_AElockAtHalfpress(bool)",
         dbus: "se.hasselblad.configstore -> CustomOption_AElockAtHalfpress",
         daemon: "msg2dbus (SucHandler)",
+        notes_en: "Locks exposure metering (AE-L) when half-pressing the shutter release button.",
         notes: "Uzamkne měření expozice (AE-L) při namáčknutí spouště do poloviny."
       },
 
-      // Skryté Display & Quality volby
+      // Hidden Display & Quality options
       Eyesensor_Distance: {
         type: "dropdown", val: "Medium", options: ["Short", "Medium", "Long"],
-        status: "ok", statusText: "100% funkční na X1D-50c!",
+        status: "ok",
+        statusText_en: "100% Functional on X1D-50c!", statusText: "100% funkční na X1D-50c!",
         cppSetter: "SettingsMiddleLayer::setEyesensor_Distance(QString)",
         dbus: "se.hasselblad.configstore -> Eyesensor_Distance (0..2)",
-        daemon: "msg2dbus (SucHandler -> IR senzor hledáčku)",
+        daemon: "msg2dbus (SucHandler -> EVF IR proximity sensor)",
+        notes_en: "Configures optical proximity threshold for automatic EVF switching.",
         notes: "Nastavuje citlivost optického senzoru přiblížení oka u EVF hledáčku."
       },
       compress_3fr: {
         type: "bool", val: false,
-        status: "exp", statusText: "Funkční v storage-daemon (Experimentální)",
+        status: "exp",
+        statusText_en: "Functional in storage-daemon (Experimental)", statusText: "Funkční v storage-daemon (Experimentální)",
         cppSetter: "ConfigStoreProxy::setCompress_3fr(bool)",
         dbus: "se.hasselblad.configstore -> compress_3fr",
         daemon: "storage-daemon (ConfigstoreProxy::compress_3frChanged)",
+        notes_en: "Enables lossless .3FR RAW compression during file write in storage-daemon.",
         notes: "Zapíná bezztrátovou kompresi RAW souborů .3FR při zápisu v storage-daemon."
       },
       jpg_size: {
         type: "dropdown", val: "12.8", options: ["12.8", "50"],
-        status: "exp", statusText: "Funkční v storage-daemon",
+        status: "exp",
+        statusText_en: "Functional in storage-daemon", statusText: "Funkční v storage-daemon",
         cppSetter: "SettingsMiddleLayer::setJpg_size(QString)",
         dbus: "se.hasselblad.configstore -> jpg_size (Quarter / Full)",
         daemon: "storage-daemon (ConfigstoreProxy::jpg_sizeChanged)",
+        notes_en: "Switches generated JPEG resolution between 12.8 MP (Quarter) and full resolution.",
         notes: "Přepíná rozlišení generovaných JPEG náhledů mezi 12.8 MP (Quarter) a plným rozlišením."
       },
 
-      // Servisní Easter Egg volby
+      // Service Easter Egg options
       ram_only_mode: {
         type: "bool", val: false,
-        status: "ok", statusText: "Easter Egg funkce (Service)",
+        status: "ok",
+        statusText_en: "Easter Egg Feature (Service)", statusText: "Easter Egg funkce (Service)",
         cppSetter: "FarmProxy::setRam_only_mode(int)",
         dbus: "se.hasselblad.farm -> ram_only_mode",
         daemon: "msg2dbus (FarmHandler) + DemoModeIndicator.qml",
+        notes_en: "Activates the red NO STORAGE badge on the main screen; captures stay in RAM without writing to SD.",
         notes: "Aktivuje červený indikátor NO STORAGE na hlavním displeji; snímky se neukládají na SD kartu."
       },
       thumbwheel_mode: {
         type: "dropdown", val: "Original", options: ["Original", "Adjusted"],
-        status: "ok", statusText: "Easter Egg funkce (Service)",
+        status: "ok",
+        statusText_en: "Easter Egg Feature (Service)", statusText: "Easter Egg funkce (Service)",
         cppSetter: "GuiConfig::setThumbwheel_mode(QString)",
         dbus: "/usr/bin/prodconfig-tool --thumbwheel-mode",
         daemon: "msg2dbus (SucHandler)",
+        notes_en: "Adjusts debouncing and step response of the front and rear scroll wheels.",
         notes: "Upravuje citlivost a debouncing předního a zadního rolovacího kolečka."
       },
       fwUpdateRetry: {
         type: "button", val: "",
-        status: "ok", statusText: "Easter Egg funkce (Service)",
+        status: "ok",
+        statusText_en: "Easter Egg Feature (Service)", statusText: "Easter Egg funkce (Service)",
         cppSetter: "GuiConfig::fwUpdateRetry()",
         dbus: "se.hasselblad.upgrade",
         daemon: "upgrade-daemon",
+        notes_en: "Allows forcing a firmware update retry.",
         notes: "Umožňuje vynutit opakovanou instalaci firmwaru."
       },
       versionID: {
         type: "textbutton", val: "1.25.0",
-        status: "ok", statusText: "Easter Egg spouštěč (5× klepnutí)",
+        status: "ok",
+        statusText_en: "Easter Egg Trigger (Tap 5×)", statusText: "Easter Egg spouštěč (5× klepnutí)",
         cppSetter: "GuiConfiguration::wantToSeeFWUpdateRetryClicked()",
         dbus: "guiconfig.showSecretMenuItems = true",
         daemon: "victory-gui (SettingsGeneric.qml:951)",
+        notes_en: "Repeatedly tapping this row on any stock X1D-50c unlocks 3 secret items in General Settings → Service!",
         notes: "Opakovaným klepnutím na tento řádek přímo na foťáku odemkneš 3 tajné položky v menu Service!"
       },
 
-      // Neimplementované placeholdery
+      // Unimplemented placeholders
       contrast: {
         type: "slider", val: 50,
-        status: "stub", statusText: "Neaktivní UI placeholder",
-        cppSetter: "Pouze lokální QML vlastnost",
-        dbus: "Žádné D-Bus napojení v configstore",
-        daemon: "Není napojeno",
+        status: "stub",
+        statusText_en: "Inactive UI Placeholder", statusText: "Neaktivní UI placeholder",
+        cppSetter: "Local QML property only",
+        dbus: "No D-Bus binding in configstore",
+        daemon: "Not wired",
+        notes_en: "Only Brightness (BACKLIGHT_brightness) is wired to hardware PWM backlight.",
         notes: "Pouze posuvník Brightness (BACKLIGHT_brightness) je reálně napojen na PWM podsvícení displeje."
       },
       gpsOn: {
         type: "bool", val: false,
-        status: "stub", statusText: "Vyžaduje externí GPS modul",
+        status: "stub",
+        statusText_en: "Requires External GPS Module", statusText: "Vyžaduje externí GPS modul",
         cppSetter: "SettingsMiddleLayer::setGpsOn(bool)",
         dbus: "se.hasselblad.gps",
         daemon: "msg2dbus (NmeaSentence)",
+        notes_en: "1st-gen X1D-50c does not have an internal GPS receiver populated.",
         notes: "V první generaci X1D-50c není interní GPS modul osazen."
       }
     };
@@ -1315,6 +1586,11 @@
 
     // Stav simulátoru
     const state = {
+      lang: "en",              // "en" | "cs"
+      activeTab: "xray",       // "xray" | "mem" | "sweep"
+      lastMemoryData: null,
+      lastSweepData: null,
+      lastInspected: null,
       screenMode: "main_menu", // "control" | "main_menu" | "lvl1" | "lvl2"
       currentCategory: null,   // "camera" | "video" | "settings"
       currentCategoryTitle: "",
@@ -1343,6 +1619,167 @@
         { text: "About", icon: "LargeIconAbout", settingsList: "generalSettingsAbout", cat: "GENERAL SETTINGS" }
       ]
     };
+
+    const I18N = {
+      en: {
+        hdrTitle: "Hasselblad X1D-50c (`victory-gui`) – Interactive PC UI Simulator & Toolkit",
+        btnReloadQml: "↻ Reload Live QML/JS",
+        lblFrontWheel: "Front Wheel:",
+        lblRearWheel: "Rear Wheel:",
+        frontWheelHint: "Front Wheel",
+        rearWheelHint: "Rear Wheel",
+        backBtn: "◀ Back",
+        tabBtnXray: "🔧 Modding & C++ X-Ray",
+        tabBtnMem: "💾 Memory & QRC Slots",
+        tabBtnSweep: "🛡️ Anti-Brick Sweep",
+        card1Title: "1. Live Runtime Flags (`guiconfig` & `DemoState`)",
+        card1Sub: "Instant UI effect",
+        lblHideDemo: "Hide unfinished/engineering items (<code>guiconfig.hideDemoItems</code>)",
+        lblDemoOn: "Red overlay on <code>demo: true</code> items (<code>DemoState.demoOn</code>)",
+        lblSecret: "Service Easter Egg (<code>guiconfig.showSecretMenuItems</code>)<br><small style=\"color:var(--text-muted)\">Tip: Or tap \"Firmware: 1.25.0\" 5× in General Settings → About!</small>",
+        lblPersona: "Camera Body Persona (<code>MenuItemImporter.js</code>):",
+        card2Title: "2. C++ Backend X-Ray (QML ↔ D-Bus ↔ Daemons)",
+        card2Sub: "Click any menu item",
+        xrayPlaceholder: "Click any item in the 640×480 menu on the left (or unlock hidden items by unchecking <code>guiconfig.hideDemoItems</code>) to inspect its exact C++ bindings across <code>victory-gui</code>, <code>configstore</code>, <code>msg2dbus</code>, and <code>camera-daemon</code>.",
+        card3Title: "3. Quick QRC Slot Fit (`victory-gui` In-Place Patch)",
+        thFile: "File in `victory_gui_qml/`",
+        thNeed: "Needed / Slot",
+        thSlack: "Free (Raw / No-Cmt)",
+        memCard1Title: "1. Hardware Flash, eMMC & RAM Memory Counter",
+        memCard2Title: "2. Detailed QRC Resource Slots (`DATA_BASE` = 898,636 B)",
+        sweepCardTitle: "5-Stage Anti-Brick Pre-Flight Verification Sweep",
+        btnSweepFast: "⚡ Fast Sweep",
+        btnSweepDeep: "🔍 Deep 60MB Sweep",
+        abCardTitle: "🛡️ Hardware Dual-Slot A/B Auto-Rollback Safety Net",
+        abCardBody: `The 1st-gen X1D-50c has a built-in hardware safety net in <strong>U-Boot (<code>IS25LQ040B</code> SPI NOR)</strong> and <strong>eMMC (<code>mmcblk3</code>)</strong>:
+          <ul style="margin:8px 0 0 0; padding-left:18px;">
+            <li><strong>SPI NOR U-Boot is never touched:</strong> <code>hbl-upgrade</code> explicitly skips flashing U-Boot.</li>
+            <li><strong>Inactive slot only:</strong> If you are running on Slot A (<code>mmcblk3p1/p2</code>), the update formats and writes only Slot B (<code>mmcblk3p3/p4</code>), leaving your working OS 100% intact.</li>
+            <li><strong>One-shot trial boot (<code>upgrade=1</code>):</strong> On reboot, U-Boot sees <code>upgrade=1</code>, immediately <strong>clears <code>upgrade</code> and saves env</strong> before booting the new slot with <code>status=1</code>.</li>
+            <li><strong>Automatic rollback:</strong> Only after Linux + D-Bus + <code>upgrade-daemon</code> successfully start does <code>hbl-post-upgrade</code> commit <code>current_bootpart</code>. If the new slot fails to boot, simply power-cycling the camera boots right back into your working firmware!</li>
+          </ul>`,
+        toastReloaded: "Live QML/JS files reloaded!",
+        toastEasterEggUnlocked: "Easter Egg unlocked! (See General Settings → Service)",
+        toastEasterEggTap: "Easter Egg: tap ",
+        toastEasterEggMore: "× more!",
+        xrayCurVal: "Current Value:",
+        xrayCppMethod: "GUI C++ Method:",
+        xrayDbusProp: "D-Bus Property:",
+        xrayDaemon: "Target Daemon / HW:",
+        xrayStockStatus: "Standard Stock X1D Feature",
+        xrayStockNotes: "Standard menu item visible in official X1D v1.25.0 firmware.",
+        verdictPass: "✅ SAFE TO PACK / TEST — ALL 5 STAGES PASSED",
+        verdictFail: "❌ PRE-FLIGHT FAILED — DO NOT FLASH!"
+      },
+      cs: {
+        hdrTitle: "Hasselblad X1D-50c (`victory-gui`) – Interaktivní PC Simulátor & Toolkit",
+        btnReloadQml: "↻ Znovu načíst živé QML/JS",
+        lblFrontWheel: "Přední kolečko:",
+        lblRearWheel: "Zadní kolečko:",
+        frontWheelHint: "Přední kolečko",
+        rearWheelHint: "Zadní kolečko",
+        backBtn: "◀ Zpět",
+        tabBtnXray: "🔧 Modding & C++ Rentgen",
+        tabBtnMem: "💾 Paměť a QRC sloty",
+        tabBtnSweep: "🛡️ Anti-Brick Test",
+        card1Title: "1. Živé přepínače (`guiconfig` & `DemoState`)",
+        card1Sub: "Okamžitý efekt v UI",
+        lblHideDemo: "Skrýt nedokončené/inženýrské položky (<code>guiconfig.hideDemoItems</code>)",
+        lblDemoOn: "Červené zvýraznění <code>demo: true</code> položek (<code>DemoState.demoOn</code>)",
+        lblSecret: "Servisní Easter Egg (<code>guiconfig.showSecretMenuItems</code>)<br><small style=\"color:var(--text-muted)\">Tip: Nebo 5× klepni na „Firmware: 1.25.0“ v General Settings → About!</small>",
+        lblPersona: "Profil těla (<code>MenuItemImporter.js</code>):",
+        card2Title: "2. Rentgen C++ Backendu (QML ↔ D-Bus ↔ Daemony)",
+        card2Sub: "Klikni na položku v menu",
+        xrayPlaceholder: "Klikni na libovolnou položku v 640×480 menu vlevo (nebo odemkni skryté funkce odškrtnutím <code>guiconfig.hideDemoItems</code>) a zobrazí se její přesná vazba v C++ binárkách <code>victory-gui</code>, <code>configstore</code>, <code>msg2dbus</code> a <code>camera-daemon</code>.",
+        card3Title: "3. Rychlá kontrola QRC slotů (`victory-gui` In-Place Patch)",
+        thFile: "Soubor ve `victory_gui_qml/`",
+        thNeed: "Potřeba / Slot",
+        thSlack: "Rezerva (Raw / Bez kom.)",
+        memCard1Title: "1. Počítadlo paměti Flash, eMMC a RAM",
+        memCard2Title: "2. Detailní přehled QRC slotů (`DATA_BASE` = 898 636 B)",
+        sweepCardTitle: "5fázový Anti-Brick Pre-Flight Test",
+        btnSweepFast: "⚡ Rychlý test",
+        btnSweepDeep: "🔍 Hloubkový 60MB test",
+        abCardTitle: "🛡️ Hardwarová A/B ochrana proti bricknutí (Auto-Rollback)",
+        abCardBody: `První generace X1D-50c má přímo v <strong>U-Bootu (<code>IS25LQ040B</code> SPI NOR)</strong> a <strong>eMMC (<code>mmcblk3</code>)</strong> vestavěnou záchrannou pojistku:
+          <ul style="margin:8px 0 0 0; padding-left:18px;">
+            <li><strong>U-Boot v SPI NOR se nikdy nepřepisuje:</strong> Skript <code>hbl-upgrade</code> flashování bootloaderu zcela přeskakuje.</li>
+            <li><strong>Zápis jen do neaktivního slotu:</strong> Pokud běžíš na Slotu A (<code>mmcblk3p1/p2</code>), aktualizace formátuje a zapisuje výhradně do Slotu B (<code>mmcblk3p3/p4</code>). Tvůj funkční systém zůstává 100% nedotčený.</li>
+            <li><strong>Jednorázový zkušební boot (<code>upgrade=1</code>):</strong> Při restartu U-Boot přečte <code>upgrade=1</code>, okamžitě <strong>příznak <code>upgrade</code> vymaže a uloží env</strong> ještě před pokusem o nabootování nového slotu se <code>status=1</code>.</li>
+            <li><strong>Automatický návrat (Rollback):</strong> Teprve když plně naběhne Linux + D-Bus + <code>upgrade-daemon</code>, zavolá se <code>hbl-post-upgrade</code> a přepne <code>current_bootpart</code>. Pokud by upravený systém nenaběhl, stačí foťák vypnout a zapnout a automaticky naběhne původní funkční firmware!</li>
+          </ul>`,
+        toastReloaded: "Živé QML/JS soubory načteny!",
+        toastEasterEggUnlocked: "Easter Egg odemknut! (Viz General Settings → Service)",
+        toastEasterEggTap: "Easter Egg: ještě ",
+        toastEasterEggMore: "× klepni!",
+        xrayCurVal: "Aktuální hodnota:",
+        xrayCppMethod: "C++ metoda v GUI:",
+        xrayDbusProp: "D-Bus vlastnost:",
+        xrayDaemon: "Cílový daemon / HW:",
+        xrayStockStatus: "Standardní produkční funkce X1D",
+        xrayStockNotes: "Standardní položka viditelná v oficiálním firmwaru X1D v1.25.0.",
+        verdictPass: "✅ BEZPEČNÉ PRO ZABALENÍ / TEST — VŠECH 5 FÁZÍ PROŠLO",
+        verdictFail: "❌ KONTROLA SELHALA — NEFLASHOVAT!"
+      }
+    };
+
+    function t(key) {
+      return (I18N[state.lang] && I18N[state.lang][key]) || I18N.en[key] || key;
+    }
+
+    function setLang(lang) {
+      state.lang = lang;
+      document.getElementById("btnLangEn").classList.toggle("active", lang === "en");
+      document.getElementById("btnLangCs").classList.toggle("active", lang === "cs");
+      document.getElementById("hdrTitle").textContent = t("hdrTitle");
+      document.getElementById("btnReloadQml").textContent = t("btnReloadQml");
+      document.getElementById("lblFrontWheel").textContent = t("lblFrontWheel");
+      document.getElementById("lblRearWheel").textContent = t("lblRearWheel");
+      document.getElementById("tabBtnXray").textContent = t("tabBtnXray");
+      document.getElementById("tabBtnMem").textContent = t("tabBtnMem");
+      document.getElementById("tabBtnSweep").textContent = t("tabBtnSweep");
+      document.getElementById("card1Title").textContent = t("card1Title");
+      document.getElementById("card1Sub").textContent = t("card1Sub");
+      document.getElementById("lblHideDemo").innerHTML = t("lblHideDemo");
+      document.getElementById("lblDemoOn").innerHTML = t("lblDemoOn");
+      document.getElementById("lblSecret").innerHTML = t("lblSecret");
+      document.getElementById("lblPersona").innerHTML = t("lblPersona");
+      document.getElementById("card2Title").textContent = t("card2Title");
+      document.getElementById("card2Sub").textContent = t("card2Sub");
+      const xp = document.getElementById("xrayPlaceholder");
+      if (xp) xp.innerHTML = t("xrayPlaceholder");
+      document.getElementById("card3Title").textContent = t("card3Title");
+      document.getElementById("thFile").textContent = t("thFile");
+      document.getElementById("thNeed").textContent = t("thNeed");
+      document.getElementById("thSlack").textContent = t("thSlack");
+      document.getElementById("memCard1Title").textContent = t("memCard1Title");
+      document.getElementById("memCard2Title").textContent = t("memCard2Title");
+      document.getElementById("sweepCardTitle").textContent = t("sweepCardTitle");
+      document.getElementById("btnSweepFast").textContent = t("btnSweepFast");
+      document.getElementById("btnSweepDeep").textContent = t("btnSweepDeep");
+      document.getElementById("abCardTitle").textContent = t("abCardTitle");
+      document.getElementById("abCardBody").innerHTML = t("abCardBody");
+
+      if (state.lastInspected) {
+        if (state.lastInspected.type === "focusMode") inspectFocusMode();
+        else inspectSetting(state.lastInspected.name, state.lastInspected.label);
+      }
+      if (state.lastMemoryData) renderMemoryStats(state.lastMemoryData);
+      if (state.lastSweepData) renderPreflightSweep(state.lastSweepData);
+      renderScreen();
+    }
+
+    function switchInspectorTab(tab) {
+      state.activeTab = tab;
+      document.getElementById("tabBtnXray").classList.toggle("active", tab === "xray");
+      document.getElementById("tabBtnMem").classList.toggle("active", tab === "mem");
+      document.getElementById("tabBtnSweep").classList.toggle("active", tab === "sweep");
+      document.getElementById("tabPaneXray").style.display = (tab === "xray") ? "flex" : "none";
+      document.getElementById("tabPaneMem").style.display = (tab === "mem") ? "flex" : "none";
+      document.getElementById("tabPaneSweep").style.display = (tab === "sweep") ? "flex" : "none";
+      if (tab === "mem" && !state.lastMemoryData) loadMemoryStats();
+      if (tab === "sweep" && !state.lastSweepData) runPreflightSweep(false);
+    }
 
     function getVal(name) {
       if (SETTING_META[name] && SETTING_META[name].val !== undefined) return SETTING_META[name].val;
@@ -1379,10 +1816,14 @@
         const tbody = document.getElementById("zlibTableBody");
         tbody.innerHTML = items.map(it => {
           const badgeColor = it.fits_in_slot ? "var(--ok-green)" : "var(--err-red)";
+          const rawSlack = it.slack_bytes >= 0 ? "+" + it.slack_bytes : it.slack_bytes;
+          const stripSlack = (it.slack_stripped_bytes !== undefined)
+            ? (it.slack_stripped_bytes >= 0 ? "+" + it.slack_stripped_bytes : it.slack_stripped_bytes)
+            : rawSlack;
           return `<tr>
             <td><code>${it.file}</code></td>
             <td>${it.needed_bytes} / ${it.slot_capacity} B</td>
-            <td style="color:${badgeColor}; font-weight:600">${it.slack_bytes >= 0 ? '+' + it.slack_bytes : it.slack_bytes} B</td>
+            <td style="color:${badgeColor}; font-weight:600">${rawSlack} B <span style="color:#69f0ae; font-weight:normal">(${stripSlack} B)</span></td>
           </tr>`;
         }).join("");
       } catch (e) {
@@ -1390,11 +1831,143 @@
       }
     }
 
+    async function loadMemoryStats() {
+      try {
+        const resp = await fetch("/api/memory-stats?t=" + Date.now());
+        const data = await resp.json();
+        state.lastMemoryData = data;
+        renderMemoryStats(data);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function fmtSize(bytes, unit) {
+      if (unit === "MB") return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+      if (unit === "KB") return (bytes / 1024).toFixed(1) + " KB";
+      return bytes.toLocaleString() + " B";
+    }
+
+    function renderMemoryStats(data) {
+      const container = document.getElementById("hwBudgetsContainer");
+      if (!container || !data || !data.hardware_budgets) return;
+
+      container.innerHTML = data.hardware_budgets.map(b => {
+        const pct = Math.min(100, (b.used_bytes / b.capacity_bytes) * 100);
+        const title = state.lang === "cs" ? b.name_cs : b.name_en;
+        const note = state.lang === "cs" ? b.note_cs : b.note_en;
+        const barColor = pct > 95 ? "var(--warn-amber)" : "var(--ok-green)";
+        const freeLabel = state.lang === "cs" ? "volno" : "free";
+        return `
+          <div class="mem-bar-wrap">
+            <div class="mem-bar-top">
+              <strong>${title}</strong>
+              <span style="font-family:Consolas, monospace; font-size:12px;">
+                ${fmtSize(b.used_bytes, b.unit)} / ${fmtSize(b.capacity_bytes, b.unit)}
+                (<span style="color:#69f0ae; font-weight:600">${fmtSize(b.free_bytes, b.unit)} ${freeLabel}</span>)
+              </span>
+            </div>
+            <div class="mem-bar-track">
+              <div class="mem-bar-fill" style="width:${pct.toFixed(1)}%; background:${barColor};"></div>
+            </div>
+            <div class="mem-note">${note}</div>
+          </div>
+        `;
+      }).join("");
+
+      const poolSummary = document.getElementById("memPoolSummary");
+      if (poolSummary) {
+        poolSummary.innerHTML = state.lang === "cs"
+          ? `Celkem <strong>${data.qrc_total_files}</strong> zdrojů (${data.qrc_counts.qml} QML, ${data.qrc_counts.js} JS, ${data.qrc_counts.png} PNG) • Nekomprimovaně: <strong>${(data.qrc_uncompressed_total_bytes/1024).toFixed(1)} KB</strong> • Volno se <code>zlib-9</code>: <strong>+${data.qrc_free_zlib9_bytes.toLocaleString()} B</strong> • Volno po odstranění komentářů: <strong style="color:#69f0ae">+${data.qrc_free_stripped_bytes.toLocaleString()} B (+${(data.qrc_free_stripped_bytes/1024).toFixed(1)} KB)</strong>`
+          : `Total <strong>${data.qrc_total_files}</strong> resources (${data.qrc_counts.qml} QML, ${data.qrc_counts.js} JS, ${data.qrc_counts.png} PNG) • Uncompressed: <strong>${(data.qrc_uncompressed_total_bytes/1024).toFixed(1)} KB</strong> • Free with <code>zlib-9</code>: <strong>+${data.qrc_free_zlib9_bytes.toLocaleString()} B</strong> • Free with comment stripping: <strong style="color:#69f0ae">+${data.qrc_free_stripped_bytes.toLocaleString()} B (+${(data.qrc_free_stripped_bytes/1024).toFixed(1)} KB)</strong>`;
+      }
+
+      const stBody = document.getElementById("detailedSlotTableBody");
+      if (stBody && data.slots) {
+        stBody.innerHTML = data.slots.map(s => {
+          const c1 = s.free_slack_bytes >= 0 ? "var(--ok-green)" : "var(--warn-amber)";
+          const c2 = s.max_free_with_strip_bytes >= 0 ? "#69f0ae" : "var(--err-red)";
+          return `
+            <tr>
+              <td><code>${s.path}</code></td>
+              <td>${s.raw_bytes.toLocaleString()} B</td>
+              <td>${s.zlib9_bytes.toLocaleString()} / ${s.slot_bytes.toLocaleString()} B</td>
+              <td style="color:${c1}; font-weight:600">${s.free_slack_bytes >= 0 ? "+" + s.free_slack_bytes : s.free_slack_bytes} B</td>
+              <td style="color:${c2}; font-weight:700">${s.max_free_with_strip_bytes >= 0 ? "+" + s.max_free_with_strip_bytes.toLocaleString() : s.max_free_with_strip_bytes} B</td>
+            </tr>
+          `;
+        }).join("");
+      }
+    }
+
+    async function runPreflightSweep(deep) {
+      const stagesEl = document.getElementById("sweepStagesContainer");
+      if (stagesEl) {
+        stagesEl.innerHTML = `<div style="padding:14px; color:var(--text-muted);">${state.lang === "cs" ? "Spouštím 5fázovou kontrolu..." : "Running 5-stage anti-brick sweep..."}</div>`;
+      }
+      try {
+        const url = "/api/preflight-sweep" + (deep ? "?deep=1&t=" : "?t=") + Date.now();
+        const resp = await fetch(url);
+        const data = await resp.json();
+        state.lastSweepData = data;
+        state.lastMemoryData = data.memory;
+        renderPreflightSweep(data);
+        renderMemoryStats(data.memory);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function renderPreflightSweep(data) {
+      const vbox = document.getElementById("sweepVerdictBox");
+      const sbox = document.getElementById("sweepStagesContainer");
+      if (!vbox || !sbox || !data) return;
+
+      const modeTag = data.fast_mode
+        ? (state.lang === "cs" ? "Rychlý režim" : "Fast Mode")
+        : (state.lang === "cs" ? "Hloubková 60MB kontrola" : "Deep 60MB Stream Scan");
+
+      vbox.innerHTML = `
+        <div class="verdict-banner ${data.overall_ok ? 'pass' : 'fail'}">
+          <span>${data.overall_ok ? t("verdictPass") : t("verdictFail")}</span>
+          <span style="font-size:11.5px; opacity:0.85;">${modeTag}</span>
+        </div>
+      `;
+
+      sbox.innerHTML = data.stages.map(st => {
+        const stTitle = state.lang === "cs" ? st.title_cs : st.title_en;
+        const pill = st.ok
+          ? `<span class="status-pill ok">PASS</span>`
+          : `<span class="status-pill stub">FAIL</span>`;
+        const checksHtml = st.checks.map(ch => {
+          const chName = state.lang === "cs" ? ch.name_cs : ch.name_en;
+          const icon = ch.ok ? "✅" : "❌";
+          return `
+            <div class="sweep-check">
+              <div>${icon} <strong>${chName}</strong></div>
+              <div class="detail">${ch.detail}</div>
+            </div>
+          `;
+        }).join("");
+        return `
+          <div class="sweep-stage">
+            <div class="sweep-stage-hdr">
+              <span>${stTitle}</span>
+              ${pill}
+            </div>
+            ${checksHtml}
+          </div>
+        `;
+      }).join("");
+    }
+
     async function reloadLiveQml() {
       const persona = document.getElementById("selPersona").value;
       await loadMenuSpecScript(persona);
       await loadZlibStatus();
-      showToast("Živé QML/JS soubory načteny!");
+      await loadMemoryStats();
+      await runPreflightSweep(false);
+      showToast(t("toastReloaded"));
     }
 
     function onToggleFlags() {
@@ -1452,13 +2025,13 @@
 
     function renderControlScreen() {
       const frontIsAperture = getVal("CustomOption_RearApertureWheel") === "Aperture";
-      const apWheelHint = frontIsAperture ? "Přední kolečko" : "Zadní kolečko";
-      const shWheelHint = frontIsAperture ? "Zadní kolečko" : "Přední kolečko";
+      const apWheelHint = frontIsAperture ? t("frontWheelHint") : t("rearWheelHint");
+      const shWheelHint = frontIsAperture ? t("rearWheelHint") : t("frontWheelHint");
 
       return `
         <div class="ctrl-screen">
           <div class="ctrl-top-bar">
-            <div class="exp-mode-badge" onclick="cycleExpMode()" title="Klikni pro změnu expozičního režimu">${state.expMode}</div>
+            <div class="exp-mode-badge" onclick="cycleExpMode()" title="Click to cycle Exposure Mode">${state.expMode}</div>
             <div style="font-size:28px; color:#ccc; margin-right:110px">XCD 45mm f/3.5</div>
           </div>
 
@@ -1758,9 +2331,9 @@
         if (state.aboutTapCount >= 5 && !guiconfig.showSecretMenuItems) {
           guiconfig.showSecretMenuItems = true;
           document.getElementById("chkSecret").checked = true;
-          showToast("Easter Egg odemknut! (Viz General Settings → Service)");
+          showToast(t("toastEasterEggUnlocked"));
         } else if (!guiconfig.showSecretMenuItems) {
-          showToast(`Easter Egg: ještě ${5 - state.aboutTapCount}× klepni!`);
+          showToast(`${t("toastEasterEggTap")}${5 - state.aboutTapCount}${t("toastEasterEggMore")}`);
         }
         return;
       }
@@ -1892,53 +2465,63 @@
 
     // === 6. RENTGEN C++ BACKENDU V PRAVÉM PANELU ===
     function inspectSetting(name, label) {
+      state.lastInspected = { type: "setting", name, label };
       const meta = SETTING_META[name] || {
         status: "ok",
-        statusText: "Standardní produkční funkce X1D",
+        statusText_en: t("xrayStockStatus"),
+        statusText: t("xrayStockStatus"),
         cppSetter: `ConfigStoreProxy::set_${name}(...)`,
         dbus: `se.hasselblad.configstore -> ${name}`,
         daemon: "camera-daemon / msg2dbus",
-        notes: "Standardní položka viditelná v oficiálním firmwaru X1D v1.25.0."
+        notes_en: t("xrayStockNotes"),
+        notes: t("xrayStockNotes")
       };
 
       const pillClass = meta.status === "ok" ? "ok" : (meta.status === "exp" ? "exp" : "stub");
+      const statusText = (state.lang === "en" && meta.statusText_en) ? meta.statusText_en : meta.statusText;
+      const notesText = (state.lang === "en" && meta.notes_en) ? meta.notes_en : meta.notes;
       const curVal = getVal(name);
 
       document.getElementById("xrayContent").innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
           <strong style="font-size:15px; color:#fff">${label} (<code>${name}</code>)</strong>
-          <span class="status-pill ${pillClass}">${meta.statusText}</span>
+          <span class="status-pill ${pillClass}">${statusText}</span>
         </div>
         <div class="xray-grid">
-          <div class="k">Aktuální hodnota:</div>
+          <div class="k">${t("xrayCurVal")}</div>
           <div class="v" style="color:var(--hbl-orange); font-weight:bold">${curVal}</div>
-          <div class="k">C++ metoda v GUI:</div>
+          <div class="k">${t("xrayCppMethod")}</div>
           <div class="v">${meta.cppSetter}</div>
-          <div class="k">D-Bus vlastnost:</div>
+          <div class="k">${t("xrayDbusProp")}</div>
           <div class="v">${meta.dbus}</div>
-          <div class="k">Cílový daemon / HW:</div>
+          <div class="k">${t("xrayDaemon")}</div>
           <div class="v">${meta.daemon}</div>
         </div>
-        ${meta.notes ? `<div style="margin-top:10px; padding:8px 10px; background:#14161b; border-left:3px solid var(--hbl-orange); color:#d0d7de; font-size:12.5px;">${meta.notes}</div>` : ""}
+        ${notesText ? `<div style="margin-top:10px; padding:8px 10px; background:#14161b; border-left:3px solid var(--hbl-orange); color:#d0d7de; font-size:12.5px;">${notesText}</div>` : ""}
       `;
     }
 
     function inspectFocusMode() {
+      state.lastInspected = { type: "focusMode" };
+      const isEn = state.lang === "en";
       document.getElementById("xrayContent").innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
           <strong style="font-size:15px; color:#fff">Focus Mode (<code>PopoverFocusMode.qml</code>)</strong>
-          <span class="status-pill stub">AF-C a True Focus pouze pro H6D</span>
+          <span class="status-pill stub">${isEn ? "AF-C & True Focus are H6D-only" : "AF-C a True Focus pouze pro H6D"}</span>
         </div>
         <div class="xray-grid">
-          <div class="k">QML podmínka:</div>
+          <div class="k">${isEn ? "QML Condition:" : "QML podmínka:"}</div>
           <div class="v">model: guiconfig.isWedge ? grid_model_wedge : grid_model</div>
-          <div class="k">Stavový automat X1D:</div>
+          <div class="k">${isEn ? "X1D State Machine:" : "Stavový automat X1D:"}</div>
           <div class="v">WedgeStateMachine::checkFocusMode() @ 0x32860</div>
-          <div class="k">Chování v C++:</div>
-          <div class="v">Testuje pouze FocusMode == 3 (Focus_MAN) vs != 3</div>
+          <div class="k">${isEn ? "C++ Behavior:" : "Chování v C++:"}</div>
+          <div class="v">${isEn ? "Only checks FocusMode == 3 (Focus_MAN) vs != 3" : "Testuje pouze FocusMode == 3 (Focus_MAN) vs != 3"}</div>
         </div>
         <div style="margin-top:10px; padding:8px 10px; background:#14161b; border-left:3px solid var(--err-red); color:#d0d7de; font-size:12.5px;">
-          V <code>camera-daemon</code> třída <code>WedgeStateMachine</code> porovnává pouze <code>CMP r3, #3</code> (manuální ostření). Pro jakoukoliv jinou hodnotu (<code>AF-S=1</code>, <code>AF-C=2</code>, <code>AF-T=6</code>) volá jednorázové kontrastní ostření <code>WedgeStateMachine::findFocus()</code>.
+          ${isEn
+            ? "Inside <code>camera-daemon</code>, <code>WedgeStateMachine</code> only executes <code>CMP r3, #3</code> (Manual Focus). For any other value (<code>AF-S=1</code>, <code>AF-C=2</code>, <code>AF-T=6</code>), it invokes single-shot CDAF <code>WedgeStateMachine::findFocus()</code>."
+            : "V <code>camera-daemon</code> třída <code>WedgeStateMachine</code> porovnává pouze <code>CMP r3, #3</code> (manuální ostření). Pro jakoukoliv jinou hodnotu (<code>AF-S=1</code>, <code>AF-C=2</code>, <code>AF-T=6</code>) volá jednorázové kontrastní ostření <code>WedgeStateMachine::findFocus()</code>."
+          }
         </div>
       `;
     }
@@ -1947,6 +2530,8 @@
     window.addEventListener("DOMContentLoaded", async () => {
       await loadMenuSpecScript("wedge");
       await loadZlibStatus();
+      await loadMemoryStats();
+      await runPreflightSweep(false);
     });
   </script>
 </body>
