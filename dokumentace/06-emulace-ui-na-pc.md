@@ -106,12 +106,42 @@ Pokud chceš na Windows spustit přímo rozbalený ARMv7 Linux `rootfs` fotoapar
 python run_arm_emulator.py --cim "firmware/X1D_v1_25_0.cim"
 ```
 
-### Jak to funguje a jak se připojit v noVNC:
-1. **Rozbalení `rootfs.tar.bz2`** z vybraného `.cim` firmwaru do `.emulator_cache/<firmware>/rootfs_full/` (včetně linuxových symlinků uvnitř kontejneru).
-2. **Sestavení a start kontejneru `x1d-armv7-emulator` (`arm_emulator/`)**:
-   - Zkopíruje D-Bus bezpečnostní politiky fotoaparátu (`/etc/dbus-1/system.d/com.hasselblad.*.conf`) a spustí `dbus-daemon --system`.
-   - Spustí originální ARMv7 démon `/usr/bin/configstore` z firmwaru (který zaregistruje `com.hasselblad.config` a načte všech 162 konfiguračních vlastností fotoaparátu) spolu s `arm_emulator/mock_hardware_dbus.py` (simulující `com.hasselblad.cambody`, `com.hasselblad.camera`, `com.hasselblad.lens`, `com.hasselblad.systemmanager` atd.).
-   - Spustí virtuální framebuffer `640×480` (`Xvfb :0`), Wayland kompozitor **Weston** (`640×480`), `x11vnc` a webový klient **noVNC** na portu `6080`.
-3. **Připojení v prohlížeči (`noVNC`)**:
-   - Otevři **`http://127.0.0.1:6080/vnc.html?autoconnect=true`**.
-   - Pokud v pravém horním rohu vidíš okénko **noVNC** (`Host: 127.0.0.1`, `Port: 6080`, `Password: [prázdné]`), stačí kliknout na tlačítko **`Connect`** (heslo se nevyplňuje) – zobrazí se živá `640×480` plocha kompozitoru Weston běžícího v ARMv7 kontejneru.
+### Jak to funguje a jak byl vyřešen grafický subsystém:
+1. **Rozbalení `rootfs.tar.bz2`** z vybraného `.cim` firmwaru do kontejneru (`/x1d_root`).
+2. **Překlenutí grafického subsystému (Vivante GPU → Mesa Software Rasterizer)**:
+   - Fyzický fotoaparát i.MX6 má proprietární GPU čip Vivante GC2000 a ovladač `/dev/galcore`, který v emulátoru na PC neexistuje.
+   - Původní firmware Yocto 2.0.3 používá starší `glibc 2.22`. Moderní softwarový Mesa ovladač (`swrast` / `llvmpipe`) a LLVM 10 však vyžadovaly funkce z `GLIBC_2.27` a `GLIBC_2.25`.
+   - Tento problém jsme vyřešili trojicí kompatibilních vrstev přímo v Docker kontejneru:
+     1. **`libxshmfence_compat.c`**: Naše vlastní implementace sdílené paměti a synchronizačních futexů nezávislá na `memfd_create` (plně funkční na libovolném GLIBC >= 2.4).
+     2. **`libbsd_compat.c`**: Implementace `arc4random_buf` pro XCB/X11 knihovny bez závislosti na `__explicit_bzero_chk` z GLIBC 2.25.
+     3. **`patch_libm.py` (Binární ELF patch `libm.so.6`)**: Automaticky upraví hlavičku `.gnu.version_d` a exportuje verzi `GLIBC_2.27` pro 5 matematických funkcí (`logf`, `expf`, `exp2f`, `powf`, `log2f`), čímž umožní načtení moderního softwarového ovladače `swrast_dri.so` (LLVMpipe) bez nutnosti nahrazovat celý GLIBC ve firmwaru.
+     4. **Mesa GLVND & Wayland-EGL vrstva**: Překryje knihovny Vivante standardním Wayland EGL rozhraním (`libwayland-egl.so.1`, `libEGL.so.1.0.0`, `libGLESv2.so.2`).
+3. **Spuštění systémových daemonů a prevence uspání displeje**:
+   - Spustí `dbus-daemon --system` a `arm_emulator/mock_hardware_dbus.py` simulující hardware fotoaparátu (MCU SUC, FPGA FARM, tělo objektivu).
+   - Spustí reálný ARMv7 démon `/usr/bin/configstore`.
+   - Nastaví `GUI_idle_timeout = 0` a `BACKLIGHT_brightness = 100` přes D-Bus, aby firmware nezhasínal displej po 10 sekundách nečinnosti.
+4. **Spuštění Weston kompozitoru a aplikace `victory-gui`**:
+   - V kontejneru běží virtuální X11 display `Xvfb :0` (640×480) s kompozitorem **Weston 3.0** a Wayland soketem `/tmp/wayland-0`.
+   - V chrootu fotoaparátu se spustí originální neupravená binárka:
+     ```bash
+     /usr/bin/victory-gui -platform wayland-egl --wedge
+     ```
+   - Celý displej se v reálném čase streamuje přes `x11vnc` a `websockify` na **`http://127.0.0.1:6080/vnc.html?autoconnect=true&resize=scale`**, kde lze UI ovládat myší a dotykem přímo v okně prohlížeče.
+
+### Ovládání emulátoru (Klávesové zkratky a myš / dotyk):
+
+V prohlížeči noVNC reaguje rozhraní na dotyky myší i fyzické klávesové zkratky odpovídající hardwarovým tlačítkům Hasselblad X1D-50c:
+
+| Klávesa | Hardwarová funkce kamery | Význam v rozhraní |
+| :--- | :--- | :--- |
+| **F1** | Tlačítko **MENU** | Přepíná mezi hlavní obrazovkou fotoaparátu (ControlScreen) a devítidílným hlavním menu (MainScreen) |
+| **Escape** | Tlačítko **Zpět / Exit** | Zavře libovolné otevřené vyskakovací okno (clona, čas, ISO) a vrátí se o úroveň zpět |
+| **F2** / **F4** | Tlačítka **Křížek (✕)** / **Čtvereček (◻)** | Potvrzení / zrušení v dialogových oknech |
+| **F5** | Tlačítko **Přehrávání / Prohlížení** | Přepne do režimu prohlížení fotografií (BrowseView) |
+| **Šipky** (←, →, ↑, ↓) | Přední a zadní **ovládací kolečka** | Pohyb v nabídkách a krokování expozičních hodnot |
+| **Enter** | Tlačítko **Vybrat** | Potvrzení vybrané volby v seznamu |
+| **1** až **6** | Fyzický **volič expozičních režimů** | 1 = Manuál (M), 2 = Auto, 3 = Priorita času (S), 4 = Program (P), 5 = Plná automatika, 6 = Video |
+| **C** | Tlačítko **ISO** | Rychlé vyvolání voliče ISO |
+| **G** | Tlačítko **Vyvážení bílé (WB)** | Rychlé vyvolání voliče White Balance |
+| **Y** | Elektronická **vodováha** | Zobrazení dvojosého gyroskopu / vodováhy |
+| **Myš (Klik)** | **Dotykový displej** | Kliknutím na libovolný parametr (clona, čas, ISO, menu ikona) se otevře interaktivní nabídka nebo podmenu |

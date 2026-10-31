@@ -100,18 +100,50 @@ Additionally, the `KeyInject` class (`com.hasselblad.mockup`, offset `0x7fd90`) 
 
 ## 3. Full ARMv7 Linux Rootfs Emulator on Windows (`run_arm_emulator.py`)
 
-To run the camera's extracted ARMv7 Linux `rootfs` and daemons (`configstore`, `victory-gui`) inside a real ARMv7 environment on Windows via Docker Desktop (`arm32v7` QEMU user-mode emulation) and inspect the `640×480` Weston display in your browser via **noVNC**:
+To run the camera's extracted ARMv7 Linux `rootfs` and daemons (`configstore`, `victory-gui`) inside a real ARMv7 environment on Windows via Docker Desktop (`arm32v7` QEMU user-mode emulation) and interact with the `640×480` touchscreen UI in your browser via **noVNC**:
 
 ```powershell
 python run_arm_emulator.py --cim "firmware/X1D_v1_25_0.cim"
 ```
 
-### How It Works:
-1. **Unpacks `rootfs.tar.bz2`** from the selected `.cim` firmware into `.emulator_cache/<firmware>/rootfs_full/` (preserving Linux symlinks inside the container).
-2. **Builds & Starts the `x1d-armv7-emulator` Container (`arm_emulator/`)**:
-   - Copies the camera's D-Bus security policies (`/etc/dbus-1/system.d/com.hasselblad.*.conf`) and starts `dbus-daemon --system`.
-   - Starts the camera's native ARMv7 `/usr/bin/configstore` daemon (which registers `com.hasselblad.config` and serves all 162 camera properties) alongside `arm_emulator/mock_hardware_dbus.py` (mocking `com.hasselblad.cambody`, `com.hasselblad.camera`, `com.hasselblad.lens`, `com.hasselblad.systemmanager`, etc.).
-   - Starts a `640×480` virtual framebuffer (`Xvfb :0`), the **Weston** Wayland compositor (`640×480`), `x11vnc`, and **noVNC** on port `6080`.
-3. **Connecting via Browser (`noVNC`)**:
+### How It Works & How the Graphics Subsystem Was Solved:
+1. **Unpacks `rootfs.tar.bz2`** from the selected `.cim` firmware into the container (`/x1d_root`).
+2. **Graphics Subsystem Bridging (Vivante GPU → Mesa Software Rasterizer)**:
+   - Physical X1D-50c cameras use an NXP i.MX6 Vivante GC2000 GPU and `/dev/galcore` kernel driver, which do not exist inside a QEMU emulator.
+   - The camera's Yocto 2.0.3 firmware runs older `glibc 2.22`, whereas modern Mesa software rendering (`swrast` / `llvmpipe`) and LLVM 10 require symbols from `GLIBC_2.27` and `GLIBC_2.25`.
+   - We engineered three specialized compatibility layers inside the Docker environment:
+     1. **`libxshmfence_compat.c`**: Custom shared-memory and futex synchronization implementation free of `memfd_create` (compatible with any GLIBC >= 2.4).
+     2. **`libbsd_compat.c`**: Clean `arc4random_buf` implementation for XCB/X11 libraries without requiring `__explicit_bzero_chk` from GLIBC 2.25.
+     3. **`patch_libm.py` (Binary ELF Patch for `libm.so.6`)**: In-place modification of `.gnu.version_d` to export `GLIBC_2.27` for 5 essential math symbols (`logf`, `expf`, `exp2f`, `powf`, `log2f`), allowing Mesa's `swrast_dri.so` (LLVMpipe) to load seamlessly on Yocto GLIBC 2.22 without altering the rest of the camera rootfs.
+     4. **Mesa GLVND & Wayland-EGL Integration**: Replaces proprietary Vivante EGL libraries with standard Wayland EGL (`libwayland-egl.so.1`, `libEGL.so.1.0.0`, `libGLESv2.so.2`).
+3. **Daemon Initialization & Display Sleep Prevention**:
+   - Launches `dbus-daemon --system` and `arm_emulator/mock_hardware_dbus.py` simulating camera hardware (MCU SUC, FPGA FARM, lens body).
+   - Starts the camera's real ARMv7 `/usr/bin/configstore`.
+   - Configures `GUI_idle_timeout = 0` and `BACKLIGHT_brightness = 100` over D-Bus to prevent display sleeping after 10 seconds of inactivity.
+4. **Weston Compositor & `victory-gui` Execution**:
+   - The container hosts a virtual X11 display `Xvfb :0` (640×480) with **Weston 3.0** providing the Wayland socket `/tmp/wayland-0`.
+   - The native unmodified camera binary executes inside the chroot:
+     ```bash
+     /usr/bin/victory-gui -platform wayland-egl --wedge
+     ```
+   - The display is streamed in real-time via `x11vnc` and `websockify` to **`http://127.0.0.1:6080/vnc.html?autoconnect=true&resize=scale`**, enabling interactive mouse/touchscreen control directly in your web browser.
    - Open **`http://127.0.0.1:6080/vnc.html?autoconnect=true`** in your browser.
    - If you see the **noVNC** connection box in the top-right corner (`Host: 127.0.0.1`, `Port: 6080`, `Password: [empty]`), simply click the **`Connect`** button (no password is required) to view the live `640×480` ARMv7 Weston screen.
+
+### Emulator Controls (Keyboard Shortcuts and Mouse / Touch):
+
+In the noVNC browser window, the interface responds to mouse clicks/touches as well as keyboard shortcuts mapped to the physical Hasselblad X1D-50c buttons:
+
+| Key | Hardware Camera Button | Function in Interface |
+| :--- | :--- | :--- |
+| **F1** | **MENU** Button | Toggles between the Camera Display (ControlScreen) and the 9-tile Main Menu (MainScreen) |
+| **Escape** | **Back / Exit** Button | Closes any open popover (aperture, shutter speed, ISO) and returns one level up |
+| **F2** / **F4** | **Cross (✕)** / **Square (◻)** Buttons | Accept / Cancel in dialog popups |
+| **F5** | **Play / Browse** Button | Switches to image review mode (BrowseView) |
+| **Arrow Keys** (←, →, ↑, ↓) | Front and rear **Scroll Wheels** | Menu navigation and stepping exposure parameters |
+| **Enter** | **Select** Button | Confirms current selection in lists and dialogs |
+| **1** to **6** | Physical **Mode Dial** | 1 = Manual (M), 2 = Auto, 3 = Shutter priority (S), 4 = Program (P), 5 = Full Auto, 6 = Video |
+| **C** | **ISO** Button | Direct shortcut to ISO popover selector |
+| **G** | **White Balance (WB)** Button | Direct shortcut to White Balance selector |
+| **Y** | Electronic **Spirit Level** | Toggles dual-axis gyroscope / spirit level |
+| **Mouse (Click)** | **Touchscreen Display** | Clicking any setting (aperture, shutter speed, ISO, menu tile) opens the interactive popup or submenu |

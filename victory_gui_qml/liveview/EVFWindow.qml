@@ -17,11 +17,11 @@ Window {
     id: root
     objectName: "EVFWindow_root"
     title: "overlay"
-    visible: true
+    visible: false
     width: 1024
     height: 768
     color: "transparent"
-    visibility: fullscreen ? Window.FullScreen : Window.Windowed
+    visibility: Window.Hidden
     property alias showContent: scope.visible
     onShowContentChanged: console.log("EVF: showContent:", showContent)
     property bool isInPreview: scope.state === "PreView"
