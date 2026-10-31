@@ -56,7 +56,19 @@ python cim_emulator_loader.py "firmware/X1D_v1_20_0.cim"
 # Vyžaduje Docker Desktop s podporou QEMU arm32v7 (binfmt)
 python run_arm_emulator.py --cim "firmware/X1D_v1_25_0.cim"
 ```
-Sestaví a spustí `arm32v7` kontejner s rozbaleným `rootfs` fotoaparátu, systémovým `dbus-daemon` (včetně politik `/etc/dbus-1/system.d/com.hasselblad.*.conf`), originálním ARMv7 démonem `/usr/bin/configstore` (162 vlastností), mock D-Bus službami hardwaru a `640×480` Weston obrazovkou dostupnou v prohlížeči na `http://127.0.0.1:6080/vnc.html?autoconnect=true` (v okně noVNC případně klikněte na **Connect**).
+Sestaví a spustí `arm32v7` kontejner s reálným rozbaleným `rootfs` fotoaparátu, běžící originální binárkou **`/usr/bin/victory-gui` (Qt5 QML)**, systémovým `dbus-daemon`, originálním démonem `/usr/bin/configstore` (162 vlastností) a mock službami hardwaru (`mock_hardware_dbus.py`). Fyzický GPU čip Vivante GC2000 (`/dev/galcore`) je přemostěn do **Mesa Software OpenGL ES 2.0 (LLVMpipe)** pomocí tří kompatibilních adaptérů (`libxshmfence_compat.c`, `libbsd_compat.c`, `patch_libm.py`).
+
+Obrazovka `640×480` je okamžitě dostupná v prohlížeči na **`http://127.0.0.1:6080/vnc.html?autoconnect=true&resize=scale`**.
+
+#### Interaktivní ovládání (Myš / Dotyk a klávesnice):
+| Ovládací prvek | Klávesa / Akce | Funkce |
+| :--- | :--- | :--- |
+| **Dotyk / Klik** | **Levé tlačítko myši** | Kliknutím na `f/2.8`, `125` nebo `ISO 100` se otevře originální vyskakovací volič |
+| **Tlačítko MENU** | **`F1`** | Přepíná mezi expoziční obrazovkou (`ControlScreen`) a 9dílným hlavním menu |
+| **Tlačítko Zpět** | **`Escape`** | Zavře libovolné otevřené vyskakovací okno nebo menu |
+| **Kolečka fotoaparátu** | **Šipky (`←`, `→`, `↑`, `↓`)** | Pohyb v nabídkách a krokování expozičních hodnot |
+| **Volič režimů** | **`1`** až **`6`** | `1` = Manuál (M), `2` = Auto, `3` = Priorita času (S), `4` = Program (P), `6` = Video |
+| **Přímé zkratky** | **`C`** / **`G`** / **`Y`** | Rychlé vyvolání voliče ISO (`C`), White Balance (`G`) a dvojosé vodováhy (`Y`) |
 
 ### 4. Samostatný Anti-Brick Pre-Flight Test & Počítadlo paměti v CLI
 ```powershell

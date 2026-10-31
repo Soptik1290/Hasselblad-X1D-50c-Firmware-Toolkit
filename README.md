@@ -29,8 +29,10 @@ While newer Hasselblad cameras (`X1D II 50C`, `X2D 100C`, `907X 100C`) switched 
   * Dynamically decrypts, unpacks, and boots **any `.cim` firmware image (`v1.20.0` – `v1.25.0` or custom repacked `.cim`)** on Windows in seconds—auto-detecting QRC table offsets across compiler builds and running the live `MenuItemSpecificationsWedge.js` menu definitions, original `HelveticaNeueLTStd` OTF fonts, and all 267 PNG icons at native `640×480` resolution.
 * **5-Stage Anti-Brick Pre-Flight Sweep & Memory Counter (`verify_firmware_safety.py`):**
   * Verifies QML/JS syntax, QRC slot capacity (with automatic comment-stripping that frees **+60.2 KB** of compressed space), ELF/QRC round-trip decompression, U-Boot A/B dual-slot rollback protection, `rootfs` boot symlinks (`readlink`), and two-stage `.cim` checksums before any firmware touches the camera.
-* **Full ARMv7 Linux Rootfs Emulator (`run_arm_emulator.py`, `arm_emulator/`):**
-  * Boots the extracted ARMv7 `rootfs.tar.bz2` environment inside an `arm32v7` Docker/QEMU container with `dbus-daemon`, the camera's native `/usr/bin/configstore`, mock hardware D-Bus services (`com.hasselblad.*`), and a `640×480` Weston/noVNC display (`http://127.0.0.1:6080/vnc.html?autoconnect=true`).
+* **Full ARMv7 Linux Rootfs Emulator with Live Graphics & Telemetry (`run_arm_emulator.py`, `arm_emulator/`):**
+  * Boots the extracted ARMv7 `rootfs.tar.bz2` environment inside an `arm32v7` Docker/QEMU container, running the **real unmodified `/usr/bin/victory-gui` (Qt5 QML)** binary alongside the native `/usr/bin/configstore` daemon.
+  * Bridges physical Vivante GC2000 GPU (`/dev/galcore`) to **Mesa Software OpenGL ES 2.0 (LLVMpipe / swrast)** and Wayland-EGL using three custom compatibility shims (`libxshmfence_compat.c`, `libbsd_compat.c`, `patch_libm.py`) solving Yocto GLIBC 2.22 limitations without breaking the rootfs.
+  * Fully interactive via browser over noVNC (`http://127.0.0.1:6080/vnc.html?autoconnect=true&resize=scale`): touch/click aperture `f/2.8`, shutter speed `125`, `ISO 100` to open popovers; press `F1` for the 9-tile Main Menu; press `1`–`6` for mode dial; press arrows for scroll wheels; with live D-Bus telemetry (`Ev 10.0`, `95%` battery, dual SD card slots).
 
 ---
 
@@ -49,8 +51,11 @@ X1D_FirmwareDump/
 ├── run_arm_emulator.py                    # One-click launcher for the ARMv7 Docker/QEMU Linux Rootfs Emulator
 ├── arm_emulator/                          # ARMv7 Linux container setup (D-Bus, configstore, Weston, noVNC)
 │   ├── Dockerfile                         # arm32v7 environment for running X1D-50c ARM binaries
-│   ├── entrypoint_arm.sh                  # Container boot script (D-Bus policies, configstore, Weston, noVNC)
-│   └── mock_hardware_dbus.py              # Mock com.hasselblad.* D-Bus services for off-camera execution
+│   ├── entrypoint_arm.sh                  # Container boot script (Mesa GLVND, Weston, D-Bus, noVNC)
+│   ├── mock_hardware_dbus.py              # Multi-bus mock com.hasselblad.* D-Bus services with live telemetry
+│   ├── patch_libm.py                      # Binary ELF patcher for Yocto libm.so.6 (GLIBC_2.27 math symbols)
+│   ├── libxshmfence_compat.c              # Futex/shm compat layer avoiding memfd_create
+│   └── libbsd_compat.c                    # arc4random_buf compat layer avoiding __explicit_bzero_chk
 ├── ui_simulator/                          # Interactive 640×480 PC UI Simulator (EN/CZ), Memory Counter & Sweep
 │   ├── run_simulator.py                   # Local HTTP server & REST API (/api/cim-boot, /api/safety-sweep, etc.)
 │   ├── index.html                         # 640×480 X1D touchscreen, .cim bootloader & engineering workspace
@@ -130,7 +135,17 @@ python cim_emulator_loader.py "firmware/X1D_v1_20_0.cim"
 # Requires Docker Desktop with QEMU arm32v7 binfmt support
 python run_arm_emulator.py --cim "firmware/X1D_v1_25_0.cim"
 ```
-Builds and boots the `arm32v7` container with the camera's extracted `rootfs`, `dbus-daemon` (with `/etc/dbus-1/system.d/com.hasselblad.*.conf`), the native ARMv7 `/usr/bin/configstore` daemon (162 camera properties), mock hardware D-Bus services, and a `640×480` Weston display accessible in your browser at `http://127.0.0.1:6080/vnc.html?autoconnect=true` (click **Connect** in the noVNC panel if prompted).
+Builds and boots the `arm32v7` container with the camera's extracted `rootfs`, `dbus-daemon`, native ARMv7 `/usr/bin/configstore` daemon (162 camera properties), multi-connection mock hardware D-Bus services (`mock_hardware_dbus.py`), and a `640×480` Weston display accessible in your browser at **`http://127.0.0.1:6080/vnc.html?autoconnect=true&resize=scale`**.
+
+#### Interactive Controls (Mouse / Touch & Keyboard Shortcuts):
+| Control | Key / Action | Function |
+| :--- | :--- | :--- |
+| **Touch / Click** | **Left Mouse Click** | Tapping `f/2.8`, `125`, or `ISO 100` opens the authentic popover selector |
+| **MENU Button** | **`F1`** | Toggles between the Camera Display (`ControlScreen`) and the 9-tile Main Menu |
+| **Back / Exit** | **`Escape`** | Closes any open popover or submenu and returns one level up |
+| **Scroll Wheels** | **Arrow Keys (`←`, `→`, `↑`, `↓`)** | Navigates menus and steps exposure values |
+| **Mode Dial** | **`1`** to **`6`** | `1` = Manual (M), `2` = Auto, `3` = Shutter priority (S), `4` = Program (P), `6` = Video |
+| **Direct Shortcuts** | **`C`** / **`G`** / **`Y`** | Quick access to ISO (`C`), White Balance (`G`), and dual-axis Spirit Level (`Y`) |
 
 ### 4. Run the Standalone Anti-Brick Pre-Flight Sweep & Memory Counter
 ```powershell
