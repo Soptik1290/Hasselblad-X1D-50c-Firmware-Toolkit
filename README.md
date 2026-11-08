@@ -3,6 +3,7 @@
 [![Platform](https://img.shields.io/badge/Platform-Hasselblad%20Umbrella%202.0.3%20(NXP%20i.MX6Quad)-blue)](#architecture--hardware-highlights)
 [![Firmware](https://img.shields.io/badge/Firmware-v1.20.0%20–%20v1.25.0%20(.cim)-success)](#documentation-docs)
 [![UI](https://img.shields.io/badge/UI-Qt%205.5.1%20%2F%20QML%20%2B%20640×480%20PC%20Simulator-orange)](#quickstart--tools)
+[![Roadmap](https://img.shields.io/badge/Roadmap-Active%20Development-purple)](#️-roadmap--feature-progress)
 
 > 🇨🇿 **Česká verze dokumentace:** Kompletní dokumentaci v češtině najdete v [`README.cs.md`](README.cs.md) a ve složce [`dokumentace/`](dokumentace/).
 
@@ -25,7 +26,7 @@ While newer Hasselblad cameras (`X1D II 50C`, `X2D 100C`, `907X 100C`) switched 
     * **`Hide B/T Mode`** & **`AE-L when Half-pressed`**.
     * **`Eye Sensor Distance`** (`Short` / `Medium` / `Long` EVF proximity threshold).
     * **Engineering Autofocus Tuning:** custom XCD lens AF stepping motor speed (**`7000`–`19000`** dropdown / max **`20000`** enforced by `/usr/bin/configstore` at `0x13d68`, `af_cmd_speed`), FPGA Brenner contrast metric weighting (**`x+y`**, **`x+y/4`**, **`x+y/2`**), FIR contrast curve filtering (`af_fir`), full-range AF sweep (`af_full_scan`), and AF sequence logging (`af_log`).
-* **Custom Firmware Modules (`build_custom_firmware.py`, `custom_firmware_dokumentace/`):**
+* **Custom Firmware Modules (`build_custom_firmware.py`, `custom_firmware_docs/` / `custom_firmware_dokumentace/`):**
   * **Continuous Autofocus (`AF-C` + Touch-to-Track, `--mode afc`):** Standalone QML patch built directly on top of stock `v1.25.0` (`X1D_v1_25_0_afc.cim`, `63,270,912 B`) that unlocks `Continuous Focus` (`Config.Focus_AFC = 2`), accelerates the XCD stepping motor (`DebugAfSpeed = 19000`), and drives the lens with a closed-loop **5-state Gated CDAF + Left/Right Peak Drop Rate** controller over `Lens.moveRelativePos4um` 4 µm micro-steps (zero hunting while in focus), with single-tap **Touch-to-Track** and instant full-shutter priority. The earlier session-cycling prototype (which causes full-sweep hunting on real hardware because every `image_find_focus_req` in the `FARM` `af_service.c` runs a blind two-edge sweep) is archived as `X1D_v1_25_0_afc_old.cim`. *Verified in the ARMv7 emulator with a physics-based contrast simulator only – not yet on real hardware.*
   * **`FARM` (Xilinx Zynq-7000) Dual-QSPI De-Interleaving:** Reconstructed the `FARM` boot image from the bit-interleaved `bootimage_even/odd-wedge` files (FSBL + FPGA bitstream + FreeRTOS `farm_app.bin`) and reverse-engineered `../src/services/af_service.c`.
   * **X1D-Only Lite Edition (`--mode lite`):** Strips QML/JS comments and non-X1D (`H6D`/`A6D`/`CFV`) branches & assets (`X1D_v1_25_0_x1d_lite.cim`), freeing **+78.4 KB** in `victory-gui`'s QRC pool and **−26.1 MB** on eMMC `rootfs`.
@@ -37,6 +38,44 @@ While newer Hasselblad cameras (`X1D II 50C`, `X2D 100C`, `907X 100C`) switched 
   * Boots the extracted ARMv7 `rootfs.tar.bz2` environment inside an `arm32v7` Docker/QEMU container, running the **real unmodified `/usr/bin/victory-gui` (Qt5 QML)** binary alongside the native `/usr/bin/configstore` daemon.
   * Bridges physical Vivante GC2000 GPU (`/dev/galcore`) to **Mesa Software OpenGL ES 2.0 (LLVMpipe / swrast)** and Wayland-EGL using three custom compatibility shims (`libxshmfence_compat.c`, `libbsd_compat.c`, `patch_libm.py`) solving Yocto GLIBC 2.22 limitations without breaking the rootfs.
   * Fully interactive via browser over noVNC (`http://127.0.0.1:6080/vnc.html?autoconnect=true&resize=scale`): touch/click aperture `f/2.8`, shutter speed `125`, `ISO 100` to open popovers; press `F1` for the 9-tile Main Menu; press `1`–`6` for mode dial; press arrows for scroll wheels; with live D-Bus telemetry (`Ev 10.0`, `95%` battery, dual SD card slots).
+
+---
+
+## 🗺️ Roadmap & Feature Progress
+
+Overview of upcoming features, community collaborations, and current modding milestones for the Hasselblad X1D-50c custom firmware:
+
+| # | Feature | Status | Progress | Highlights & Target |
+| :-: | :--- | :--- | :---: | :--- |
+| **1** | **Continuous Autofocus (`AF-C` & Touch-to-Track)** | 🟡 **Ready for Testing** | `[█████████░] 90%` | Custom 5-state Gated CDAF closed-loop controller using `Lens.moveRelativePos4um` micro-stepping in `X1D_v1_25_0_afc.cim`. Verified in ARMv7 emulator; ready for live testing on physical X1D hardware with XCD lenses. |
+| **2** | **Film Emulation & Color Profiles (Hazel / Haxel)** | 🟠 **In Active Development** | `[████░░░░░░] 45%` | Collaboration with **[@duart38](https://github.com/duart38)** (**[Hazel-firmware](https://github.com/duart38/Hazel-firmware)** / *Haxel*). Integrating custom 3D LUTs, film simulation recipes (Portra, Tri-X, Provia), and in-camera preview rendering into the UI. |
+| **3** | **Double Exposure (Multi-Exposure Mode)** | 🔵 **In Design & Architecture** | `[██░░░░░░░░] 20%` | Multi-frame composite capture on the 50MP medium-format sensor with real-time ghosted Live View overlay (EVF & rear LCD) and selectable blend modes (Additive, Average, Lighten/Darken). |
+| **4** | **Phocus Mobile 2 Connectivity / Custom Mobile App** | 🟣 **Research & Prototyping** | `[█░░░░░░░░░] 15%` | Reverse-engineering Phocus Mobile 2 Wi-Fi / WebSocket protocols, or creating a lightweight cross-platform mobile companion app (remote shutter trigger, Live View streaming & RAW/JPEG download). |
+
+### Feature Details & Milestones
+
+#### 1. 🎯 Continuous Autofocus (`AF-C` & Touch-to-Track) – *Almost Complete / Ready for Hardware Testing*
+* **Status:** **~90%** – Implemented as a standalone patch module on top of stock firmware `v1.25.0` (`firmware/X1D_v1_25_0_afc.cim`, `63,270,912 B`).
+* **Technical Architecture:** Replaces the camera's stock blind two-edge sweep (`af_service.c` in `FARM` FPGA) that caused severe hunting. Implements a closed-loop 5-state Gated CDAF state machine (`IDLE` → `POLL` → `TRACK` → `CONVERGED` → `RECOVERY`) directly driving the XCD lens stepping motor via `Lens.moveRelativePos4um` 4 µm micro-steps (zero hunting once locked), single-tap **Touch-to-Track**, and instant full-shutter priority. Fully validated in the ARMv7 Linux container emulator with a physics-based contrast simulator.
+* **Next Step:** Flashing to a physical X1D-50c camera body and conducting real-world optical testing with physical XCD lenses to calibrate deadzone thresholds and step speed settings.
+
+#### 2. 🎞️ Film Emulation & Custom Color Profiles (Hazel / Haxel Collaboration)
+* **Status:** **~45%** – Active cross-project collaboration with **[@duart38](https://github.com/duart38)** (**[Hazel-firmware](https://github.com/duart38/Hazel-firmware)** / *Haxel*).
+* **Technical Architecture:** Developing in-camera 3D LUT support and film stock profiles to bring classic analog aesthetics (Kodak Portra 160/400, Kodak Tri-X 400, Fujifilm Provia/Velvia, and monochrome film toning) directly into the X1D-50c live preview and JPEG processing engine, paired with custom DNG color profiles.
+* **Next Step:** Implementing the QML profile selector in `victory-gui` and testing live preview LUT transformation shaders.
+
+#### 3. 📸 Double Exposure (Multi-Exposure Mode)
+* **Status:** **~20%** – UI workflow and image buffer architecture in design.
+* **Technical Architecture:** Bringing creative multiple exposure capabilities to medium-format shooting. The camera will retain the first exposure in memory and render a live semi-transparent (ghosted) overlay on the rear LCD and EVF during Live View, allowing the photographer to accurately frame subsequent shots.
+* **Planned Features:** Configurable blend algorithms (Additive, Average, Screen, Darken, Lighten) and the option to save both individual unmerged RAW exposures and the composite image.
+* **Next Step:** Prototyping the QML overlay component in `victory-gui` and validating raw buffer combination routines.
+
+#### 4. 📱 Modern Wireless Connectivity: Phocus Mobile 2 or Custom Mobile App
+* **Status:** **~15%** – Protocol analysis & architecture definition.
+* **Technical Architecture:** The 1st-generation X1D-50c includes built-in 802.11a/b/g/n Wi-Fi hardware, but the official original "Phocus Mobile" app is outdated and largely unusable on modern iOS/Android versions, while "Phocus Mobile 2" officially dropped support for 1st-gen cameras.
+  * **Option A (Phocus Mobile 2 Protocol Bridge):** Reverse-engineer the network and D-Bus protocol used by Phocus Mobile 2 (on X1D II / X2D) and implement a lightweight bridging service on the X1D-50c so users can connect directly with the official Phocus Mobile 2 app on iPad/iPhone/Android.
+  * **Option B (Custom Mobile Companion App / Web PWA):** Build a dedicated lightweight open-source mobile client or responsive local Web UI (hosted directly on the camera's Linux system) providing wireless remote trigger, Live View streaming, camera parameter adjustment (aperture, shutter, ISO), and direct wireless RAW/JPEG offload.
+* **Next Step:** Packet analysis of Phocus Mobile 2 Wi-Fi traffic and mapping camera daemon network sockets.
 
 ---
 
@@ -54,7 +93,8 @@ X1D_FirmwareDump/
 ├── verify_firmware_safety.py              # 5-Stage Anti-Brick Pre-Flight Test Sweep & Memory Counter
 ├── cim_emulator_loader.py                 # Direct .cim Firmware Unpacker & Bootloader for Windows / WebUI
 ├── run_arm_emulator.py                    # One-click launcher for the ARMv7 Docker/QEMU Linux Rootfs Emulator
-├── custom_firmware_dokumentace/           # Specifications & module catalog for the X1D Custom Firmware Builder
+├── custom_firmware_docs/                  # Complete English Custom Firmware & Builder Specifications
+├── custom_firmware_dokumentace/           # Complete Czech Custom Firmware & Builder Specifications
 ├── arm_emulator/                          # ARMv7 Linux container setup (D-Bus, configstore, Weston, noVNC)
 │   ├── Dockerfile                         # arm32v7 environment for running X1D-50c ARM binaries
 │   ├── entrypoint_arm.sh                  # Container boot script (Mesa GLVND, Weston, D-Bus, noVNC)
@@ -112,6 +152,15 @@ X1D_FirmwareDump/
    * Guide to the local 640×480 PC UI Simulator (`ui_simulator/run_simulator.py`), hidden command-line flags in `victory-gui` (`--wedge`, `--session`, `--main`), and full ARM emulation in QEMU.
 7. **[07 – Comparison Across All 6 Firmware Releases (`docs/07-firmware-version-comparison.md`)](docs/07-firmware-version-comparison.md)**
    * Detailed comparison of `v1.20.0`, `v1.20.1`, `v1.21.0`, `v1.22.0`, `v1.24.0`, and `v1.25.0`: container hashes, coprocessor firmware versions, kernel revisions, and feature additions (ALSA/TFA9882 audio feedback in `v1.21.0`, Focus Bracketing in `v1.22.0`, 4 µm XCD lens stepping in `v1.24.0`).
+
+### Custom Firmware & Builder Specifications (`custom_firmware_docs/`)
+
+* **[00 – Custom Firmware Builder Architecture & Technical Rules (`custom_firmware_docs/00-custom-firmware-builder-architecture.md`)](custom_firmware_docs/00-custom-firmware-builder-architecture.md)** – Specifications for memory gauges, module JSON schemas, and 4 critical runtime rules from real ARMv7 execution (Wayland dual-windows, Qt 5.4 uppercase signal connections, `/usr/bin/configstore` speed clamps, and D-Bus signatures).
+* **[01 – Module X1D Lite Edition (`custom_firmware_docs/01-module-x1d-lite-edition.md`)](custom_firmware_docs/01-module-x1d-lite-edition.md)** – Unlocking `+78.4 KB` in the QRC table and saving `−26.14 MB` on eMMC by pruning foreign camera models (`H6D`/`A6D`/`CFV`) and stripping comments.
+* **[02 – Modules for Boot Speed & UI Responsiveness (`custom_firmware_docs/02-modules-boot-speed-and-ui-responsiveness.md`)](custom_firmware_docs/02-modules-boot-speed-and-ui-responsiveness.md)** – Catalog of modules `MOD-SPD-01` to `MOD-SPD-06` (fast touch boot, Weston delay reduction, instant LiveView without 200 ms lag, animation speedups).
+* **[03 – Modules for Battery Life & Cooling (`custom_firmware_docs/03-modules-battery-life-and-cooling.md`)](custom_firmware_docs/03-modules-battery-life-and-cooling.md)** – Catalog of modules `MOD-BAT-01` to `MOD-BAT-05` (field offline mode powering down BCM4356 Wi-Fi, sensor LiveView timeouts, double buffering).
+* **[04 – Modules for Hidden & New UI Features (`custom_firmware_docs/04-modules-hidden-and-new-ui-features.md`)](custom_firmware_docs/04-modules-hidden-and-new-ui-features.md)** – Catalog of modules `MOD-FEAT-01` to `MOD-FEAT-06` (unlocking `demo: true`, permanent secret Service menu, `DebugCam` FPGA RAW maps, shutter counter in `About`, custom accent themes).
+* **[05 – Module Continuous Autofocus `AF-C` + Touch-to-Track (`custom_firmware_docs/05-module-continuous-autofocus-afc.md`)](custom_firmware_docs/05-module-continuous-autofocus-afc.md)** – Standalone module `MOD-FEAT-AFC` (`build_custom_firmware.py --mode afc`) on stock `v1.25.0`: `FARM` Zynq-7000 FPGA de-interleaving, `Lens.moveRelativePos4um` micro-stepping, and the 5-state **Gated CDAF + Peak Drop Rate** engine (`firmware/X1D_v1_25_0_afc.cim`, `63,270,912 B`).
 
 ---
 
@@ -196,7 +245,7 @@ python hasselblad_pack.py `
 ## Collaborations, Related Projects & Acknowledgements
 
 ### Active Collaboration – Film Emulation & Custom Color Profiles
-* **[duart38/Hazel-firmware](https://github.com/duart38/Hazel-firmware)** – We are actively collaborating with **[@duart38](https://github.com/duart38)** (*Hazel-firmware*), as custom **Film Emulation & Color Profiles** are one of the flagship features planned for the Hasselblad X1D-50c custom firmware toolkit. Check out the Hazel-firmware project for complementary Hasselblad firmware research and custom look development!
+* **[duart38/Hazel-firmware](https://github.com/duart38/Hazel-firmware)** – We are actively collaborating with **[@duart38](https://github.com/duart38)** (*Hazel-firmware / Haxel*), as custom **Film Emulation & Color Profiles** are one of the flagship features planned for the Hasselblad X1D-50c custom firmware toolkit. Check out the Hazel-firmware project for complementary Hasselblad firmware research and custom look development!
 
 ### 1st-Generation X1D-50c / Umbrella Platform
 * **[YuHaoyua/hasselblad-x1d-reverse-engineering](https://github.com/YuHaoyua/hasselblad-x1d-reverse-engineering)** – Foundational reverse-engineering research on the 1st-gen X1D-50c (D-Bus APIs, `sutest-daemon` protocol, USB shell access, QEMU emulation, and QRC resource patching).
