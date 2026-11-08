@@ -25,6 +25,7 @@ Tento projekt slouží k průzkumu, dešifrování, rozbalení, úpravám, loká
 5. **[05 – Hloubková analýza C++ backendu a skrytých funkcí (`dokumentace/05-analyza-cpp-backendu-a-funkci.md`)](dokumentace/05-analyza-cpp-backendu-a-funkci.md)**
    * Kompletní matice provázanosti mezi `victory-gui` (`SettingsMiddleLayer`), `configstore`, `msg2dbus`, `bodystate-daemon`, `camera-daemon` (`WedgeStateMachine`) a `storage-daemon`.
    * Které skryté funkce jsou **100% funkční na reálném hardwaru X1D-50c** (např. mapování tlačítek `AE-L` a `AF-D`, prohození koleček v režimu `M`, skrytí `B/T`, `AE-L` při namáčknutí, citlivost eye-sensoru, ladění rychlosti AF motoru `7000..31000` a Brennerova filtru v FPGA) a proč `AF-C` / `True Focus` na X1D padají zpět na `AF-S`.
+   * Rozpletení Dual-QSPI firmwaru čipu `FARM` (Xilinx Zynq-7000), stavový automat `af_service.c` (slepý dvouhranový průjezd) a nízkoúrovňové rozhraní `LensProxy` (`Lens.moveRelativePos4um`).
 6. **[06 – Emulace UI na PC a bezpečné testování (`dokumentace/06-emulace-ui-na-pc.md`)](dokumentace/06-emulace-ui-na-pc.md)**
    * Jak používat lokální 640×480 PC simulátor (`ui_simulator/run_simulator.py`), skryté CLI přepínače binárky `victory-gui` (`--wedge`, `--session`, `--main`) a plnou ARM emulaci v QEMU.
 7. **[07 – Porovnání všech 6 verzí firmwaru (`dokumentace/07-porovnani-verzi-firmwaru.md`)](dokumentace/07-porovnani-verzi-firmwaru.md)**
@@ -37,7 +38,7 @@ Tento projekt slouží k průzkumu, dešifrování, rozbalení, úpravám, loká
 * **[02 – Moduly pro zrychlení startu a odezvy UI (`custom_firmware_dokumentace/02-moduly-rychlost-boot-a-odezva-ui.md`)](custom_firmware_dokumentace/02-moduly-rychlost-boot-a-odezva-ui.md)** – Katalog modulů `MOD-SPD-01` až `MOD-SPD-06`.
 * **[03 – Moduly pro výdrž baterie a chlazení (`custom_firmware_dokumentace/03-moduly-vydrz-baterie-a-chlazeni.md`)](custom_firmware_dokumentace/03-moduly-vydrz-baterie-a-chlazeni.md)** – Katalog modulů `MOD-BAT-01` až `MOD-BAT-05`.
 * **[04 – Moduly pro skryté a nové funkce UI (`custom_firmware_dokumentace/04-moduly-skryte-a-nove-funkce-ui.md`)](custom_firmware_dokumentace/04-moduly-skryte-a-nove-funkce-ui.md)** – Katalog modulů `MOD-FEAT-01` až `MOD-FEAT-06`.
-* **[05 – Modul Continuous Autofocus `AF-C` + Touch-to-Track (`custom_firmware_dokumentace/05-modul-continuous-autofocus-afc.md`)](custom_firmware_dokumentace/05-modul-continuous-autofocus-afc.md)** – Samostatný modul `MOD-FEAT-AFC` (`build_custom_firmware.py --mode afc`) nad továrním `1.25.0`.
+* **[05 – Modul Continuous Autofocus `AF-C` + Touch-to-Track (`custom_firmware_dokumentace/05-modul-continuous-autofocus-afc.md`)](custom_firmware_dokumentace/05-modul-continuous-autofocus-afc.md)** – Samostatný modul `MOD-FEAT-AFC` (`build_custom_firmware.py --mode afc`) nad továrním `1.25.0`: rozpletení Dual-QSPI firmwaru čipu `FARM` (Zynq-7000, `af_service.c`), mikrokrokování přes `Lens.moveRelativePos4um` a 5stavový **Gated CDAF + Peak Drop Rate** engine (`firmware/X1D_v1_25_0_afc.cim`, `63 270 912 B`). Starý prototyp s cyklováním relací je archivován jako `firmware/X1D_v1_25_0_afc_old.cim`.
 
 ---
 

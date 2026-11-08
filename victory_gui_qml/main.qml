@@ -110,6 +110,18 @@ Item {
         property bool afcExposePending: false
         property bool afcExposeLiveViewAfter: false
         property int currentFocusMode: Camera.FocusMode
+        property int afcRefCv: 24000
+        property int afcLeftCv: 24000
+        property int afcRightCv: 24000
+        property int afcPrevCv: 24000
+        property int afcP0Cv: 24000
+        property int afcP0Pos: 1000
+        property int afcMaxCv: 24000
+        property int afcMaxPos: 1000
+        property int afcTargetPos: 1000
+        property int afcPendingStep: 0
+        readonly property int afcProbeStep: 6
+        readonly property int afcTrackStep: 8
 
         onCurrentFocusModeChanged: {
             if (currentFocusMode === Config.Focus_AFS || currentFocusMode === Config.Focus_AFC) {
@@ -135,57 +147,150 @@ Item {
                    VideoControl.videoMode === VideoControl.View
         }
 
+        function stepLens(delta4um) {
+            control.afcPendingStep = delta4um
+            Lens.moveRelativePos4um(delta4um)
+        }
+
+        function startGatedCdaf() {
+            Lens.focusUpdateState(true)
+            GlobalStateInfo.afcLoopActive = true
+            GlobalStateInfo.afcHasLocked = true
+            GlobalStateInfo.afcGatedState = 1
+            afcGateTimer.restart()
+        }
+
         function stopAfcTracking() {
-            afcHoldTimer.stop()
-            afcNextScanTimer.stop()
-            afcRestartTimer.stop()
+            afcGateTimer.stop()
+            afcStepTimer.stop()
+            if (GlobalStateInfo.afcGatedState !== 0) {
+                Lens.focusUpdateState(false)
+            }
             control.afcCyclingSession = false
+            GlobalStateInfo.afcGatedState = 0
             GlobalStateInfo.afcLoopActive = false
             GlobalStateInfo.afcHasLocked = false
         }
 
         Timer {
-            id: afcHoldTimer
-            interval: 180
+            id: afcGateTimer
+            interval: 70
             repeat: false
             onTriggered: {
                 if (control.isAfcTrackingWanted() && !Camera.findOngoing && !control.afcExposePending) {
-                    if (Camera.inSession) {
-                        control.afcCyclingSession = true
-                        Camera.stopSession()
-                        afcRestartTimer.restart()
-                    } else {
-                        afcNextScanTimer.restart()
+                    if (!Camera.inSession) {
+                        Camera.startSession(configstore.ExpMode !== Config.ExpMode_ManualQuick, true)
+                        control.sessionStopped = false
+                    } else if (GlobalStateInfo.afcGatedState === 1) {
+                        control.stepLens(0)
                     }
                 }
             }
         }
 
         Timer {
-            id: afcNextScanTimer
-            interval: 25
+            id: afcStepTimer
+            interval: 22
             repeat: false
             onTriggered: {
-                control.afcCyclingSession = false
-                if (control.isAfcTrackingWanted() && !Camera.inSession && !control.afcExposePending) {
-                    var showLiveView = configstore.ExpMode !== Config.ExpMode_ManualQuick
-                    Camera.startSession(showLiveView, true)
-                    control.sessionStopped = false
+                if (!control.isAfcTrackingWanted() || Camera.findOngoing || control.afcExposePending)
+                    return
+                var st = GlobalStateInfo.afcGatedState
+                if (st === 2) {
+                    control.stepLens(-control.afcProbeStep)
+                } else if (st === 3) {
+                    control.stepLens(2 * control.afcProbeStep)
+                } else if (st === 4) {
+                    control.stepLens(GlobalStateInfo.afcTrackDir * control.afcTrackStep)
+                } else if (st === 5) {
+                    var pullDelta = control.afcTargetPos - GlobalStateInfo.afcLensPos
+                    control.stepLens(pullDelta)
                 }
             }
         }
 
-        Timer {
-            id: afcRestartTimer
-            interval: 45
-            repeat: false
-            onTriggered: {
-                if (control.afcCyclingSession && control.isAfcTrackingWanted() && !Camera.inSession && !control.afcExposePending) {
-                    control.afcCyclingSession = false
-                    var showLiveView = configstore.ExpMode !== Config.ExpMode_ManualQuick
-                    Camera.startSession(showLiveView, true)
-                    control.sessionStopped = false
+        Connections {
+            target: Lens
+            onMoveRelativePos4umResult: {
+                if (!control.isAfcTrackingWanted() || Camera.findOngoing || control.afcExposePending)
+                    return
+                var cv = GlobalStateInfo.afcCurrCv
+                var pos = GlobalStateInfo.afcLensPos + control.afcPendingStep
+                if (result > 32767) {
+                    cv = (result >> 15) & 0xFFFF
+                    pos = result & 0x7FFF
                 }
+                GlobalStateInfo.afcCurrCv = cv
+                GlobalStateInfo.afcLensPos = pos
+                var st = GlobalStateInfo.afcGatedState
+                if (st === 1) {
+                    var dropFrac = (GlobalStateInfo.afcPeakCv - cv) / Math.max(1, GlobalStateInfo.afcPeakCv)
+                    if (dropFrac >= 0.045) {
+                        control.afcRefCv = cv
+                        GlobalStateInfo.afcHasLocked = false
+                        GlobalStateInfo.afcGatedState = 2
+                        afcStepTimer.restart()
+                    } else {
+                        GlobalStateInfo.afcHasLocked = true
+                        afcGateTimer.restart()
+                    }
+                } else if (st === 2) {
+                    control.afcLeftCv = cv
+                    GlobalStateInfo.afcGatedState = 3
+                    afcStepTimer.restart()
+                } else if (st === 3) {
+                    control.afcRightCv = cv
+                    var rLeft = (control.afcRefCv - control.afcLeftCv) / control.afcProbeStep
+                    var rRight = (control.afcRefCv - control.afcRightCv) / control.afcProbeStep
+                    if (rLeft > 0 && rRight > 0) {
+                        GlobalStateInfo.afcTrackDir = (rLeft > rRight) ? 1 : -1
+                    } else {
+                        GlobalStateInfo.afcTrackDir = (control.afcRightCv >= control.afcLeftCv) ? 1 : -1
+                    }
+                    console.log("[AF-C DropRate] L_drop:", rLeft.toFixed(1), "R_drop:", rRight.toFixed(1), "-> Dir:", GlobalStateInfo.afcTrackDir > 0 ? "Far(+1)" : "Near(-1)")
+                    control.afcP0Cv = control.afcRefCv
+                    control.afcP0Pos = pos - control.afcProbeStep
+                    control.afcPrevCv = cv
+                    control.afcMaxCv = cv
+                    control.afcMaxPos = pos
+                    GlobalStateInfo.afcGatedState = 4
+                    afcStepTimer.restart()
+                } else if (st === 4) {
+                    var der = (cv - control.afcPrevCv) / control.afcTrackStep
+                    if (cv >= control.afcMaxCv) {
+                        control.afcP0Cv = control.afcPrevCv
+                        control.afcP0Pos = pos - (GlobalStateInfo.afcTrackDir * control.afcTrackStep)
+                        control.afcMaxCv = cv
+                        control.afcMaxPos = pos
+                        control.afcPrevCv = cv
+                    } else {
+                        control.afcPrevCv = cv
+                    }
+                    if (der < -12 || cv < control.afcMaxCv - 90) {
+                        var denom = 2 * (control.afcP0Cv - 2 * control.afcMaxCv + cv)
+                        var offset = 0
+                        if (denom !== 0) {
+                            var h = control.afcMaxPos - control.afcP0Pos
+                            offset = Math.round((h * (control.afcP0Cv - cv)) / denom)
+                            if (offset > control.afcTrackStep) offset = control.afcTrackStep
+                            if (offset < -control.afcTrackStep) offset = -control.afcTrackStep
+                        }
+                        control.afcTargetPos = control.afcMaxPos + offset
+                        console.log("[AF-C PullBack] Peak passed (Der=", der.toFixed(1), "), pulling back to Pos=", control.afcTargetPos)
+                        GlobalStateInfo.afcGatedState = 5
+                    }
+                    afcStepTimer.restart()
+                } else if (st === 5) {
+                    GlobalStateInfo.afcPeakCv = Math.max(cv, control.afcMaxCv)
+                    GlobalStateInfo.afcHasLocked = true
+                    GlobalStateInfo.afcGatedState = 1
+                    Lens.moveAbsolutePos(pos)
+                    afcGateTimer.restart()
+                }
+            }
+            onMoveRelativePos4umFailed: {
+                if (control.isAfcTrackingWanted())
+                    afcGateTimer.restart()
             }
         }
 
@@ -212,16 +317,16 @@ Item {
             target: Camera
             onFindOngoingChanged: {
                 if (!Camera.findOngoing && control.isAfcTrackingWanted() && !control.afcExposePending) {
-                    GlobalStateInfo.afcLoopActive = true
-                    afcHoldTimer.restart()
+                    control.startGatedCdaf()
                 }
             }
             onFocus_pointChanged: {
                 if (control.isAfcTrackingWanted() && Camera.inSession && !Camera.findOngoing && !control.afcExposePending) {
-                    afcHoldTimer.stop()
-                    control.afcCyclingSession = true
-                    Camera.stopSession()
-                    afcRestartTimer.restart()
+                    afcGateTimer.stop()
+                    control.afcRefCv = GlobalStateInfo.afcCurrCv
+                    GlobalStateInfo.afcHasLocked = false
+                    GlobalStateInfo.afcGatedState = 2
+                    afcStepTimer.restart()
                 }
             }
             onInSessionChanged: {
@@ -235,8 +340,7 @@ Item {
                         control.sessionStopped = false
                         Camera.startExposing(control.afcExposeLiveViewAfter)
                     } else if (control.afcCyclingSession && control.isAfcTrackingWanted()) {
-                        afcRestartTimer.stop()
-                        afcNextScanTimer.restart()
+                        afcGateTimer.restart()
                     }
                 }
                 GlobalStateInfo.photosAddedCount = 0
@@ -847,7 +951,7 @@ Item {
                 else if (!Camera.inSession)
                 {
                     var showLiveView = configstore.ExpMode !== Config.ExpMode_ManualQuick
-                    Camera.startSession(showLiveView)
+                    Camera.startSession(showLiveView, Camera.FocusMode === Config.Focus_AFC)
                     control.sessionStopped = false
                 }
             }

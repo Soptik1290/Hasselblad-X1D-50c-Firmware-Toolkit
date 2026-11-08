@@ -160,7 +160,55 @@ Co se stane, když v QML povolíme `grid_model` i pro X1D?
   0x328a8: b    WedgeStateMachine::findFocus ; jinak (pro JAKÝKOLIV jiný režim) spusť jednorázové CDAF ostření!
   ```
 - **Závěr (tovární chování vs. náš vlastní `AF-C` engine)**: Třída `WedgeStateMachine` v `camera-daemon` testuje pouze to, zda je `FocusMode == 3` (`Focus_MAN`) nebo `!= 3`. Pokud by se pouze odemkla ikonka `AF-C` v `PopoverFocusMode.qml`, fotoaparát provede jen jedno zaostření a zůstane čekat ve stavu `"Session is idle, starting liveview"`.
-- **Naše plnohodnotná implementace `AF-C` pro X1D-50c (`MOD-FEAT-AFC`):** V modulu [`custom_firmware_dokumentace/05-modul-continuous-autofocus-afc.md`](../custom_firmware_dokumentace/05-modul-continuous-autofocus-afc.md) ([`build_custom_firmware.py --mode afc`](../build_custom_firmware.py)) jsme nad `WedgeStateMachine` postavili vlastní kontinuální CDAF engine v `main.qml`, který při držení `HALFPRESS` / `AF-D` v režimu `Config.Focus_AFC (2)` automaticky cykluje CDAF relace (`stopSession()` -> `startSession(showLiveView, true)`), aktivuje zrychlení motoru XCD (`DebugAfSpeed = 19000`, `DebugAfSpeedEnable = true`), podporuje **Touch-to-Track** v LiveView a má okamžitou prioritu plného domáčknutí spouště (`EXPOSURE`).
+
+---
+
+### Kategorie F: Průlom – Rozpletení Dual-QSPI firmwaru `FARM` (Zynq-7000), `af_service.c` a `Gated CDAF + Peak Drop Rate`
+
+Při hlubším zkoumání `.cim` obrazu jsme narazili na zásadní otázku: **Co přesně se děje uvnitř čipu `FARM` a objektivu XCD, když `WedgeStateMachine::findFocus()` odešle požadavek na ostření (`image_find_focus_req`), a proč prosté opakování `stopSession()` / `startSession()` (archivované v `X1D_v1_25_0_afc_old.cim`) na reálném fotoaparátu způsobuje nepřetržité přeostřování („hunting“)?**
+
+#### 1. Rozpletení Dual-QSPI obrazů čipu `FARM`
+V `rootfs` (`/lib/firmware/hbl/farm/`) jsou dva soubory po `3 954 444 B`:
+- `bootimage_even-wedge-v1.25.0-13075-c9bb91d.bin` (flashovaný do `/dev/mtd3`)
+- `bootimage_odd-wedge-v1.25.0-13075-c9bb91d.bin` (flashovaný do `/dev/mtd4`)
+
+Čip **`FARM`** není jen FPGA, ale **Xilinx Zynq-7000 SoC** (dvoujádrový ARM Cortex-A9 + FPGA) připojený ke dvěma paralelním QSPI flash pamětem v režimu **Dual-Parallel QSPI x8 (bit-interleaved)** – každý bajt obrazu `BOOT.BIN` je rozdělen na **sudé bity (`0, 2, 4, 6`)** v `even` souboru a **liché bity (`1, 3, 5, 7`)** v `odd` souboru.
+
+Po složení vznikne `7 908 888 B` obraz `farm_wedge_boot.bin` (hlavička Xilinx Zynq Boot Image `0xAA995566`, `"XNLX"`) se 3 oddíly:
+1. **Partition 0** (`0x001700`, `114 708 B`) – Zynq First Stage Boot Loader (`FSBL`).
+2. **Partition 1** (`0x01D740`, `5 979 936 B`) – PL FPGA bitstream s hardwarovým **Brennerovým filtrem ostrosti** (`../src/fpga/autofocus.c`).
+3. **Partition 2** (`0x5D1680`, `1 808 280 B`, load adresa `0x00100000`) – ARM Cortex-A9 FreeRTOS aplikace `farm_app.bin`.
+
+#### 2. Stavový automat `../src/services/af_service.c` (`0x198700..0x1A5490`) v `farm_app.bin`
+- Stavová struktura AF v RAM na `0x006BB59C`, kruhový buffer kontrastu na `0x006BB5CC`.
+- `af_service_update_lenstype` (`0x1987C4..0x199950`) – kalibrační profily objektivů `XCD30/45/90/120` a `HCC24..HCC300`.
+- Příkaz `image_find_focus_req` (`AF_SERVICE_SM`, `0x19B870..0x19D174`) provede vždy **slepý dvouhranový průjezd (*Full-Sweep CDAF*)**: `afstate_scan_for_first_edge` (`0x19BEC0`) → `afstate_scan_for_second_edge` (`0x19C054`, úmyslně přejede za vrchol) → `afstate_move_back_over_peak` (`0x19C530`) → `afstate_move_to_final_position` (`0x19C96C`, parabolický fit vrcholu).
+- **Proč naivní cyklování `startSession()` na reálném těle selhává:** Každé `StartSession(showLiveView, true)` → `ImageProxy::findFocus` → `image_find_focus_req` vynutí kompletní průjezd přes obě hrany a přepnutí video režimu senzoru. Periodické volání tedy na fyzickém objektivu způsobí neustálé přejíždění přes ostrost tam a zpět (*full-sweep hunting*). Skutečné `AF-C` musí po úvodním zámku řídit čočku mikrokroky.
+
+#### 3. Nízkoúrovňové rozhraní `LensProxy` (`Lens`) v `libappscommon.so.1.0.0`
+
+| QML metoda / signál na `Lens` | C++ symbol | D-Bus metoda (`com.hasselblad.lens`) → IPC do `SUC` | Popis |
+| :--- | :--- | :--- | :--- |
+| **`Lens.focusUpdateState(bool)`** | `_ZN9LensProxy16focusUpdateStateEb` (`0x4AD94D10`) | `video_focus_pos_state` → `lens_video_focus_pos_state_req` | Kontinuální hlášení pozice ostřící čočky během LiveView. |
+| **`Lens.moveRelativePos4um(short)`** | `_ZN9LensProxy18moveRelativePos4umEs` (`0x4AD94F0C`) | `af_cmd_relative_position_4um` → `lens_af_cmd_relative_position_4um_req` | Relativní mikrokrok v násobcích **4 µm** (kladné = Far, záporné = Near) bez spuštění `image_find_focus_req`. |
+| **`Lens.onMoveRelativePos4umResult(int)`** | `LensProxy::onMoveRelativePos4umResultFinished` (`0x4AD943D4`) | Asynchronní D-Bus odpověď (`QVariant::toInt()`) | Předá 32bitový `result` přímo do QML. |
+| **`Lens.moveAbsolutePos(short)`** | `_ZN9LensProxy15moveAbsolutePosEs` (`0x4AD95108`) | `af_cmd_position` → `lens_af_cmd_position_req` | Přesun na absolutní pozici. |
+| **`Lens.moveAtSpeed(short)`** | `_ZN9LensProxy11moveAtSpeedEs` (`0x4AD95304`) | `af_cmd_speed` → `lens_af_cmd_speed_req` | Plynulý pohyb motoru zadanou rychlostí. |
+
+#### 4. Náš algoritmus `Gated CDAF + Peak Drop Rate` (`firmware/X1D_v1_25_0_afc.cim`)
+V novém firmwaru **[`firmware/X1D_v1_25_0_afc.cim`](../firmware/X1D_v1_25_0_afc.cim)** (kompletní dokumentace v [`custom_firmware_dokumentace/05-modul-continuous-autofocus-afc.md`](../custom_firmware_dokumentace/05-modul-continuous-autofocus-afc.md)) jsme proto nahradili smyčku `stopSession/startSession` uzavřeným **5stavovým konečným automatem Gated CDAF s porovnáváním rychlosti poklesu kontrastu (Peak Drop Rate)**:
+
+1. **Úvodní zachycení vrcholu (`Initial Peak Lock`):** Po stisku `HALFPRESS` / `AF-D` (nebo klepnutí v LiveView) proběhne jediné úvodní zaostření pro nalezení výchozího vrcholu ostrosti $(x_{\text{peak}}, CV_{\text{peak}})$, aktivuje se `Lens.focusUpdateState(true)` a automat přejde do stavu **`GATE_HOLD` (`1`)**.
+2. **Stav 1 – `GATE_HOLD` (Hradlování v klidu):** Dokud relativní pokles kontrastu nepřekročí práh brány (`dropFrac = (afcPeakCv - cv) / afcPeakCv < 4,5 %`), objektiv stojí **zcela v klidu (nulové dýchání/hunting)** a svítí zelený zámek ostrosti. Jakmile se objekt pohne a kontrast klesne o $\ge 4,5\,\%$, automat přejde do stavu **`PROBE_LEFT` (`2`)**.
+3. **Stavy 2 & 3 – `PROBE_LEFT` a `PROBE_RIGHT` (Porovnání rychlosti poklesu obou stran – Peak Drop Rate):**
+   - Objektiv provede mikrokrok doleva (`-6 × 4 µm = -24 µm`) a změří rychlost poklesu levé strany:
+     $$R_L = \frac{CV_{\text{ref}} - CV_L}{\Delta x}$$
+   - Následně provede mikrokrok doprava (`+12 × 4 µm`, tj. `+24 µm` od středu) a změří rychlost poklesu pravé strany:
+     $$R_R = \frac{CV_{\text{ref}} - CV_R}{\Delta x}$$
+   - **Klíčové pravidlo pro pohybující se objekt v reálném čase:** Pokud klesají obě strany současně ($R_L > 0 \land R_R > 0$), **strana, která klesá rychleji ($\max(R_L, R_R)$), se vzdaluje od bodu ostrosti rychleji a je od vrcholu dál – ostření proto musí okamžitě táhnout na opačnou stranu!**
+     $$\text{afcTrackDir} = \begin{cases} +1 & \text{pokud } R_L > R_R \\ -1 & \text{pokud } R_R \ge R_L \end{cases}$$
+4. **Stav 4 – `TRACK_CLIMB` (Sledování vrcholu a detekce ohybu za vrcholem):** Objektiv krokuje ve směru `afcTrackDir` po `8 × 4 µm` (`32 µm`) a sleduje klouzavé maximum $(x_{\max}, CV_{\max})$ a sklon $dCV/dt$. Jakmile hodnota kontrastu začne klesat (`der < -12` nebo `cv < afcMaxCv - 90`), znamená to, že čočka právě projela optimálním bodem ostrosti.
+5. **Stav 5 – `PULLBACK` (Parabolický návrat na vrchol):** Z trojice bodů $(x_{-1}, CV_{-1})$, $(x_{\max}, CV_{\max})$, $(x_{+1}, CV_{+1})$ se vypočítá parabolický vrchol `afcTargetPos`, objektiv se jedním mikrokrokem `Lens.moveRelativePos4um(pullDelta)` vrátí přesně na vrchol ostrosti, uloží nový `afcPeakCv` a přejde zpět do klidového stavu **`GATE_HOLD` (`1`)**.
 
 ---
 

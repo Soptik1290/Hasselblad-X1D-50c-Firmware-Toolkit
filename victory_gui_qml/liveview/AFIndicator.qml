@@ -147,7 +147,7 @@ Item {
     states: [
         State {
             name: "ongoing" // Focusing is active
-            when: (Camera.findOngoing || (GlobalStateInfo.afcLoopActive && !Camera.inSession)) && Camera.lastAfResult !== Camera.LastAfResultOverride
+            when: (Camera.findOngoing || (GlobalStateInfo.afcLoopActive && (!Camera.inSession || GlobalStateInfo.afcGatedState > 1))) && Camera.lastAfResult !== Camera.LastAfResultOverride
 
             PropertyChanges {
                 target: af_symbol
@@ -198,6 +198,7 @@ Item {
         State {
             name: "hasfocus" // Focus was success.
             when: Camera.inSession && !Camera.findOngoing &&
+                  (!GlobalStateInfo.afcLoopActive || GlobalStateInfo.afcGatedState <= 1) &&
                   Camera.lastAfResult === Camera.LastAfResultFound
                 /* af_private.hasFoundFocus && af_private.lastFindFocusWasSuccess */
 

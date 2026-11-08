@@ -45,6 +45,11 @@ QtObject {
     property bool haveAfDrive: false
     property bool afcLoopActive: false
     property bool afcHasLocked: false
+    property int afcGatedState: 0
+    property int afcPeakCv: 24000
+    property int afcCurrCv: 24000
+    property int afcLensPos: 1000
+    property int afcTrackDir: 1
     property int lastAutoFocusMode: 1
 }
 

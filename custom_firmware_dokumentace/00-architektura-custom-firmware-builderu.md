@@ -173,6 +173,15 @@ Při ladění a ověřování custom firmwaru v reálném ARMv7 Linux emulátoru
   - `com.hasselblad.camera.setLiveViewState` má signaturu **`"bs"`** (`bool state, QString receiver`), nikoliv `"b"`.
   - `com.hasselblad.camera.StartSession` má signaturu **`"bb"`** (`bool showLiveViewWhenFinished, bool forceFindFocus`).
   - `com.hasselblad.cambody` exportuje kromě objektu `/cambody` také objekt `/spiritlevel` (rozhraní `com.hasselblad.spiritlevel`, metoda `do_spiritlevel(ib)`) a na `/cambody` metodu `do_hts_polling(b)`.
+  - `com.hasselblad.lens` (`/lens`) musí pro `MOD-FEAT-AFC` exportovat `video_focus_pos_state`, `af_cmd_relative_position_4um`, `af_cmd_position` a `af_cmd_speed` (volané z QML přes `Lens.focusUpdateState`, `Lens.moveRelativePos4um`, `Lens.moveAbsolutePos`, `Lens.moveAtSpeed`).
+
+### 4.5 Pravidlo 5: Nikdy neřídit kontinuální ostření opakovaným `startSession()`
+- **Příčina:** Každé `Camera.startSession(showLiveView, true)` vede přes `ImageProxy::findFocus` na `image_find_focus_req` v `af_service.c` čipu `FARM`, který vždy provede **slepý dvouhranový průjezd** celého AF rozsahu.
+- **Past:** V emulátoru to vypadá funkčně, ale na reálném těle objektiv neustále přejíždí přes ostrost (*full-sweep hunting*) – viz archivovaný [`X1D_v1_25_0_afc_old.cim`](file:///d:/Plocha/projekty/X1D_FirmwareDump/firmware/X1D_v1_25_0_afc_old.cim).
+- **Povinné řešení:** Po úvodním zámku řídit objektiv mikrokroky `Lens.moveRelativePos4um()` s hradlováním (`GATE_HOLD`, práh poklesu `4,5 %`) a porovnáním rychlosti poklesu levé/pravé strany (*Peak Drop Rate*). [`verify_firmware_safety.py`](file:///d:/Plocha/projekty/X1D_FirmwareDump/verify_firmware_safety.py) v 1. fázi kontroluje přítomnost tokenů `Lens.moveRelativePos4um`, `Lens.focusUpdateState`, `onMoveRelativePos4umResult`, `rLeft`, `rRight`, `afcTargetPos`.
+
+> [!WARNING]
+> **Emulátor nedokazuje funkčnost na reálném fotoaparátu.** [`mock_hardware_dbus.py`](file:///d:/Plocha/projekty/X1D_FirmwareDump/arm_emulator/mock_hardware_dbus.py) simuluje kontrast fyzikálním modelem (`OpticalCdafSimulator`); skutečné chování `FARM` / XCD objektivu (zejména zda odpověď `af_cmd_relative_position_4um` nese hodnotu kontrastu) je nutné ověřit na hardwaru.
 
 ---
 
@@ -187,4 +196,4 @@ Při ladění a ověřování custom firmwaru v reálném ARMv7 Linux emulátoru
 4. **[`04-moduly-skryte-a-nove-funkce-ui.md`](file:///d:/Plocha/projekty/X1D_FirmwareDump/custom_firmware_dokumentace/04-moduly-skryte-a-nove-funkce-ui.md)**
    Katalog 6 modulů (**`MOD-FEAT-01`** až **`MOD-FEAT-06`**) pro odemknutí skrytých továrních funkcí (`Compressed 3FR`, `Noise Filter`, `JPG Size`, `Eye Sensor Distance`, `AF Debug/Speed`, `RAM-Only Demo Mode`, `DebugCam` RAW mapy FPGA, čtení teplot a vlastní barevná témata UI).
 5. **[`05-modul-continuous-autofocus-afc.md`](file:///d:/Plocha/projekty/X1D_FirmwareDump/custom_firmware_dokumentace/05-modul-continuous-autofocus-afc.md)**
-   Samostatný modul **`MOD-FEAT-AFC`** (**Continuous Autofocus `AF-C` + Touch-to-Track**), postavený přímo nad výchozím továrním firmwarem `1.25.0` ([`firmware/X1D_v1_25_0_afc.cim`](file:///d:/Plocha/projekty/X1D_FirmwareDump/firmware/X1D_v1_25_0_afc.cim)). Obsahuje rešerši X2D 100C toolkitů (*HRAP*), disassembling `WedgeStateMachine` v `/usr/bin/camera-daemon` a kompletní QML engine pro kontinuální CDAF přeostřování s akcelerací motoru XCD (`DebugAfSpeed = 19000`).
+   Samostatný modul **`MOD-FEAT-AFC`** (**Continuous Autofocus `AF-C` + Touch-to-Track**), postavený přímo nad výchozím továrním firmwarem `1.25.0` ([`firmware/X1D_v1_25_0_afc.cim`](file:///d:/Plocha/projekty/X1D_FirmwareDump/firmware/X1D_v1_25_0_afc.cim)). Obsahuje rešerši X2D 100C toolkitů (*HRAP*), disassembling `WedgeStateMachine` v `/usr/bin/camera-daemon`, rozpletení Dual-QSPI firmwaru čipu `FARM` (Zynq-7000, `af_service.c`), rozhraní `LensProxy` (`Lens.moveRelativePos4um`) a 5stavový **Gated CDAF + Peak Drop Rate** engine (`63 270 912 B`). Starý prototyp s cyklováním `stopSession/startSession` je archivován jako [`firmware/X1D_v1_25_0_afc_old.cim`](file:///d:/Plocha/projekty/X1D_FirmwareDump/firmware/X1D_v1_25_0_afc_old.cim) (na reálném těle způsobuje *full-sweep hunting*).

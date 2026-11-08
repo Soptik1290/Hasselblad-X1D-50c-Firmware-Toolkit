@@ -160,7 +160,55 @@ What happens if we enable `grid_model` on the X1D?
   0x328a8: b    WedgeStateMachine::findFocus ; otherwise (for ANY non-MF mode), run single-shot CDAF!
   ```
 - **Conclusion (Stock Behavior vs. Our Custom `AF-C` Engine)**: `WedgeStateMachine` in `camera-daemon` only checks whether `FocusMode == 3` (`Focus_MAN`) or `!= 3`. Simply unhiding the `AF-C` icon in `PopoverFocusMode.qml` causes the camera to perform a single CDAF pass and sit in `"Session is idle, starting liveview"`.
-- **Our Working `AF-C` Implementation for X1D-50c (`MOD-FEAT-AFC`):** In [`custom_firmware_dokumentace/05-modul-continuous-autofocus-afc.md`](../custom_firmware_dokumentace/05-modul-continuous-autofocus-afc.md) ([`build_custom_firmware.py --mode afc`](../build_custom_firmware.py)), we engineered a full continuous CDAF session-cycling state machine in `main.qml` on top of `WedgeStateMachine` that continuously re-evaluates focus while holding `HALFPRESS` / `AF-D` in `Config.Focus_AFC (2)`, accelerates the XCD stepping motor (`DebugAfSpeed = 19000`, `DebugAfSpeedEnable = true`), adds single-tap **Touch-to-Track** in LiveView, and guarantees instant full-shutter priority (`EXPOSURE`).
+
+---
+
+### Category F: Breakthrough – De-Interleaving the `FARM` (Zynq-7000) Dual-QSPI Firmware, `af_service.c`, and `Gated CDAF + Peak Drop Rate`
+
+Digging deeper into the `.cim` image answered a critical question: **What actually happens inside the `FARM` chip and XCD lens when `WedgeStateMachine::findFocus()` dispatches `image_find_focus_req`, and why does naive `stopSession()` / `startSession()` cycling (archived in `X1D_v1_25_0_afc_old.cim`) cause full-sweep hunting on real hardware?**
+
+#### 1. De-Interleaving the `FARM` Dual-QSPI Images
+Inside `rootfs` (`/lib/firmware/hbl/farm/`) are two `3,954,444 B` files:
+- `bootimage_even-wedge-v1.25.0-13075-c9bb91d.bin` (flashed to `/dev/mtd3`)
+- `bootimage_odd-wedge-v1.25.0-13075-c9bb91d.bin` (flashed to `/dev/mtd4`)
+
+**`FARM`** is not a bare FPGA but a **Xilinx Zynq-7000 SoC** (dual-core ARM Cortex-A9 + FPGA) attached to two parallel QSPI flashes in **Dual-Parallel QSPI x8 (bit-interleaved)** mode – every byte of the `BOOT.BIN` image is split into **even bits (`0, 2, 4, 6`)** in the `even` file and **odd bits (`1, 3, 5, 7`)** in the `odd` file.
+
+Re-merging the bits yields a `7,908,888 B` image `farm_wedge_boot.bin` (Xilinx Zynq Boot Image header `0xAA995566`, `"XNLX"`) with 3 partitions:
+1. **Partition 0** (`0x001700`, `114,708 B`) – Zynq First Stage Boot Loader (`FSBL`).
+2. **Partition 1** (`0x01D740`, `5,979,936 B`) – PL FPGA bitstream with the hardware **Brenner sharpness filter** (`../src/fpga/autofocus.c`).
+3. **Partition 2** (`0x5D1680`, `1,808,280 B`, load address `0x00100000`) – ARM Cortex-A9 FreeRTOS application `farm_app.bin`.
+
+#### 2. The `../src/services/af_service.c` State Machine (`0x198700..0x1A5490`) in `farm_app.bin`
+- AF state struct in RAM at `0x006BB59C`, contrast ring buffer at `0x006BB5CC`.
+- `af_service_update_lenstype` (`0x1987C4..0x199950`) – calibration profiles for `XCD30/45/90/120` and `HCC24..HCC300`.
+- `image_find_focus_req` (`AF_SERVICE_SM`, `0x19B870..0x19D174`) always runs a **blind two-edge sweep (*Full-Sweep CDAF*)**: `afstate_scan_for_first_edge` (`0x19BEC0`) → `afstate_scan_for_second_edge` (`0x19C054`, deliberately overshoots the peak) → `afstate_move_back_over_peak` (`0x19C530`) → `afstate_move_to_final_position` (`0x19C96C`, parabolic peak fit).
+- **Why naive `startSession()` cycling fails on real hardware:** Every `StartSession(showLiveView, true)` → `ImageProxy::findFocus` → `image_find_focus_req` forces a full sweep across both edges plus a sensor video-mode switch. Calling it periodically makes the physical lens sweep back and forth through focus (*full-sweep hunting*). True `AF-C` must drive the lens with micro-steps after the initial lock.
+
+#### 3. Low-Level `LensProxy` (`Lens`) Interface in `libappscommon.so.1.0.0`
+
+| QML Method / Signal on `Lens` | C++ Symbol | D-Bus Method (`com.hasselblad.lens`) → `SUC` IPC | Description |
+| :--- | :--- | :--- | :--- |
+| **`Lens.focusUpdateState(bool)`** | `_ZN9LensProxy16focusUpdateStateEb` (`0x4AD94D10`) | `video_focus_pos_state` → `lens_video_focus_pos_state_req` | Continuous focus-position reporting during LiveView. |
+| **`Lens.moveRelativePos4um(short)`** | `_ZN9LensProxy18moveRelativePos4umEs` (`0x4AD94F0C`) | `af_cmd_relative_position_4um` → `lens_af_cmd_relative_position_4um_req` | Relative micro-step in multiples of **4 µm** (positive = Far, negative = Near) without triggering `image_find_focus_req`. |
+| **`Lens.onMoveRelativePos4umResult(int)`** | `LensProxy::onMoveRelativePos4umResultFinished` (`0x4AD943D4`) | Async D-Bus reply (`QVariant::toInt()`) | Passes the 32-bit `result` straight into QML. |
+| **`Lens.moveAbsolutePos(short)`** | `_ZN9LensProxy15moveAbsolutePosEs` (`0x4AD95108`) | `af_cmd_position` → `lens_af_cmd_position_req` | Move to an absolute position. |
+| **`Lens.moveAtSpeed(short)`** | `_ZN9LensProxy11moveAtSpeedEs` (`0x4AD95304`) | `af_cmd_speed` → `lens_af_cmd_speed_req` | Continuous motor movement at a given speed. |
+
+#### 4. Our `Gated CDAF + Peak Drop Rate` Algorithm (`firmware/X1D_v1_25_0_afc.cim`)
+In **[`firmware/X1D_v1_25_0_afc.cim`](../firmware/X1D_v1_25_0_afc.cim)** (fully documented in [`custom_firmware_dokumentace/05-modul-continuous-autofocus-afc.md`](../custom_firmware_dokumentace/05-modul-continuous-autofocus-afc.md)), we replaced `stopSession/startSession` cycling with a closed-loop **5-state Gated CDAF & Left/Right Peak Drop Rate state machine**:
+
+1. **Initial Peak Lock:** When `HALFPRESS` / `AF-D` (or Touch-to-Track) is triggered, the camera performs a single initial focus lock $(x_{\text{peak}}, CV_{\text{peak}})$, enables `Lens.focusUpdateState(true)`, and enters **`GATE_HOLD` (`1`)**.
+2. **State 1 – `GATE_HOLD` (Zero-Hunting Gate):** As long as the relative contrast drop stays within the gate threshold (`dropFrac = (afcPeakCv - cv) / afcPeakCv < 4.5%`), the lens remains **completely stationary (zero breathing/hunting)** with a solid green focus box. Once the subject moves and contrast drops by $\ge 4.5\%$, the state machine transitions to **`PROBE_LEFT` (`2`)**.
+3. **States 2 & 3 – `PROBE_LEFT` and `PROBE_RIGHT` (Left/Right Peak Drop Rate Comparison):**
+   - The lens micro-steps left (`-6 × 4 µm = -24 µm`) and measures the left-side drop rate:
+     $$R_L = \frac{CV_{\text{ref}} - CV_L}{\Delta x}$$
+   - It then micro-steps right (`+12 × 4 µm`, landing at `+24 µm` from the reference) and measures the right-side drop rate:
+     $$R_R = \frac{CV_{\text{ref}} - CV_R}{\Delta x}$$
+   - **Key Real-Time Moving-Subject Rule:** When both sides are dropping simultaneously ($R_L > 0 \land R_R > 0$), **the side dropping faster ($\max(R_L, R_R)$) is further from the focus point and must pull back toward the opposite direction!**
+     $$\text{afcTrackDir} = \begin{cases} +1 & \text{if } R_L > R_R \\ -1 & \text{if } R_R \ge R_L \end{cases}$$
+4. **State 4 – `TRACK_CLIMB` (Hill-Climbing & Past-Peak Drop Detection):** The lens steps along `afcTrackDir` in `8 × 4 µm` (`32 µm`) increments while tracking the running peak $(x_{\max}, CV_{\max})$ and slope $dCV/dt$. As soon as the peak value begins to decrease (`der < -12` or `cv < afcMaxCv - 90`), the lens has passed the optimal focus point.
+5. **State 5 – `PULLBACK` (Parabolic Pull-Back to Peak):** Using 3-point parabolic vertex interpolation across $(x_{-1}, CV_{-1})$, $(x_{\max}, CV_{\max})$, and $(x_{+1}, CV_{+1})$, the controller computes `afcTargetPos`, pulls the lens right back to the peak via `Lens.moveRelativePos4um(pullDelta)`, updates `afcPeakCv`, and returns to **`GATE_HOLD` (`1`)**.
 
 ---
 

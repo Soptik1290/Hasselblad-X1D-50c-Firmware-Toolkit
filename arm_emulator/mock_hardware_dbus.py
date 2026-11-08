@@ -12,6 +12,8 @@ inside QEMU/Docker with fully populated camera parameters:
 - Camera body state and lens metadata
 """
 
+import math
+import time
 import dbus
 import dbus.service
 import dbus.mainloop.glib
@@ -19,6 +21,63 @@ from gi.repository import GLib
 
 
 SERVICES_BY_NAME = {}
+
+
+class OpticalCdafSimulator:
+    """
+    Simulates the FPGA Brenner Contrast Filter (`../src/fpga/autofocus.c`)
+    and a moving 3D subject focal plane for testing Gated CDAF & Peak Drop Rate
+    tracking (`../src/services/af_service.c` / `Lens.moveRelativePos4um`).
+    """
+
+    def __init__(self):
+        self.lens_pos = 1000
+        self.subject_pos = 1000.0
+        self.session_start_t = time.monotonic()
+        self.last_cv = 24000
+        self.step_idx = 0
+
+    def reset_lock(self):
+        self.lens_pos = 1000
+        self.subject_pos = 1000.0
+        self.session_start_t = time.monotonic()
+        self.last_cv = 24000
+        self.step_idx = 0
+
+    def update_subject_position(self) -> float:
+        elapsed = time.monotonic() - self.session_start_t
+        if elapsed < 0.30:
+            # Initial stationary gate window: subject stays still at 1000
+            self.subject_pos = 1000.0
+        else:
+            # Smooth continuous movement between Near (930) and Far (1090)
+            phase = (elapsed - 0.30) * 1.35
+            self.subject_pos = 1010.0 + 75.0 * math.sin(phase)
+        return self.subject_pos
+
+    def compute_cv(self, pos: int, subj: float) -> int:
+        # Lorentzian / Brenner contrast response around subject focal plane
+        # Half-width at half-maximum sigma_dof = 42 steps (168 um)
+        delta = float(pos) - subj
+        cv = 1800.0 + 22200.0 / (1.0 + (delta / 42.0) ** 2)
+        return max(1000, min(65000, int(round(cv))))
+
+    def step_relative_4um(self, rel_step: int) -> int:
+        subj = self.update_subject_position()
+        self.lens_pos = max(200, min(2800, self.lens_pos + int(rel_step)))
+        cv = self.compute_cv(self.lens_pos, subj)
+        der = (cv - self.last_cv) / float(max(1, abs(rel_step))) if rel_step != 0 else 0.0
+        self.last_cv = cv
+        self.step_idx += 1
+        print(
+            f"[FARM-CDAF] Pos = {self.lens_pos} SubjPos = {subj:.1f} CV = {cv} "
+            f"Step = {rel_step:+d} Der = {der:+.2f} idx = {self.step_idx}"
+        )
+        # Pack (cv16 << 15) | (pos15 & 0x7FFF) into positive 31-bit signed int32
+        return ((cv & 0xFFFF) << 15) | (self.lens_pos & 0x7FFF)
+
+
+CDAF_SIM = OpticalCdafSimulator()
 
 
 class HasselbladService(dbus.service.Object):
@@ -89,6 +148,7 @@ class HasselbladService(dbus.service.Object):
 
             def _finish_af():
                 if bool(self.props.get("inSession", False)):
+                    CDAF_SIM.reset_lock()
                     self.props["lastAfReturnStatus"] = dbus.UInt32(0)
                     self.props["lastAfResult"] = dbus.UInt32(1)
                     self.props["findingFocus"] = dbus.Boolean(False)
@@ -161,6 +221,35 @@ class HasselbladService(dbus.service.Object):
     @dbus.service.method("com.hasselblad.spiritlevel", in_signature="ib", out_signature="")
     def do_spiritlevel(self, mode, enable):
         print(f"[{self.srv_name}] do_spiritlevel(mode={int(mode)}, enable={bool(enable)})")
+
+    # Lens CDAF & Micro-stepping methods (com.hasselblad.lens -> LensProxy in libappscommon.so)
+    @dbus.service.method("com.hasselblad.lens", in_signature="b", out_signature="i")
+    def video_focus_pos_state(self, enabled):
+        print(f"[{self.srv_name}] video_focus_pos_state({bool(enabled)})")
+        return dbus.Int32(0)
+
+    @dbus.service.method("com.hasselblad.lens", in_signature="i", out_signature="i")
+    def af_cmd_relative_position_4um(self, relative_pos):
+        packed = CDAF_SIM.step_relative_4um(int(relative_pos))
+        self.props["video_focus_pos"] = dbus.Int32(CDAF_SIM.lens_pos)
+        return dbus.Int32(packed)
+
+    @dbus.service.method("com.hasselblad.lens", in_signature="i", out_signature="i")
+    def af_cmd_position(self, pos):
+        CDAF_SIM.lens_pos = max(200, min(2800, int(pos)))
+        self.props["video_focus_pos"] = dbus.Int32(CDAF_SIM.lens_pos)
+        print(f"[{self.srv_name}] af_cmd_position(targetPos={CDAF_SIM.lens_pos})")
+        return dbus.Int32(0)
+
+    @dbus.service.method("com.hasselblad.lens", in_signature="i", out_signature="i")
+    def af_cmd_speed(self, speed):
+        print(f"[{self.srv_name}] af_cmd_speed(speed={int(speed)})")
+        return dbus.Int32(0)
+
+    @dbus.service.method("com.hasselblad.lens", in_signature="i", out_signature="i")
+    def af_cmd_scan_request(self, scan_type):
+        print(f"[{self.srv_name}] af_cmd_scan_request(type={int(scan_type)})")
+        return dbus.Int32(0)
 
     @dbus.service.method("org.freedesktop.systemd1.Manager", in_signature="ss", out_signature="o")
     def StartUnit(self, name, mode):
@@ -264,6 +353,18 @@ def main():
             {
                 "lensVersion": dbus.String("0.5.3 (XCD 45mm)"),
                 "focalLength": dbus.Int32(45),
+                "FL": dbus.Int32(45),
+                "fl_eff_min": dbus.Int32(45),
+                "fl_eff_max": dbus.Int32(45),
+                "lens_family": dbus.Int32(3),  # Lens.XCLens (3)
+                "video_focus_pos": dbus.Int32(1000),
+                "has_divided_scan_range": dbus.Boolean(False),
+                "HasMicrofocusAdjust": dbus.Boolean(True),
+                "HasLongFocusTime": dbus.Boolean(False),
+                "lens_ring_rotation": dbus.Boolean(False),
+                "AV_max": dbus.Int32(36),
+                "AV_min": dbus.Int32(96),
+                "TV_max": dbus.Int32(128),
                 "maxAperture": dbus.String("2.8"),
                 "capabilities": dbus.UInt32(0xFFFFFFFD),  # Disable on-screen touch shutter to keep f/2.8 clean
             },

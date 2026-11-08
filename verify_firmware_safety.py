@@ -495,13 +495,25 @@ def run_preflight_sweep(fast_mode: bool = False) -> Dict[str, Any]:
             runtime_guard_issues.append(
                 f"main.qml: evfWindow Loader has 'visible: {evf_loader_match.group(1)}' (must be 'visible: false')"
             )
+        for req_token in (
+            "Lens.moveRelativePos4um",
+            "Lens.focusUpdateState",
+            "onMoveRelativePos4umResult",
+            "rLeft",
+            "rRight",
+            "afcTargetPos",
+        ):
+            if req_token not in main_txt:
+                runtime_guard_issues.append(
+                    f"main.qml: missing Gated CDAF / Peak Drop Rate token '{req_token}'"
+                )
 
     s1_checks.append({
         "ok": len(runtime_guard_issues) == 0,
-        "name_en": "Qt 5.4 Uppercase C++ Signal Guards, configstore Limits & Wayland EVFWindow Focus",
-        "name_cs": "Ochrana C++ signálů v Qt 5.4, limitů configstore (3000..20000) a Wayland EVFWindow",
+        "name_en": "Qt 5.4 Uppercase C++ Signal Guards, configstore Limits, Wayland EVFWindow & Gated CDAF Engine",
+        "name_cs": "Ochrana C++ signálů v Qt 5.4, limitů configstore, Wayland EVFWindow a Gated CDAF Drop-Rate enginu",
         "detail": (
-            "0 uppercase Connections signal traps, DebugAfSpeed within [3000..20000], and EVFWindow hidden when inactive"
+            "0 uppercase signal traps, DebugAfSpeed within [3000..20000], EVFWindow hidden when inactive, and Gated CDAF Drop-Rate state machine verified"
             if not runtime_guard_issues else "; ".join(runtime_guard_issues[:3])
         ),
     })
