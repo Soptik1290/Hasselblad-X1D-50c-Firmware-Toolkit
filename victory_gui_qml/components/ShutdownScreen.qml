@@ -1,15 +1,18 @@
 import QtQuick 2.0
+
 Rectangle {
     id: root
     objectName: "ShutdownScreen"
     color: constants.menuBackgroundColor
     anchors.fill: parent
+
     Image {
         id: icon
         anchors.centerIn: parent
         anchors.verticalCenterOffset: -70
         source: "qrc:///icons/shutdown.png"
     }
+
     Text {
         text: qsTr("Shutting Down") + guiconfig.emptyString
         color: constants.dialogButtonTextColor
@@ -18,4 +21,5 @@ Rectangle {
         anchors.centerIn: parent
         anchors.verticalCenterOffset: 70
     }
+
 }

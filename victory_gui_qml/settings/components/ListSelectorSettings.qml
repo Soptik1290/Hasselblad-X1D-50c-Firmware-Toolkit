@@ -1,23 +1,37 @@
 import QtQuick 2.0
 import com.hasselblad.settings 1.0
 import "qrc:///scripts/Keys.js" as MKeys
+
 MouseArea {
     objectName: "popupContainer"
     id: popupContainer
+
     property alias popupAnchor: popup.anchors
+
+    // This is the item that shall have focus when popup is closed
     property Item returnToItem
     visible: false
+
     property var theProxy
     property var thePropertyName
+
+    // returnItem is the calling item that shall receive focus when closed
     function open(returnItem, proxy, propertyName) {
         theProxy = proxy
         thePropertyName = propertyName
         popupContainer.enabled = true;
         popupContainer.returnToItem = returnItem;
+
         if (popupContainer.visible)
             return;
+
         visible = true;
+
         list.focus = true;
+
+        // Set focus on currently selected value
+        // We do not want it to slowly "roll" to position, so we set duration
+        // temporarily to 0
         var oldHighlightMoveDuration = list.highlightMoveDuration;
         list.highlightMoveDuration = 0;
         var currentValue = Settings.getUntranslatedDisplayValue(propertyName, proxy[propertyName]);
@@ -25,18 +39,24 @@ MouseArea {
         list.currentIndex = list.model.indexOf(currentValue);
         list.highlightMoveDuration = oldHighlightMoveDuration;
     }
+
     function close() {
         if (visible) {
             popupContainer.enabled = false;
             list.focus = false;
             visible = false;
             popupContainer.focus = false;
+            // Set focus to caller
             if(popupContainer.returnToItem !== undefined)
                 popupContainer.returnToItem.focus = true;
         }
     }
+
+    // Called when the user clicked in the list, not necessarily on the selected item,
+    // then the clicked item will be set
     function itemSelected(dataValue)
     {
+        // This test can be removed whan all items has a proxy in MenuItemSpecifications.js
         if(typeof theProxy !== 'undefined')
         {
             console.log("selected", dataValue)
@@ -44,14 +64,19 @@ MouseArea {
         }
         close();
     }
+
+    // Called from parent to set selected value when the user clicked outside of the list,
+    // then the selected (highlighted) item will be set
     function setSelected()
     {
+        // This test can be removed whan all items has a proxy in MenuItemSpecifications.js
         if(typeof theProxy !== 'undefined')
         {
             console.log("selected", list.model[list.currentIndex])
             Settings.setSettingValue(theProxy, thePropertyName, list.model[list.currentIndex]);
         }
     }
+
     Keys.onPressed: {
         event.accepted = true
         if(MKeys.pressedFn("LISTUP", event.key))
@@ -68,23 +93,33 @@ MouseArea {
         else
             event.accepted = false
     }
+
     z: 100
+
     onClicked: {
         setSelected();
         close()
     }
+
     Rectangle {
+        // opacity is inherited to all children, so we avoid it on the popupContainer-parent by creating this rectangle instead.
         id: fadeOutParentRect
         color: constants.popupFadeoutColor
         anchors.fill: parent
         opacity: constants.fadeOutOpacity
     }
+
+    /* @return  true, when a string begins with a non-ascii (extended) char, implying a non-ascii language (e.g. korean, chinese etc)
+     *          false, when it does not contain a non-ascii (extended) char, implying a latin-based language (e.g. english, french etc)
+     *          null, when the input is empty or not a string
+    */
     function hasNonAsciiChars(str)
     {
         if (str.length < 1 || typeof str !== 'string') return null
         if (str.charCodeAt(0) > 255) return true;
         return false
     }
+
     Rectangle {
         id: popup
         color: constants.popupBackgroundColor
@@ -96,6 +131,7 @@ MouseArea {
         anchors.leftMargin: 30
         anchors.rightMargin: 30
         anchors.bottomMargin: 30
+
         Item {
             id: childContent
             anchors.top: parent.top
@@ -103,12 +139,14 @@ MouseArea {
             anchors.right: parent.right
             anchors.bottom: parent.bottom
             property int gridspacing: 10
+
             Item {
                 id: listWrapper
                 anchors.top: parent.top
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
+
                 ListView {
                     objectName: "ListSelectorSettings_list"
                     id: list
@@ -123,6 +161,7 @@ MouseArea {
                     preferredHighlightEnd: list.height / 2 + list.height / constants.numberOfItemsVisibleInList / 2
                     boundsBehavior: Flickable.StopAtBounds
                     highlightMoveVelocity: 800
+
                     highlight: Rectangle{
                         color: constants.popupBackgroundColor
                         height: list.height / constants.numberOfItemsVisibleInList
@@ -131,6 +170,7 @@ MouseArea {
                             anchors.fill: parent
                         }
                     }
+
                     model: Settings.getVariableListModel(popupContainer.thePropertyName)
                     delegate: Item {
                         id: theItem
@@ -156,6 +196,7 @@ MouseArea {
                             onClicked: itemSelected(modelData)
                         }
                     }
+
                     Rectangle {
                         anchors.left: list.left
                         anchors.right: list.right
@@ -176,21 +217,30 @@ MouseArea {
                             GradientStop { position: 1.0; color: constants.popoverListViewShadingStartColor }
                         }
                     }
+
                 }
             }
+
         }
+
+        // Border
         Rectangle{
             color: "transparent"
             anchors.fill: childContent
             border.width: 2
             border.color: constants.popupBorderColor
+
         }
         MouseArea {
+            // This mouse-area is to prevent closing the dialog when clicking on it. We only want close outside the popup.
             anchors.fill: parent
             z: -1
+
             onClicked: { }
         }
+
     }
+
     states: [
         State {
             name: "NOTSHOWING"
@@ -203,6 +253,7 @@ MouseArea {
             PropertyChanges { target: fadeOutParentRect; opacity: constants.fadeOutOpacity }
         }
     ]
+
     transitions: [
         Transition {
             PropertyAnimation {
@@ -213,4 +264,5 @@ MouseArea {
             }
         }
     ]
+
 }

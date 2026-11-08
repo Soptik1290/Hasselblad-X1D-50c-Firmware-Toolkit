@@ -457,6 +457,57 @@ def run_preflight_sweep(fast_mode: bool = False) -> Dict[str, Any]:
         if not has_root:
             s1_ok = False
 
+    # Verify Qt 5.4 QML Runtime Binding Quirks, configstore Range Limits & Wayland Dual-Window Focus Guards
+    runtime_guard_issues = []
+    uppercase_cpp_sig_re = re.compile(
+        r"\bon(?:FocusMode|WBMode|DriveMode|LMMode|SV|EVADJ|FLASH_EVADJ|AEB_EVADJ|"
+        r"BracketingDelayTime|FocusBracketingStepSize)Changed\s*:"
+    )
+    debug_af_speed_re = re.compile(r"DebugAfSpeed\s*=\s*(\d+)")
+
+    for fpath in qml_files + js_files:
+        rel = fpath.relative_to(QML_DIR).as_posix()
+        txt_no_comments = strip_qml_js_comments(fpath.read_bytes()).decode("utf-8", errors="ignore")
+        for m in uppercase_cpp_sig_re.finditer(txt_no_comments):
+            runtime_guard_issues.append(
+                f"{rel}: '{m.group(0)}' fails in Qt 5.4 QQmlConnectionsParser (uppercase C++ signal; bind a lowercase QML property instead)"
+            )
+        for m in debug_af_speed_re.finditer(txt_no_comments):
+            spd_val = int(m.group(1))
+            if not (3000 <= spd_val <= 20000):
+                runtime_guard_issues.append(
+                    f"{rel}: DebugAfSpeed={spd_val} exceeds /usr/bin/configstore range [3000..20000]"
+                )
+
+    evf_win_qml = QML_DIR / "liveview" / "EVFWindow.qml"
+    if evf_win_qml.exists():
+        evf_txt = strip_qml_js_comments(evf_win_qml.read_bytes()).decode("utf-8", errors="ignore")
+        if "visible: showContent" not in evf_txt and "visible: false" not in evf_txt:
+            runtime_guard_issues.append(
+                "liveview/EVFWindow.qml: missing 'visible: showContent' (causes invisible 1024x768 EVF surface to steal Wayland touch input)"
+            )
+
+    main_qml = QML_DIR / "main.qml"
+    if main_qml.exists():
+        main_txt = strip_qml_js_comments(main_qml.read_bytes()).decode("utf-8", errors="ignore")
+        evf_loader_match = re.search(r"id:\s*evfWindow[\s\S]{0,260}?visible:\s*(\w+)", main_txt)
+        if evf_loader_match and evf_loader_match.group(1) != "false":
+            runtime_guard_issues.append(
+                f"main.qml: evfWindow Loader has 'visible: {evf_loader_match.group(1)}' (must be 'visible: false')"
+            )
+
+    s1_checks.append({
+        "ok": len(runtime_guard_issues) == 0,
+        "name_en": "Qt 5.4 Uppercase C++ Signal Guards, configstore Limits & Wayland EVFWindow Focus",
+        "name_cs": "Ochrana C++ signálů v Qt 5.4, limitů configstore (3000..20000) a Wayland EVFWindow",
+        "detail": (
+            "0 uppercase Connections signal traps, DebugAfSpeed within [3000..20000], and EVFWindow hidden when inactive"
+            if not runtime_guard_issues else "; ".join(runtime_guard_issues[:3])
+        ),
+    })
+    if runtime_guard_issues:
+        s1_ok = False
+
     # Verify all modified QML/JS files fit inside their victory-gui QRC slots
     mem_stats = compute_memory_and_slot_stats()
     overflows = [s["path"] for s in mem_stats["slots"] if not s["fits"]]
@@ -675,7 +726,9 @@ def run_preflight_sweep(fast_mode: bool = False) -> Dict[str, Any]:
     s5_checks = []
     s5_ok = True
     cim_files = sorted(FIRMWARE_DIR.glob("*.cim")) if FIRMWARE_DIR.exists() else []
-    target_cim = FIRMWARE_DIR / "X1D_v1_25_0_x1d_lite.cim"
+    target_cim = FIRMWARE_DIR / "X1D_v1_25_0_afc.cim"
+    if not target_cim.exists():
+        target_cim = FIRMWARE_DIR / "X1D_v1_25_0_x1d_lite.cim"
     if not target_cim.exists():
         target_cim = FIRMWARE_DIR / "X1D_v1_25_0.cim"
     if not target_cim.exists() and cim_files:

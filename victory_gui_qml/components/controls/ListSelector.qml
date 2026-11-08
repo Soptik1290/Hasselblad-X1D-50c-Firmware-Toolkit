@@ -1,12 +1,15 @@
 import QtQuick 2.0
 import com.hasselblad.bodysync 1.0
 import "qrc:///scripts/Keys.js" as MKeys
+
 MouseArea {
     id: popupContainer
+
     property alias popupAnchor: popup.anchors
     property alias content: childContent.children
     property int contentWidth: 540
     property int contentHeight: 340
+    // This is the item that shall have focus when popup is closed
     property Item returnToItem
     property bool isToLeft: true
     property Item contentItem
@@ -14,6 +17,9 @@ MouseArea {
     property bool preventAFMFPropagation: true
     property bool preventPLAYPropagation: true
     property int finalBodyState: BodySync.MAIN
+
+    // Capture left, right, up, down
+
     Keys.onPressed: {
         event.accepted = true
         if(MKeys.pressedFn("LISTUP", event.key))
@@ -34,10 +40,14 @@ MouseArea {
         }
         else if(preventAFMFPropagation && MKeys.pressedFnAcc("AF_MF", event))
         {
+            // Prevent key from being processed further down the line
         }
         else
             event.accepted = false
     }
+
+
+    // returnItem is the calling item that shall receive focus when closed
     function open(returnItem) {
         if(typeof returnItem !== 'undefined')
         {
@@ -45,23 +55,29 @@ MouseArea {
         }
         if (popupContainer.visible)
             return;
+
         popupContainer.visible = true;
         BodySync.currentState = BodySync.MENU;
     }
     function close() {
         state = "finish"
     }
+
+    // Override this to do any post close operation
     function postClose()
     {
     }
+
     function popupHeight() {
         return contentHeight;
     }
     function popupWidth() {
         return contentWidth;
     }
+
     anchors.fill: parent
     z: 100
+
     onClicked: {
         if(setValueWhenOutsideClick)
         {
@@ -69,12 +85,15 @@ MouseArea {
         }
         close()
     }
+
     Rectangle {
+        // opacity is inherited to all children, so we avoid it on the popupContainer-parent by creating this rectangle instead.
         id: fadeOutParentRect
         color: constants.popupFadeoutColor
         anchors.fill: parent
-        opacity: 0
+        opacity: 0//constants.fadeOutOpacity
     }
+
     Rectangle {
         id: popup
         color: "transparent"
@@ -86,6 +105,7 @@ MouseArea {
             leftMargin: popupContainer.isToLeft ? 30 : 0
             rightMargin: popupContainer.isToLeft ? 0 : 30
         }
+
         Rectangle {
             id: childContent
             color: constants.popupBackgroundColor
@@ -99,19 +119,27 @@ MouseArea {
             }
             radius: constants.outerBoxRadius
         }
+
+        // Border
         Rectangle{
             color: "transparent"
             anchors.fill: childContent
             radius: constants.outerBoxRadius
             border.width: 2
             border.color: constants.popupBorderColor
+
         }
+
         MouseArea {
+            // This mouse-area is to prevent closing the dialog when clicking on it. We only want close outside the popup.
             anchors.fill: childContent
             z: -1
+
             onClicked: { }
         }
+
     }
+
     onStateChanged: console.log("popup state", state)
     states: [
         State {
@@ -122,6 +150,7 @@ MouseArea {
                 script: {
                     popupContainer.focus = false
                     postClose()
+                    // It worked very bad to set BodySync.currentState in PropertyChanges, so we set it in this script instead
                     BodySync.currentState = finalBodyState
                 }
             }
@@ -132,6 +161,7 @@ MouseArea {
             PropertyChanges { target: popupContainer; visible: true }
             StateChangeScript {
                 script: {
+                    // It worked very bad to set BodySync.currentState in PropertyChanges, so we set it in this script instead
                     BodySync.currentState = BodySync.MENU
                 }
             }
@@ -146,5 +176,19 @@ MouseArea {
                 duration: constants.fadeOutDuration
             }
         }
+        /*
+        ,
+        Transition {
+            to: "finish"
+            SequentialAnimation {
+                PropertyAnimation {
+                    properties: "opacity"
+                    easing.type: Easing.OutCubic
+                    duration: constants.fadeOutDuration
+                }
+                PropertyAnimation { property: "visible" }
+            }
+        }
+        */
     ]
 }

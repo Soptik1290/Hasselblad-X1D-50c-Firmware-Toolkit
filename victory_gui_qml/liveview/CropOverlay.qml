@@ -1,5 +1,7 @@
 import QtQuick 2.0
 import com.hasselblad.config 1.0
+//import com.hasselblad.prodinfo 1.0
+
 Item {
     id: root
     property real cropx: 0
@@ -9,6 +11,7 @@ Item {
     property alias cropWidth: cropLeft.width
     property alias cropHeight: cropTop.height
     opacity: configstore.crop_mode_opacity/100
+
     Rectangle {
         id: cropLeft
         color: root.color
@@ -53,6 +56,7 @@ Item {
         }
         height: parent.height*cropy
     }
+
     function calcCropping(aspectRatio) {
         switch(aspectRatio) {
         case Config.Ratio1to1:
@@ -104,6 +108,7 @@ Item {
             break
         }
     }
+
     Connections {
         target: configstore
         onAspectRatioChanged: {
@@ -113,3 +118,4 @@ Item {
         }
     }
 }
+

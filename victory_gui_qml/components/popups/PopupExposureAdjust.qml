@@ -1,27 +1,38 @@
 import com.hasselblad.settings 1.0
 import com.hasselblad.bodysync 1.0
 import com.hasselblad.camera 1.0
+
 import "qrc:///scripts/Keys.js" as MKeys
+
 import QtQuick 2.0
+
 FocusScope
 {
     id: popupContainer
+
+    // This is the item that shall have focus when popup is closed
     property Item returnToItem: null
     property int listItemHeight: 126 + 12
+
+    // returnItem is the calling item that shall receive focus when closed
     function open(returnItem) {
         popupContainer.returnToItem = returnItem
         returnItem.focus = false
+
         visible = true
     }
     function close() {
         visible = false;
     }
+
     anchors.fill: parent
     MouseArea {
         preventStealing: true
         z: 100
         anchors.fill: parent
+
         onClicked: close()
+
         Keys.onPressed: {
             event.accepted = true
             if(MKeys.pressedFn("SELECT", event.key)) {
@@ -43,12 +54,15 @@ FocusScope
                 event.accepted = false
             }
         }
+
         Rectangle {
+            // opacity is inherited to all children, so we avoid it on the popupContainer-parent by creating this rectangle instead.
             id: fadeOutParentRect
             color: constants.popupFadeoutColor
             anchors.fill: parent
             opacity: 0.5
         }
+
         Rectangle {
             id: popup
             color: constants.popupBackgroundColor
@@ -58,8 +72,8 @@ FocusScope
             anchors {
                 leftMargin: 69
                 rightMargin: 69
-                topMargin: 69
-                bottomMargin: 69
+                topMargin: 69 // 77
+                bottomMargin: 69 // 77
                 left: parent.left
                 right: parent.right
                 bottom: parent.bottom
@@ -79,16 +93,20 @@ FocusScope
                 font.capitalization: Font.AllUppercase
             }
             MouseArea {
+                // This mouse-area is to prevent closing the dialog when clicking on it. We only want close outside the popup.
                 anchors.fill: parent
                 z: -1
+
                 onClicked: { }
             }
+
             ListView {
                 id: list
                 clip: true
                 focus: true
                 interactive: false
                 boundsBehavior: Flickable.StopAtBounds
+
                 anchors {
                     top: parent.top
                     topMargin: 48 + 12
@@ -99,17 +117,22 @@ FocusScope
                     bottom: parent.bottom
                     bottomMargin: popup.border.width
                 }
+
                 orientation: ListView.Vertical
                 highlightMoveDuration: constants.highlightMoveDuration
                 model: (Camera.canChange & Camera.PropEVADJ && Camera.canChange & Camera.PropFlashEVADJ) ?
+                        // Both evadj and flashevadj
                         list_model :
                            Camera.canChange & Camera.PropEVADJ ?
+                               // only evadj
                                no_flash_list_model :
+                               // only flashevadj
                                no_evadj_list_model
+
                 highlight: Item {
                     anchors.left: list.currentIndex >= 0 ? parent.left : undefined
                     anchors.right: list.currentIndex >= 0 ? parent.right : undefined
-                    height: listItemHeight
+                    height: listItemHeight // list.height / list_model.count
                     Rectangle{
                         anchors {
                             left: parent.left
@@ -122,6 +145,7 @@ FocusScope
                         color: constants.highlightColor
                     }
                 }
+
                 delegate: Slider {
                     height: listItemHeight
                     anchors.left: parent.left
@@ -136,6 +160,7 @@ FocusScope
                     minValue: sliderMinValue
                     stepSize: list.model.getValueStep(index)
                     onChangedNewValue: {
+//                        console.log("Camera[", propertyName, "] = ", newValue * sliderMultiplier)
                         Camera[propertyName] = newValue * sliderMultiplier
                     }
                     onOriginalValueChanged: {
@@ -149,10 +174,13 @@ FocusScope
                         }
                     }
                 }
+
                 Keys.onReturnPressed: close()
+
                 Keys.onPressed: {
                     var newValue
                     if(MKeys.pressedFnAcc("LEFT", event)) {
+                        // Get top slider
                         if(contentItem.children.length > 0)
                         {
                             contentItem.children[0].stepDown()
@@ -177,6 +205,7 @@ FocusScope
                         }
                     }
                     else if(MKeys.pressedFnAcc("NAVLEFT", event)) {
+                        // Get top slider
                         if(currentIndex >= 0)
                         {
                             contentItem.children[currentIndex].stepDown()
@@ -189,8 +218,10 @@ FocusScope
                         }
                     }
                 }
+
             }
         }
+
         ListModel {
             id: list_model
             ListElement {
@@ -209,6 +240,7 @@ FocusScope
                 sliderMultiplier: 12
                 propertyName: "EVADJ"
             }
+            // Stupid QML does not let us have properties in ListElement. Duuuuh
             function getValueStep(index)
             {
                 switch(index)
@@ -221,7 +253,9 @@ FocusScope
                     return 1.0 / 3.0;
                 }
             }
+
         }
+
         ListModel {
             id: no_flash_list_model
             ListElement {
@@ -232,6 +266,7 @@ FocusScope
                 multiplier: 12
                 propertyName: "EVADJ"
             }
+            // Stupid QML does not let us have properties in ListElement. Duuuuh
             function getValueStep(index)
             {
                 return configstore.CustomOption_AdjStepsInc / 12;
@@ -252,6 +287,7 @@ FocusScope
                 return 1.0 / 3.0;
             }
         }
+
         states: [
             State {
                 name: "NOTSHOWING"
@@ -260,7 +296,9 @@ FocusScope
                 StateChangeScript {
                     script: {
                         popupContainer.focus = false;
+                        // It worked very bad to set BodySync.currentState in PropertyChanges, so we set it in this script instead
                         BodySync.currentState = BodySync.MAIN
+                        // Set focus to caller
                         if (popupContainer.returnToItem !== null)
                             popupContainer.returnToItem.forceActiveFocus()
                     }
@@ -273,6 +311,7 @@ FocusScope
                 StateChangeScript {
                     script: {
                         popupContainer.focus = true;
+                        // It worked very bad to set BodySync.currentState in PropertyChanges, so we set it in this script instead
                         BodySync.currentState = BodySync.MENU
                         var oldHighlightMoveDuration = list.highlightMoveDuration;
                         list.highlightMoveDuration = 0;
@@ -282,6 +321,7 @@ FocusScope
                 }
             }
         ]
+
         transitions: [
             Transition {
                 PropertyAnimation {
@@ -293,4 +333,6 @@ FocusScope
             }
         ]
     }
+
+
 }

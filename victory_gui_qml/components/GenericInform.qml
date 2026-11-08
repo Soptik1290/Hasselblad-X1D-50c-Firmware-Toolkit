@@ -1,6 +1,8 @@
 import QtQuick 2.0
+
 import "qrc:///components/buttons"
 import "qrc:///scripts/Keys.js" as MKeys
+
 Item {
     id: root
     z: 100
@@ -11,45 +13,58 @@ Item {
     property alias buttonText: acceptButton.text
     property bool closeDialog: false
     property int headingTopMargin: 29
+
     onVisibleChanged: if(visible && 0 != fadeWaitTimer.interval)
                           fadeWaitTimer.start()
+
     function close()
     {
         fadeWaitTimer.stop();
         root.closeDialog = true
     }
+
     Rectangle {
         id: bg
         color: "black"
         opacity: 0.5
         anchors.fill: parent
     }
+
     MouseArea {
         anchors.fill: parent
         onClicked: {}
         onDoubleClicked: {}
     }
+
     Keys.onPressed: {
+        // Stop most buttons
         if (MKeys.pressedFnAcc("ESCAPE", event) || MKeys.pressedFnAcc("ENTER", event)) {
             acceptButton.buttonPressed = true
             close()
         }
         else if(MKeys.pressedFn("HALFPRESS", event.key) || MKeys.pressedFn("EXPOSURE", event.key) || MKeys.pressedFn("TOGGLESLEEP", event.key)) {
+            // Just let through these.
         }
         else
-            event.accepted = true
+            event.accepted = true // block everything else.
+
     }
+
     Keys.onReleased: acceptButton.buttonPressed = false
+
+
     Rectangle {
         color: "black"
         anchors.centerIn: parent
         width: parent.width * .8
         height: parent.height * .8
         visible: true
+
         border {
             color: constants.popupBorderColor
             width: constants.popupBorderWidth
         }
+
         Text {
             id: titleText
             text: ""
@@ -69,6 +84,7 @@ Item {
                 rightMargin: 10
             }
         }
+
         Text {
             id: infoText
             text: ""
@@ -89,6 +105,7 @@ Item {
                 verticalCenter: parent.verticalCenter
             }
         }
+
         MenuButton {
             id: acceptButton
             visible: text != ""
@@ -97,15 +114,18 @@ Item {
                 bottom: parent.bottom
                 bottomMargin: 10
             }
+
             text: ""
             onClicked: close()
         }
+
         Timer {
             id: fadeWaitTimer
             repeat: false
             interval: 0
             onTriggered: root.closeDialog = true
         }
+
         state: "closed"
         states: [
             State {
@@ -124,6 +144,8 @@ Item {
                 PropertyChanges { target: root; opacity: 0 }
             }
         ]
+
+
         transitions: [
             Transition {
                 from: "closed"

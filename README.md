@@ -24,11 +24,14 @@ While newer Hasselblad cameras (`X1D II 50C`, `X2D 100C`, `907X 100C`) switched 
     * **`Front Wheel in M`** (swap front/rear command dials in Manual mode).
     * **`Hide B/T Mode`** & **`AE-L when Half-pressed`**.
     * **`Eye Sensor Distance`** (`Short` / `Medium` / `Long` EVF proximity threshold).
-    * **Engineering Autofocus Tuning:** custom XCD lens AF stepping motor speed (**`7000`–`31000`**, `af_cmd_speed`), FPGA Brenner contrast metric weighting (**`x+y`**, **`x+y/4`**, **`x+y/2`**), FIR contrast curve filtering (`af_fir`), full-range AF sweep (`af_full_scan`), and AF sequence logging (`af_log`).
+    * **Engineering Autofocus Tuning:** custom XCD lens AF stepping motor speed (**`7000`–`19000`** dropdown / max **`20000`** enforced by `/usr/bin/configstore` at `0x13d68`, `af_cmd_speed`), FPGA Brenner contrast metric weighting (**`x+y`**, **`x+y/4`**, **`x+y/2`**), FIR contrast curve filtering (`af_fir`), full-range AF sweep (`af_full_scan`), and AF sequence logging (`af_log`).
+* **Custom Firmware Modules (`build_custom_firmware.py`, `custom_firmware_dokumentace/`):**
+  * **Continuous Autofocus (`AF-C` + Touch-to-Track, `--mode afc`):** Standalone 9-file QML patch built directly on top of stock `v1.25.0` (`X1D_v1_25_0_afc.cim`) that unlocks `Continuous Focus` (`Config.Focus_AFC = 2`), accelerates the XCD stepping motor (`DebugAfSpeed = 19000`, **3.8× faster** than the `5000` default), continuously cycles CDAF focus passes on `WedgeStateMachine` while holding `HALFPRESS` or `AF-D`, adds single-tap **Touch-to-Track** in LiveView, and preserves instant full-shutter priority.
+  * **X1D-Only Lite Edition (`--mode lite`):** Strips QML/JS comments and non-X1D (`H6D`/`A6D`/`CFV`) branches & assets (`X1D_v1_25_0_x1d_lite.cim`), freeing **+78.4 KB** in `victory-gui`'s QRC pool and **−26.1 MB** on eMMC `rootfs`.
 * **Local 640×480 PC UI Simulator & Direct `.cim` Bootloader (`ui_simulator/`, `cim_emulator_loader.py`):**
   * Dynamically decrypts, unpacks, and boots **any `.cim` firmware image (`v1.20.0` – `v1.25.0` or custom repacked `.cim`)** on Windows in seconds—auto-detecting QRC table offsets across compiler builds and running the live `MenuItemSpecificationsWedge.js` menu definitions, original `HelveticaNeueLTStd` OTF fonts, and all 267 PNG icons at native `640×480` resolution.
 * **5-Stage Anti-Brick Pre-Flight Sweep & Memory Counter (`verify_firmware_safety.py`):**
-  * Verifies QML/JS syntax, QRC slot capacity (with automatic comment-stripping that frees **+60.2 KB** of compressed space), ELF/QRC round-trip decompression, U-Boot A/B dual-slot rollback protection, `rootfs` boot symlinks (`readlink`), and two-stage `.cim` checksums before any firmware touches the camera.
+  * Verifies QML/JS syntax, Qt 5.4 uppercase C++ signal connection guards (`QQmlConnectionsParser`), `/usr/bin/configstore` parameter range limits (`DebugAfSpeed` `3000..20000`), Wayland dual-window focus guards (`TouchWindow` vs. `EVFWindow`), QRC slot capacity (with automatic comment-stripping that frees **+58.9 KB to +78.4 KB** of compressed space), ELF/QRC round-trip decompression, U-Boot A/B dual-slot rollback protection, `rootfs` boot symlinks (`readlink`), and two-stage `.cim` checksums before any firmware touches the camera.
 * **Full ARMv7 Linux Rootfs Emulator with Live Graphics & Telemetry (`run_arm_emulator.py`, `arm_emulator/`):**
   * Boots the extracted ARMv7 `rootfs.tar.bz2` environment inside an `arm32v7` Docker/QEMU container, running the **real unmodified `/usr/bin/victory-gui` (Qt5 QML)** binary alongside the native `/usr/bin/configstore` daemon.
   * Bridges physical Vivante GC2000 GPU (`/dev/galcore`) to **Mesa Software OpenGL ES 2.0 (LLVMpipe / swrast)** and Wayland-EGL using three custom compatibility shims (`libxshmfence_compat.c`, `libbsd_compat.c`, `patch_libm.py`) solving Yocto GLIBC 2.22 limitations without breaking the rootfs.
@@ -46,9 +49,11 @@ X1D_FirmwareDump/
 ├── hasselblad_pack.py                     # Repacks & encrypts .cim containers (with two-stage PrivateHeader checksum)
 ├── extract_victory_qrc.py                 # Extracts all 405 Qt/QML resources from /usr/bin/victory-gui
 ├── patch_victory_qrc_file.py              # In-place QRC patcher (zlib level 9 + optional comment stripper)
+├── build_custom_firmware.py               # Modular Custom Firmware Builder (--mode afc / --mode lite)
 ├── verify_firmware_safety.py              # 5-Stage Anti-Brick Pre-Flight Test Sweep & Memory Counter
 ├── cim_emulator_loader.py                 # Direct .cim Firmware Unpacker & Bootloader for Windows / WebUI
 ├── run_arm_emulator.py                    # One-click launcher for the ARMv7 Docker/QEMU Linux Rootfs Emulator
+├── custom_firmware_dokumentace/           # Specifications & module catalog for the X1D Custom Firmware Builder
 ├── arm_emulator/                          # ARMv7 Linux container setup (D-Bus, configstore, Weston, noVNC)
 │   ├── Dockerfile                         # arm32v7 environment for running X1D-50c ARM binaries
 │   ├── entrypoint_arm.sh                  # Container boot script (Mesa GLVND, Weston, D-Bus, noVNC)

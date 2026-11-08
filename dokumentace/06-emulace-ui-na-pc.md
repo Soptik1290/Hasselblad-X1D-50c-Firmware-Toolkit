@@ -58,8 +58,11 @@ Před zabalením nebo nahráním upraveného firmwaru spusť automatický bezpe�
 python verify_firmware_safety.py --fast
 ```
 Test kontroluje:
-1. **Syntaxi všech 128 QML a 9 JS souborů**.
-2. **Kapacitu QRC slotů a rezervu po ořezu komentářů** (ověří, že se každý soubor po `zlib` kompresi vejde do svého slotu; automatické odstranění komentářů v `patch_victory_qrc_file.py` uvolní **+60,2 KB** komprimovaného místa).
+1. **Syntaxi všech 128 QML a 9 JS souborů** + **ochranu proti specifickým runtime pastem Qt 5.4 / `configstore` / Wayland**:
+   - Hlídá zákaz použití C++ signálů s velkým počátečním písmenem (`onFocusModeChanged`, `onWBModeChanged`, `onDriveModeChanged`, `onLMModeChanged`, `onSVChanged`, `onEVADJChanged`, `onBracketingDelayTimeChanged` atd.) v blocích `Connections {}`, které parser `QQmlConnectionsParser` v Qt 5.4 odmítne (řešením je navázání na QML vlastnost s malým písmenem, např. `property int currentFocusMode: Camera.FocusMode` -> `onCurrentFocusModeChanged:`).
+   - Kontroluje, že jakýkoliv zápis do `configstore.DebugAfSpeed` leží v pevném binárním rozsahu démonu `/usr/bin/configstore` (`3000 .. 20000`, `0x13d68..0x13de0`), nikoliv `21000..31000`.
+   - Ověřuje, že `liveview/EVFWindow.qml` má nastaveno `visible: showContent` a `main.qml` `Loader { id: evfWindow }` má `visible: false`, aby neaktivní `1024×768` plocha hledáčku v kompozitoru Weston nepřekryla hlavní `640×480` dotykové okno (`TouchWindow`).
+2. **Kapacitu QRC slotů a rezervu po ořezu komentářů** (ověří, že se každý soubor po `zlib` kompresi vejde do svého slotu; automatické odstranění komentářů v `patch_victory_qrc_file.py` uvolní **+58,9 KB až +78,4 KB** komprimovaného místa).
 3. **Binární ELF a QRC dekompresi** (`405/405` zdrojů).
 4. **U-Boot A/B ochranu proti bricknutí a symlinky v `rootfs`** (ověří, že `hbl-upgrade` zapisuje pouze do neaktivní A/B banky, nikdy nepřepisuje U-Boot `/dev/mtd0`, a zkontroluje symlinky `/sbin/init` + `readlink`, aby `hbl-post-upgrade` korektně nastavil `boot_ok=1`).
 5. **Kryptografickou integritu a dvoufázový kontrolní součet `.cim` kontejnerů**.
@@ -117,12 +120,14 @@ python run_arm_emulator.py --cim "firmware/X1D_v1_25_0.cim"
      3. **`patch_libm.py` (Binární ELF patch `libm.so.6`)**: Automaticky upraví hlavičku `.gnu.version_d` a exportuje verzi `GLIBC_2.27` pro 5 matematických funkcí (`logf`, `expf`, `exp2f`, `powf`, `log2f`), čímž umožní načtení moderního softwarového ovladače `swrast_dri.so` (LLVMpipe) bez nutnosti nahrazovat celý GLIBC ve firmwaru.
      4. **Mesa GLVND & Wayland-EGL vrstva**: Překryje knihovny Vivante standardním Wayland EGL rozhraním (`libwayland-egl.so.1`, `libEGL.so.1.0.0`, `libGLESv2.so.2`).
 3. **Spuštění systémových daemonů a prevence uspání displeje**:
-   - Spustí `dbus-daemon --system` a `arm_emulator/mock_hardware_dbus.py` simulující hardware fotoaparátu (MCU SUC, FPGA FARM, tělo objektivu).
-   - Spustí reálný ARMv7 démon `/usr/bin/configstore`.
+   - Spustí `dbus-daemon --system` a `arm_emulator/mock_hardware_dbus.py` simulující kompletní D-Bus rozhraní fotoaparátu (`com.hasselblad.camera` včetně `setLiveViewState(bs)`, `StartSession(bb)`, `StopSession()`, `StartExposing(b)`, `FindFocus(b)`, dále `com.hasselblad.cambody` + `/spiritlevel`, `storage`, `systemmanager`, `lens`, `suc`, `bodysync`, `farm`).
+   - Spustí reálný ARMv7 démon `/usr/bin/configstore` (automaticky kontrolující rozsah všech 162 parametrů, např. `DebugAfSpeed` v mezích `3000..20000`).
    - Nastaví `GUI_idle_timeout = 0` a `BACKLIGHT_brightness = 100` přes D-Bus, aby firmware nezhasínal displej po 10 sekundách nečinnosti.
-4. **Spuštění Weston kompozitoru a aplikace `victory-gui`**:
+   - Při změně vstupního `.cim` souboru skript `run_arm_emulator.py` automaticky porovná časové razítko `.cim` kontejneru oproti rozbalené složce `<cim>_extracted/rootfs` a v případě novějšího buildu ji sám přegeneruje.
+4. **Spuštění Weston kompozitoru, správa duálních oken (`TouchWindow` vs. `EVFWindow`) a aplikace `victory-gui`**:
    - V kontejneru běží virtuální X11 display `Xvfb :0` (640×480) s kompozitorem **Weston 3.0** a Wayland soketem `/tmp/wayland-0`.
-   - V chrootu fotoaparátu se spustí originální neupravená binárka:
+   - Binárka `/usr/bin/victory-gui` vytváří dvě Wayland okna: `TouchWindow` (`640×480`, `"main"`) a ~2,7 s po startu také `EVFWindow` (`1024×768`, `"overlay"`). V našich custom firmware buildech (`X1D_v1_25_0_afc.cim` a `X1D_v1_25_0_x1d_lite.cim`) má `EVFWindow.qml` nastaveno `visible: showContent` (`Window.Hidden` dokud není aktivní EVF/HDMI), aby neviditelná plocha hledáčku v jednoobrazovkovém Westonu nekradla události myši a klávesnice.
+   - V chrootu fotoaparátu se spustí binárka:
      ```bash
      /usr/bin/victory-gui -platform wayland-egl --wedge
      ```

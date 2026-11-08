@@ -1,7 +1,8 @@
 import QtQuick 2.0
+
 Item {
     id: root
-    property real progressPercent: 0
+    property real progressPercent: 0 // Between 0 and 1
     property real percentageAnimDelay: 0
     property alias backColor: background.color
     property alias borderColor: frame.color
@@ -9,12 +10,15 @@ Item {
     property alias nonProgressedColor: progressIndicator.color
     property bool showText: false
     property int decimals: 0
+
+    // White background
     Rectangle {
         id: background
         anchors.fill: parent
         radius: root.height / 2
         color: "white"
     }
+
     Behavior on progressPercent {
         enabled: progressPercent < 1
         NumberAnimation {
@@ -22,12 +26,17 @@ Item {
             duration: percentageAnimDelay * 1000
         }
     }
+
+    // Black progress-indicator
     Rectangle {
         id: progressIndicator
         anchors.fill: parent
         anchors.leftMargin: root.width * progressPercent
+        //radius: background.radius
         color: "black"
     }
+
+    // White border
     Rectangle {
         id: frame
         anchors.fill: parent
@@ -36,12 +45,14 @@ Item {
         border.width: 2
         color: "transparent"
     }
+
     Text {
         id: progressText
         visible: showText
         height: background.height
         anchors.centerIn: background
         anchors.verticalCenterOffset: guiconfig.isLatin(text) ? (height - baselineOffset) * 0.5 : 0
+        //verticalAlignment: Text.AlignVCenter
         color: "white"
         font.pixelSize: 18
         fontSizeMode: Text.Fit

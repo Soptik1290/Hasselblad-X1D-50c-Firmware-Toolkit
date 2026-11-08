@@ -1,11 +1,17 @@
 import QtQuick 2.0
 import QtGraphicalEffects 1.0
+
+// Config is needed by Keys.js...
 import com.hasselblad.config 1.0
+//----------------------------------------------
 import "qrc:///scripts/Keys.js" as MKeys
+//----------------------------------------------
 import com.hasselblad.cambody 1.0
 import com.hasselblad.bodysync 1.0
+
 import "qrc:///"
-import "qrc:///settings/components"
+import "qrc:///settings/components" // TODO: This is needed for BoundsEffectGradient. Maybe that should be moved to components in the root.
+
 Rectangle {
     objectName: "Menu_root"
     id: root
@@ -14,25 +20,32 @@ Rectangle {
     property bool preventSwipe: entry_loader.active
     signal subMenuAboutToShow(var menuName)
     property variant lastItems;
+
     function populateModel(menuItemValues)
     {
-        lastItems = menuItemValues
+        lastItems = menuItemValues // remember, in case we need to repopulate due to capability changes.
+
         menu_model.clear();
         menuItemValues.forEach(function(v) {
             var isDemo = (typeof v.demo !== 'undefined') && (v.demo !== undefined && v.demo);
             var isEnabled = (typeof v.enableCond === 'undefined') || v.enableCond === undefined || v.enableCond === "" || eval(v.enableCond)
+
             if (!isDemo || !guiconfig.hideDemoItems) {
                 menu_model.append({ "label" : v.itemText, "settingsList": v.settingsList, "itemFile" : v.itemFile, "demo" : v.demo, "icon" : v.icon, "itemEnabled" : isEnabled })
             }
         });
     }
+
     onFocusChanged: {
         if(focus)
             list.forceActiveFocus()
     }
+
+
     function activateSubMenu(settingsList, itemFile, label)
     {
         subMenuAboutToShow(settingsList)
+
         entry_loader.itemValues = settingsList
         entry_loader.source = itemFile
         entry_loader.active = true
@@ -40,13 +53,18 @@ Rectangle {
         entry_loader.menuLabel = label
         entry_loader.x = root.x
     }
+
     function setScrollToSubmenuItem(itemName)
     {
         entry_loader.scrollToSubmenuItem = itemName
     }
+
+    // Prevent mouse clicks to propagate to parent views
     MouseArea {
         objectName: "Menu_root_MouseArea"
         anchors.fill: parent
+        // Note that onClicked MUST be here, otherwise click will be propagated to parent and
+        // a button on the parent might accidentally be clicked on with unwanted side effects
         onClicked: {
             console.log("Menu Clicked")
         }
@@ -54,12 +72,17 @@ Rectangle {
             console.log("Menu Press And Hold")
         }
     }
+
     function closeSubMenus()
     {
+        // Make sure eventual loading is finished before killing it
         entry_loader.asynchronous = false
         entry_loader.asynchronous = true
+
         entry_loader.active = false
     }
+
+
     Timer {
         id: listMenuTimer
         interval: constants.wheelTimeoutTimeMs
@@ -67,14 +90,17 @@ Rectangle {
         repeat: false
         onTriggered: list.highlightAllow = false
     }
+
     function startMenuWheelTimeout()
     {
         listMenuTimer.restart();
     }
+
     function stopMenuWheelTimeout()
     {
         listMenuTimer.stop();
     }
+
     Rectangle {
         id: viewEndLine
         color: constants.cameraViewLineColor
@@ -83,6 +109,7 @@ Rectangle {
         anchors.top: parent.top
         width: constants.viewEndLineWidth
     }
+
     ListView {
         objectName: "Menu_list"
         interactive: count > constants.itemCountInListView
@@ -102,34 +129,38 @@ Rectangle {
             bottom: parent.bottom
         }
         onFocusChanged: {
+            // Only when we get focus back from something else we set the index selection to none.
+            // Otherwise the reflection of a click doesn't show up.
             if(focus)
                 currentIndex = -1
         }
+
         model: menu_model
         currentIndex: -1
         property int lastIndex: -1
         highlightMoveDuration: constants.highlightMoveDuration
+
         Keys.onPressed: {
-            event.accepted = true
-            if (MKeys.pressedFn("NAVUP", event.key) || MKeys.pressedFn("LEFT", event.key)) {
+            event.accepted = true // assume we trig on something
+            if (MKeys.pressedFn("NAVUP", event.key) || (guiconfig.isWedge && MKeys.pressedFn("LEFT", event.key))) {
                 startMenuWheelTimeout();
                 list.highlightAllow = true
                 if(-1 != currentIndex || -1 == lastIndex)
                     decrementCurrentIndex()
                 else
                     currentIndex = lastIndex
-                lastIndex = currentIndex
+                lastIndex = currentIndex // This may look peculiar, but its in order!
             }
-            else if(MKeys.pressedFn("NAVDOWN", event.key) || MKeys.pressedFn("RIGHT", event.key)) {
+            else if(MKeys.pressedFn("NAVDOWN", event.key) || (guiconfig.isWedge && MKeys.pressedFn("RIGHT", event.key))) {
                 startMenuWheelTimeout();
                 list.highlightAllow = true
                 if(-1 != currentIndex || -1 == lastIndex)
                     incrementCurrentIndex()
                 else
                     currentIndex = lastIndex
-                lastIndex = currentIndex
+                lastIndex = currentIndex // This may look peculiar, but its in order!
             }
-            else if(MKeys.pressedFn("SELECT", event.key)) {
+            else if((MKeys.pressedFn("SELECT", event.key) || (!guiconfig.isWedge && MKeys.pressedFn("RIGHT", event.key)))) {
                 if(currentItem.enabled)
                 {
                     if(list.highlightAllow)
@@ -151,7 +182,7 @@ Rectangle {
                     }
                 }
             }
-            else if(MKeys.pressedFn("ESCAPE", event.key))
+            else if(MKeys.pressedFn("ESCAPE", event.key) || (!guiconfig.isWedge && MKeys.pressedFn("LEFT", event.key)))
             {
                 stopMenuWheelTimeout();
                 closeMenu()
@@ -159,21 +190,25 @@ Rectangle {
             else
                 event.accepted = false
         }
+
         property bool highlightAllow: false
         highlight: Rectangle {
             opacity: list.currentItem !== null ? (list.currentItem.enabled ? 1 : 0.5) : 1
             color: list.highlightAllow ? constants.highlightColor : constants.popupBackgroundColor
         }
+
         delegate: Item {
             id: listDelegate
             objectName: "listDelegate"
             width: root.width
             height: list.height / constants.itemCountInListView
             enabled: itemEnabled
+
             DemoMarker {
                 anchors.fill: parent
                 showMarker: (typeof demo !== 'undefined') && (demo !== null) && (demo === true)
             }
+
             function gotClicked()
             {
                 if(listDelegate.enabled)
@@ -185,6 +220,7 @@ Rectangle {
                     }
                 }
             }
+
             Image {
                 id: itemIcon
                 anchors.left: parent.left
@@ -193,6 +229,7 @@ Rectangle {
                 source: settingsList !== "" ? "qrc:///icons/" + settingsList + ".png" : "qrc:///icons/" + icon
                 opacity: itemEnabled ? 1 : 0.5
             }
+
             Text {
                 anchors {
                     left: itemIcon.right
@@ -207,6 +244,7 @@ Rectangle {
                 font.family: constants.menuItemFontName
                 font.pixelSize: constants.itemTextSizeMenuLevel1
             }
+
             MouseArea {
                 objectName: "listDelegate_MouseArea"
                 anchors.fill: parent
@@ -238,9 +276,13 @@ Rectangle {
     ListModel {
         id: menu_model
     }
+
+    // Fading on top and bottom. Must be after listview, since it will be on top of it
     Rectangle {
         id: topGradient
+        // NOTE: We hide the top transparency gradient if we are navigating with keys and the selected item is the first visible (top) one.
         visible: !list.highlightAllow || list.currentIndex === -1 || list.currentItem.mapToItem(null, 0, 0).y > 80
+
         anchors.top: parent.top
         anchors.left: viewEndLine.right
         anchors.right: parent.right
@@ -251,7 +293,9 @@ Rectangle {
             GradientStop { position: 1.0; color: "transparent" }
         }
     }
+
     Rectangle {
+        // NOTE: We hide the bottom transparency gradient if we are navigating with keys and the selected item is the last visible (bottom) one.
         visible: !list.highlightAllow || list.currentIndex === -1 || list.currentItem.mapToItem(null, 0, 0).y < 340
         anchors.bottom: parent.bottom
         anchors.left: viewEndLine.right
@@ -262,6 +306,9 @@ Rectangle {
             GradientStop { position: 1.0; color: "black" }
         }
     }
+
+     // Header text
+
     Text {
         id: header_text
         anchors {
@@ -276,6 +323,18 @@ Rectangle {
         text: qsTranslate("MainScreen", root.text) + guiconfig.emptyString
         font.capitalization: Font.AllUppercase
     }
+
+    /*
+    ScrollBar {
+        flickable: list;
+        anchors.top: parent.top
+        color: constants.highlightColor
+        basicWidth: 15
+        enabled: !entry_loader.active
+        visible: enabled
+    }
+*/
+    // To be able to swipe the menu to the right to get rid of it
     MouseArea {
         objectName: "Menu_swipe_area"
         enabled: entry_loader.active && !entry_loader.preventSwipe
@@ -287,6 +346,7 @@ Rectangle {
             left: root.left
         }
         drag.filterChildren: true
+
         drag {
             target: entry_loader
             axis: Drag.XAxis
@@ -296,6 +356,7 @@ Rectangle {
         }
         drag.onActiveChanged: {
             if (!drag.active) {
+                // Its visible make sure it flies in or out
                 if (drag.target.x > (root.x + root.width / constants.swipeLengthDividor))
                 {
                     entry_loader.active = false;
@@ -305,6 +366,7 @@ Rectangle {
                 {
                     entry_loader.x = root.x
                 }
+
             }
         }
         Loader {
@@ -322,14 +384,17 @@ Rectangle {
             property string menuLabel: ""
             property bool preventSwipe: (item !== null) && item.preventSwipe !== undefined && item.preventSwipe
             property string scrollToSubmenuItem: ""
+
             Behavior on x {
                 NumberAnimation { easing.type: Easing.InOutQuad; duration: constants.menuSwipeDuration }
             }
+
             Connections {
                 target: entry_loader.item
                 onVisibleChanged: {
                     if (!target.visible)
                     {
+                        // Make sure eventual loading is finished before killing it
                         entry_loader.asynchronous = false
                         entry_loader.asynchronous = true
                         entry_loader.active = false
@@ -339,10 +404,13 @@ Rectangle {
             onLoaded: {
                 if(typeof entry_loader.item.populateModel == 'function')
                     entry_loader.item.populateModel(entry_loader.itemValues);
+
                 if(entry_loader.item.hasOwnProperty("upperMenuLabel"))
                     entry_loader.item.upperMenuLabel = entry_loader.upperMenuLabel;
                 if(entry_loader.item.hasOwnProperty("menuLabel"))
                     entry_loader.item.menuLabel = entry_loader.menuLabel;
+                // We set visible here, because if we load a sub item from favorites, we
+                // set visible to false to avoid flicker, and want to restore it here
                 root.parent.visible = true
                 if (scrollToSubmenuItem != "")
                 {
@@ -350,9 +418,13 @@ Rectangle {
                     scrollToSubmenuItem = ""
                 }
             }
+
+            // NOTE: Will close submenu for SettingsGeneric.qml (since this loader is the parent)
             Keys.onPressed: {
                 if(MKeys.pressedFnAcc("ESCAPE", event) || (!guiconfig.isWedge && MKeys.pressedFnAcc("LEFT", event)))
                     active = false;
+
+                // Below are keys that shall progress to next level (i.e. TouchWindow)
                 else if(MKeys.pressedFn("MENU", event.key) ||
                         MKeys.pressedFn("BROWSE", event.key) ||
                         MKeys.pressedFn("BROWSEMODE", event.key) ||
@@ -382,10 +454,12 @@ Rectangle {
                         MKeys.pressedFn("SPIRITLEVEL", event.key))
                     event.accepted = false
                 else
+                    // All other keys are filtered out here
                     event.accepted = true;
             }
         }
     }
+
     Connections {
         target: cambody
         onCapabilitiesChanged: populateModel(lastItems)
@@ -395,6 +469,7 @@ Rectangle {
         target: suc
         onCambody_attachedChanged: forceEnabledUpdate()
     }
+
     Connections {
         target: configstore
         onExpModeChanged: {
@@ -402,6 +477,7 @@ Rectangle {
             lastItems.forEach(function(v) {
                 if (v.settingsList === "cameraSettingsGreyBalanceTool") {
                     foundGreyBalance = true
+                    //break doesn't work with forEach
                 }
             });
             if (foundGreyBalance) {
@@ -411,10 +487,12 @@ Rectangle {
             }
         }
     }
+
     function forceEnabledUpdate() {
         var oldY = list.contentY
         list.contentY = 0
         populateModel(lastItems)
+        // Due to some strange QML bug, it just does not work to set the old value back. We have to set it several times to get it to stick...
         list.contentY = oldY
         list.contentY--
         list.contentY = oldY

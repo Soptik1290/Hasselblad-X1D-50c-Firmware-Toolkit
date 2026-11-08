@@ -1,33 +1,46 @@
 import QtQuick 2.0
 import com.hasselblad.settings 1.0
 import com.hasselblad.camera 1.0
+
 import "qrc:///components/buttons"
 import "qrc:///components/controls"
 import "qrc:///scripts/Keys.js" as MKeys
+
 Popover {
     id: popWhiteBalance
+
     property int gridspacing: constants.popupGridSpacing
+
     heading: qsTr("WHITE BALANCE") + guiconfig.emptyString
+
     contentItem: grid
     onFocusChanged: if (focus) grid.forceActiveFocus()
+
     function setSelected()
     {
         grid.setSelected()
     }
+
     function openProcessing()
     {
         grid_model.clear()
         for(var i = 0; i < grid_model_all.count; i++)
         {
+            if(grid_model_all.get(i).wedge_only && !guiconfig.isWedge)
+                continue
             grid_model.append(grid_model_all.get(i))
         }
     }
+
+
     content: Item {
         anchors.fill: parent
+
         GridView {
             id: grid
             focus: true
             interactive: false
+
             anchors {
                 fill: parent
                 leftMargin: constants.popupSideMargins
@@ -38,7 +51,9 @@ Popover {
             keyNavigationWraps: false
             Component.onCompleted: updateFocus()
             onCountChanged: updateFocus()
+
             function updateFocus() {
+                // select item based on configstore setting.
                 for (var i = 0; i < model.count; i++) {
                     if (model.get(i).whitemode === Camera.WBMode)
                         currentIndex = i;
@@ -46,17 +61,22 @@ Popover {
             }
             cellWidth: width / 3
             cellHeight: height / 3
+
             model: grid_model
             function setSelected()
             {
                 Camera.WBMode = grid_model.get(grid.currentIndex).whitemode;
                 popWhiteBalance.close();
             }
+
             delegate: Item {
                 id: grid_delegate
+
                 width: grid.cellWidth - gridspacing
                 height: grid.cellHeight - gridspacing
+
                 property bool manualTempFocus: false
+
                 FramedImage {
                     id: delegateIcon
                     text: qsTr(model.text) + guiconfig.emptyString
@@ -71,6 +91,7 @@ Popover {
                     showInvertedFocus: true
                     textWrapping: Text.WordWrap
                     acceptKeys: !manualTempFocus
+
                     onPressed: {
                         grid.focus = true
                     }
@@ -92,7 +113,9 @@ Popover {
                             grid.currentIndex = index
                             grid.setSelected()
                         }
+
                     }
+
                 }
                 Rectangle {
                     id: manualWbItem
@@ -129,7 +152,7 @@ Popover {
                     onVisibleChanged: if(visible) requestPaint()
                     onPaint: {
                         var context = arrow.getContext("2d")
-                        context.fillStyle = Qt.rgba(0, 0, 0, 1)
+                        context.fillStyle = Qt.rgba(0, 0, 0, 1) // Black
                         context.beginPath();
                         context.moveTo(arrow.width, manualWbItem.border.width);
                         context.lineTo(0, arrow.height / 2)
@@ -138,6 +161,7 @@ Popover {
                         context.fill();
                     }
                 }
+
                 Keys.onPressed: {
                     if((index == grid.currentIndex) && (whitemode === 6))
                     {
@@ -153,15 +177,20 @@ Popover {
                     }
                 }
             }
+
             onCurrentIndexChanged: {
+                // Check if manual balance, if so activate manual popup
                 if(grid_model.get(currentIndex).whitemode === 6)
                 {
+                    // Do not use for now
+//                    popManual.open(grid)
                 }
             }
         }
         ListModel {
             id: grid_model
         }
+
         ListModel {
             id: grid_model_all
             ListElement {
@@ -205,13 +234,23 @@ Popover {
                 text: QT_TR_NOOP("Manual")
                 whitemode: 6
             }
+            /* TODO: Greybalance ! */
         }
+
+
     }
+
     PopoverManualWhiteBalance {
         id: popManual
         visible: false
         anchors {
             fill: parent
+            /*left: parent.left
+            top: parent.top
+            bottom: parent.bottom
+            right: parent.right
+            */
         }
     }
+
 }

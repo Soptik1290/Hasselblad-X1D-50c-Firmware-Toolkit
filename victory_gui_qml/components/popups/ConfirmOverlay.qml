@@ -1,10 +1,14 @@
 import QtQuick 2.0
+
 import com.hasselblad.storage 1.0
+
 import "qrc:///components"
 import "qrc:///scripts/Keys.js" as MKeys
+
 Item {
     id: root
     objectName: "ConfirmOverlay_root"
+
     property int sideTextCenterMarginFirst: constants.sideTextCenterMarginFirst
     property int sideTextCenterMarginMiddle: constants.sideTextCenterMarginMiddle
     property int sideTextCenterMarginLast: constants.sideTextCenterMarginLast
@@ -14,8 +18,10 @@ Item {
     property string displayText: ""
     property string confirmButtonText: ""
     property alias mainTextItem: displayTextItem
+
     signal exitSelected()
     signal confirmSelected()
+
     Keys.onPressed: {
         if(MKeys.pressedFn("ABORT", event.key)) {
             exitSelected()
@@ -26,20 +32,24 @@ Item {
             event.accepted = true
         }
         else if(MKeys.pressedFn("HALFPRESS", event.key) || MKeys.pressedFn("EXPOSURE", event.key) || MKeys.pressedFn("TOGGLESLEEP", event.key) || MKeys.pressedFn("FORMAT", event.key)) {
+            // Just let through these.
         }
         else
-            event.accepted = true
+            event.accepted = true // block everything else.
     }
+
     MouseArea {
         anchors.fill: parent
         onClicked: {}
     }
+
     Rectangle {
         id: bg
         color: "black"
         opacity: 0.5
         anchors.fill: parent
     }
+
     Rectangle {
         height: constants.dialogButtonBackgroundHeight
         width: parent.width
@@ -47,6 +57,7 @@ Item {
         color: bg.color
         opacity: 1.0
         visible: !sideOriented
+
         Text {
             id: headerTextItem
             text: qsTr(headerText) + guiconfig.emptyString
@@ -58,6 +69,7 @@ Item {
             font.capitalization: Font.AllUppercase
         }
     }
+
     Text {
         id: displayTextItem
         text: qsTr(displayText) + guiconfig.emptyString
@@ -78,9 +90,11 @@ Item {
             rightMargin: 10
         }
     }
+
     ConfirmationButtons {
         color: "black"
         lastText: qsTr(confirmButtonText)
         sideOriented: parent.sideOriented
     }
 }
+

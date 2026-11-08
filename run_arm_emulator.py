@@ -101,7 +101,7 @@ def main():
     extracted_dir = ROOT_DIR / f"{cim_file.stem}_extracted"
     rootfs_tar = extracted_dir / "rootfs"
 
-    if not rootfs_tar.exists():
+    if not rootfs_tar.exists() or (cim_file.exists() and cim_file.stat().st_mtime > rootfs_tar.stat().st_mtime):
         if not cim_file.exists():
             print(f"[!] Error: Firmware file '{cim_file}' does not exist.")
             return

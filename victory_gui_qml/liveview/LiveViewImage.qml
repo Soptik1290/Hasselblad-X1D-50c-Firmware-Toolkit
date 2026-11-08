@@ -1,3 +1,4 @@
+
 import QtQuick 2.0
 import com.hasselblad.video 1.0
 import com.hasselblad.systemmanager 1.0
@@ -6,10 +7,13 @@ import com.hasselblad.config 1.0
 import com.hasselblad.lens 1.0
 import com.hasselblad.globalstateinfo 1.0
 import com.hasselblad.bodysync 1.0
+
 import "qrc:///components/"
 import "qrc:///components/buttons"
 import "qrc:///scripts/Keys.js" as MKeys
 import "qrc:///scripts/commonfunc.js" as Cmn
+
+// To be able to swipe the menu to the right to get rid of it
 FocusScope {
     objectName: "LiveViewImage_root"
     id: root
@@ -17,39 +21,50 @@ FocusScope {
     property alias preventSwipe: info.zoomIndicatorVisible
     property alias enableDrag: dragArea.enabled
     property bool isInHDMI: false
-    property bool inActiveWindow: false
+    property bool inActiveWindow: false //If this instance used in active window. Workaround for always being loaded in EVFWindow.
+
     function findFocusWasStopped()
     {
         info.findFocusWasStopped()
     }
+
+    // Functions for changing overlay
     function resetOverlay()
     {
         info.resetOverlay()
     }
+
     function closeIsoWb()
     {
         info.closeIsoWb()
     }
+
     onEnabledChanged: {
         if(enabled)
         {
             info.checkOverlay()
         }
     }
+
     onFocusChanged: console.log("LiveViewImage has focusChange to: ", focus)
+
     function liveViewSwitch(mouse) {
         info.zoom(mouse.x, mouse.y)
+        // Extend live view period
         VideoControl.restartLiveViewImageTimeout()
     }
+
     MouseArea {
         id: dragArea
         onPressAndHold: if(!exposureButton.isDragging) liveViewSwitch(mouse)
         onDoubleClicked: liveViewSwitch(mouse)
+        onClicked: if(!exposureButton.isDragging && Camera.FocusMode === Config.Focus_AFC) info.moveAfPointTo(mouse.x, mouse.y)
         anchors.fill: parent
         onPressed: info.startZoomTimer()
         onReleased: info.startZoomTimer()
         enabled: true
     }
+
     ExposureButton {
         id: exposureButton
         z: 1
@@ -67,12 +82,14 @@ FocusScope {
             x = Cmn.exposureButtonPos.x
             y = Cmn.exposureButtonPos.y
         }
-        minDragY: 90
-        maxDragY: parent.height - 55
+        minDragY: 90//manualFocusIndicator.y + manualFocusIndicator.height
+        maxDragY: parent.height - 55//imageLeftIndicator.y
     }
+
     ZoomCalc {
         id: zoomCalc
     }
+
     Flickable{
         id: zoomFlick
         visible: info.zoomIndicatorVisible
@@ -86,12 +103,14 @@ FocusScope {
                 updateContentFromZoomPoint()
             }
         }
+
         function updateContentFromZoomPoint() {
             updateAllowed = false
             contentY = VideoControl.zoomPoint.y * (contentHeight - zoomFlick.height)
             contentX = VideoControl.zoomPoint.x * (contentWidth - zoomFlick.width)
             updateAllowed = true
         }
+
         onContentXChanged: {
             if(updateAllowed && !GlobalStateInfo.touchpadZoomActive)
             {
@@ -101,6 +120,7 @@ FocusScope {
                 info.startZoomTimer()
             }
         }
+
         onContentYChanged: {
             if(updateAllowed && !GlobalStateInfo.touchpadZoomActive)
             {
@@ -114,10 +134,12 @@ FocusScope {
             target: VideoControl
             onZoomPointChanged: {
                 if (GlobalStateInfo.touchpadZoomActive) {
+                    //Need to update content too (besides setting a new zoompoint) since we need the cropped areas to move
                     zoomFlick.updateContentFromZoomPoint()
                 }
             }
         }
+
         Item{
             id: flickItem
             width: guiconfig.maxImageXSize
@@ -131,13 +153,16 @@ FocusScope {
                 }
             }
         }
+
         MouseArea {
             id: flickClickArea
             onPressAndHold: liveViewSwitch(mouse)
             onDoubleClicked: liveViewSwitch(mouse)
             anchors.fill: parent
         }
-    }
+    }// End zoom indicator
+
+    // Draggable area
     Item {
         id: liveViewArea
         anchors.top: parent.top
@@ -145,6 +170,7 @@ FocusScope {
         x: parent.x
         width: parent.width
         focus: true
+
         LiveViewOverlay {
             id: info
             anchors.fill: parent
@@ -154,11 +180,14 @@ FocusScope {
             focus: true
         }
     }
+
+    //Handle case when changing to/from EVF when zoomed in. BodySync state is overwritten during the transition
     onActiveFocusChanged: {
         if (activeFocus && VideoControl.videoMode === VideoControl.Zoom) {
             BodySync.currentState = BodySync.MENU
         }
     }
+
     Keys.onPressed: {
         if (event.isAutoRepeat) {
             event.accepted = false

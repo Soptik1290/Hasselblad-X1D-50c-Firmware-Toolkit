@@ -1,4 +1,5 @@
 import QtQuick 2.0
+
 import com.hasselblad.config 1.0
 import com.hasselblad.systemmanager 1.0
 import com.hasselblad.video 1.0
@@ -8,13 +9,17 @@ import com.hasselblad.camera 1.0
 import com.hasselblad.cambody 1.0
 import com.hasselblad.bodysync 1.0
 import com.hasselblad.globalstateinfo 1.0
+
 import "qrc:///components"
 import "qrc:///components/buttons"
 import "qrc:///components/controls"
 import "qrc:///mainmenu"
 import "qrc:///settings"
+
 import "qrc:///settings/scripts/MenuItemImporter.js" as MenuItems
 import "qrc:///scripts/Keys.js" as MKeys
+
+
 Rectangle {
     objectName: "MainScreen_root"
     id: root
@@ -28,6 +33,7 @@ Rectangle {
     property bool hideTopBatteryIcon: false
     signal closeMain()
     focus: true
+
     Timer {
         id: mainWheelTimer
         interval: constants.wheelTimeoutTimeMs
@@ -38,36 +44,49 @@ Rectangle {
             root.focus = true
         }
     }
+
     function startMainWheelTimeout()
     {
+//        console.log("started mainwheel timeout")
         mainWheelTimer.restart();
     }
+
     function stopMainWheelTimeout()
     {
+//        console.log("stopped mainwheel timeout")
         mainWheelTimer.stop();
     }
+
     function closeMenu()
     {
+        // Must deactivate sub menus, otherwise -> crash
         var r = menu_loader.item
         if((r !== 'undefined') && (r !== null) && (typeof r.closeSubMenus === 'function'))
         {
             r.closeSubMenus()
         }
+
+        // Always land in start state before going to new state, to avoid being out of sync.
+        // Strange things will happen in that case
         root.state = ""
         GlobalStateInfo.preventTopSwipe = false
     }
+
     function closeMainScreen()
     {
         closeMain()
     }
+
     function loadCameraMenuItem(subMenu, menuItem)
     {
+        /* Load specific item in camera submenu */
         menu_loader.subItem = "cameraSettingsConfiguration"
         menu_loader.subItemLoader = "qrc:///settings/SettingsGeneric.qml"
         menu_loader.label = subMenu
         menu_loader.scrollToSubmenuItem = menuItem
         root.state = "camera_menu"
     }
+
     function loadProfilesMenu() {
         if (root.state !== "") {
             closeMenu()
@@ -77,85 +96,133 @@ Rectangle {
         menu_loader.label = "Profiles"
         root.state = "settings_menu"
     }
+
     onFocusChanged: {
         if(focus)
         {
         }
         else
         {
+            // unless it is the grid or the lower view icons taking focus, we stop the wheel timer in order not to steal it from some other view.
             if(!(grid.focus || settings_icon.focus || camera_icon.focus || video_icon.focus))
                 stopMainWheelTimeout()
             grid.remove = false
         }
+
     }
+
     Keys.onPressed: {
         if (!acceptKeys)
             return
+
         event.accepted = true
         MKeys.log(event.key)
         if(MKeys.pressedFn("MENU", event.key)) {
+            //console.log("MainScreen captured", MKeys.CAMKEYS.MENU.name)
             if (root.state === "")
                 event.accepted = false
             else
                 root.closeMenu()
         } else if (MKeys.pressedFn("F2", event.key))
         {
-            camera_icon_wedge.forceShowHighlite = true
+            if(guiconfig.isWedge)
+            {
+                camera_icon_wedge.forceShowHighlite = true
+            }
+            else
+            {
+                camera_icon.forceShowHighlite = true
+            }
             root.state = "camera_menu"
         }
         else if (MKeys.pressedFn("STAR", event.key))
         {
-            video_icon_wedge.forceShowHighlite = true
+            if(guiconfig.isWedge)
+            {
+                video_icon_wedge.forceShowHighlite = true
+            }
+            else
+            {
+                video_icon.forceShowHighlite = true
+            }
             root.state = "video_menu"
         }
         else if (MKeys.pressedFn("F4", event.key))
         {
-            settings_icon_wedge.forceShowHighlite = true
+            if(guiconfig.isWedge)
+            {
+                settings_icon_wedge.forceShowHighlite = true
+            }
+            else
+            {
+                settings_icon.forceShowHighlite = true
+            }
             root.state = "settings_menu"
         }
         else if(MKeys.pressedFn("RIGHT", event.key) || MKeys.pressedFn("DOWN", event.key)) {
-            if(!(grid.focus || camera_icon_wedge.focus || settings_icon_wedge.focus || video_icon_wedge.focus))
-                settings_icon_wedge.focus = true
+            if(!guiconfig.isWedge) {
+                if(!(grid.focus || camera_icon.focus || settings_icon.focus || video_icon.focus))
+                    camera_icon.focus = true
+            }
+            else {
+                if(!(grid.focus || camera_icon_wedge.focus || settings_icon_wedge.focus || video_icon_wedge.focus))
+                    settings_icon_wedge.focus = true
+            }
         }
         else if(MKeys.pressedFn("LEFT", event.key)) {
-            grid.focus = true
+            if(!guiconfig.isWedge) {
+                if(!(grid.focus || camera_icon.focus || settings_icon.focus || video_icon.focus))
+                    settings_icon.focus = true
+            }
+            else
+                grid.focus = true
         }
         else if(MKeys.pressedFn("UP", event.key)) {
-            if(!(grid.focus || camera_icon_wedge.focus || settings_icon_wedge.focus || video_icon_wedge.focus))
-                camera_icon_wedge.focus = true
+            if(!guiconfig.isWedge)
+                grid.focus = true
+            else {
+               if(!(grid.focus || camera_icon_wedge.focus || settings_icon_wedge.focus || video_icon_wedge.focus))
+                   camera_icon_wedge.focus = true
+            }
         }
         else if ((root.state === "") && MKeys.pressedFnAcc("AE_L", event))
         {
+            // Prevent from propagating
         }
         else
             event.accepted = false
     }
+
     Keys.onReleased: {
         event.accepted = false
         if (MKeys.pressedFnAcc("F2", event))
         {
             camera_icon_wedge.forceShowHighlite = false
+            camera_icon.forceShowHighlite = false
         }
         else if (MKeys.pressedFnAcc("STAR", event))
         {
             video_icon_wedge.forceShowHighlite = false
+            video_icon.forceShowHighlite = false
         }
         else if (MKeys.pressedFnAcc("F4", event))
         {
             settings_icon_wedge.forceShowHighlite = false
+            settings_icon.forceShowHighlite = false
         }
     }
     StatusRow {
-        anchors.right: root.state === "" ? iconsBackWedge.left : parent.right
+        anchors.right: guiconfig.isWedge && root.state === "" ? iconsBackWedge.left : parent.right
         hideStatusIcons: root.hideStatusIcons
         hideTopBatteryIcon: root.hideTopBatteryIcon
         z: 1
     }
+
     Text {
         id: header
         text: qsTr("MAIN MENU") + guiconfig.emptyString
         anchors.horizontalCenter: parent.horizontalCenter
-        anchors.horizontalCenterOffset: -iconsBackWedge.width / 2
+        anchors.horizontalCenterOffset: guiconfig.isWedge ? -iconsBackWedge.width  / 2 : 0
         anchors.top: parent.top
         anchors.topMargin: constants.headerVerticalOffset
         font.pixelSize : constants.headerTextSize
@@ -163,27 +230,122 @@ Rectangle {
         font.capitalization: Font.AllUppercase
         font.family: constants.menuItemFontName
     }
+
+    Row {
+        // Victory horizontal bottom buttons
+        id: big_icons
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottomMargin: 5
+        anchors.bottom: root.bottom
+        anchors.leftMargin: root.margin
+        spacing: prodinfo.isNewH6DisplayQml() ? 5 : 20
+        opacity: root.childOpacity
+        visible: !guiconfig.isWedge
+
+        Icon {
+            id: camera_icon
+            showInvertedFocus: true
+            source: "qrc:///icons/camera_icon.png"
+            // We need to downscale icons to fit the new display physical button layout.
+            scaleIcon: prodinfo.isNewH6DisplayQml() ? true : false
+            width: prodinfo.isNewH6DisplayQml() ? 130 : 145
+            height: 105
+            onClicked: if(root.state === "") root.state = "camera_menu"
+            KeyNavigation.right: video_icon
+            Keys.onLeftPressed: {
+                grid.currentIndex = grid.count - 1
+                grid.focus = true
+            }
+            Keys.onUpPressed: {
+                keyUpGridVictory(4)
+            }
+            Keys.onDownPressed: {
+                keyDownGridVictory(1)
+            }
+
+            showFrameAtFocus: true
+            onFocusChanged: if(focus) {
+                grid.fromCtrl = 0;
+                startMainWheelTimeout()
+            }
+        }
+
+        Icon {
+            id: video_icon
+            showInvertedFocus: true
+            source: "qrc:///icons/video_icon.png"
+            width: camera_icon.width
+            height: camera_icon.height
+            scaleIcon: camera_icon.scaleIcon
+            onClicked: if(root.state === "") root.state = "video_menu"
+            KeyNavigation.right: settings_icon
+            KeyNavigation.left: camera_icon
+            Keys.onUpPressed: {
+                keyUpGridVictory(5)
+            }
+            Keys.onDownPressed: {
+                keyDownGridVictory(2)
+            }
+            showFrameAtFocus: true
+            onFocusChanged: if(focus) {
+                grid.fromCtrl = 1
+                startMainWheelTimeout()
+            }
+        }
+
+        Icon {
+            id: settings_icon
+            showInvertedFocus: true
+            source: "qrc:///icons/settings_icon.png"
+            width: camera_icon.width
+            height: camera_icon.height
+            scaleIcon: camera_icon.scaleIcon
+            onClicked: if(root.state === "") root.state = "settings_menu"
+            KeyNavigation.left: video_icon
+            Keys.onUpPressed: {
+                keyUpGridVictory(6)
+            }
+            Keys.onRightPressed: {
+                grid.currentIndex = 0
+                grid.focus = true
+            }
+            Keys.onDownPressed: {
+                keyDownGridVictory(3)
+            }
+
+            showFrameAtFocus: true
+            onFocusChanged: if(focus) {
+               grid.fromCtrl = 3
+               startMainWheelTimeout()
+            }
+        }
+    }
+
     Rectangle {
         id: iconsBackWedge
         color: constants.iconsBackWedgeColor
-        visible: true
+        visible: guiconfig.isWedge
         width: constants.iconsBackWedgeWidth
+
         anchors {
             top: parent.top
             right: parent.right
             bottom: parent.bottom
         }
+
         Column {
+            // Wedge right buttons bar
             id: big_icons_wedge
             anchors {
                 verticalCenter: parent.verticalCenter
-                verticalCenterOffset: -9-5
+                verticalCenterOffset: -9-5 //-16
                 rightMargin: 5
                 right: parent.right
                 topMargin: parent.margin
             }
-            spacing: 31
+            spacing: 31 //36
             opacity: root.childOpacity
+
             Icon {
                 id: camera_icon_wedge
                 showInvertedFocus: true
@@ -217,6 +379,7 @@ Rectangle {
                         event.accepted = false
                     }
                 }
+
                 showFrameAtFocus: true
                 onFocusChanged: if(focus) {
                                     grid.fromCtrl = 0;
@@ -296,14 +459,18 @@ Rectangle {
                         event.accepted = false
                     }
                 }
+
                 showFrameAtFocus: true
                 onFocusChanged: if(focus) {
                                     grid.fromCtrl = 2
                                     startMainWheelTimeout()
                                 }
             }
-        }
-    }
+        } // Column
+    } // Rectangle
+
+
+
     MouseArea {
         anchors.fill: root
         enabled: grid.remove
@@ -311,13 +478,33 @@ Rectangle {
             grid.remove = false
         }
     }
+
+    // When we move up from the bottom icon row (camera/video/settings) the very first time (using key up), we need to know
+    // the best item in the GridView to set as the current item. For this we need to know the last bottom icon that had focus,
+    // "lastIcon" as an offset on the row, the total number of items in
+    // the GridView as "limit". The function returns the new index position to set on grid's currentIndex.
     function bestFirstPosition(lastIcon, limit)
     {
-        var startIndex = lastIcon * 3 + 2;
-        while(startIndex >= limit)
-            --startIndex
-        return startIndex
+        var ITEMS_PER_ROW = guiconfig.isWedge ? 3 : 4
+        if(guiconfig.isWedge) {
+            var startIndex = lastIcon * ITEMS_PER_ROW + ITEMS_PER_ROW - 1;
+            while(startIndex >= limit)
+                --startIndex
+            return startIndex
+        }
+
+        var pos = ~~(limit / ITEMS_PER_ROW)
+        if(pos > 0 && 0 === (limit % ITEMS_PER_ROW))
+            --pos
+        pos *= ITEMS_PER_ROW
+        pos += lastIcon
+        while(pos >= limit)
+            --pos;
+        if(pos < 0)
+            pos = 0
+        return pos
     }
+    // startIcon
     function setNextPositionToRightWedge(wantedPos, fallbackIcon)
     {
         if(wantedPos < grid.count)
@@ -330,6 +517,80 @@ Rectangle {
             fallbackIcon.forceActiveFocus()
         }
     }
+
+    function keyUpFromGridVictory(startPos)
+    {
+        switch(startPos)
+        {
+        case 0:
+            keyUpGridVictory(7)
+            break;
+        case 1:
+            camera_icon.focus = true
+            break;
+        case 2:
+            video_icon.focus = true
+            break;
+        case 3:
+            settings_icon.focus = true
+            break;
+        default:
+            keyUpGridVictory(startPos - 4)
+            break;
+        }
+    }
+
+
+    function keyUpGridVictory(wantedPos)
+    {
+        if(wantedPos < grid.count)
+        {
+            grid.currentIndex = wantedPos
+            grid.focus = true
+        }
+        else
+        {
+            keyUpFromGridVictory(wantedPos)
+        }
+    }
+
+
+    function keyDownFromGridVictory(startPos)
+    {
+        switch(startPos)
+        {
+        case 4:
+            camera_icon.focus = true
+            break;
+        case 5:
+            video_icon.focus = true
+            break;
+        case 6:
+            settings_icon.focus = true
+            break;
+        case 7:
+            keyDownGridVictory(0)
+            break;
+        default:
+            keyDownGridVictory(startPos + 4)
+            break;
+        }
+    }
+
+
+    function keyDownGridVictory(wantedPos)
+    {
+        if(wantedPos < grid.count)
+        {
+            grid.currentIndex = wantedPos
+            grid.focus = true
+        }
+        else
+        {
+            keyDownFromGridVictory(wantedPos)
+        }
+    }
+
     function keyLeftFromGridWedge(startPos)
     {
         switch(startPos)
@@ -348,6 +609,8 @@ Rectangle {
             break;
         }
     }
+
+
     function keyLeftGridWedge(wantedPos)
     {
         if(wantedPos < grid.count)
@@ -360,6 +623,7 @@ Rectangle {
             keyLeftFromGridWedge(wantedPos)
         }
     }
+
     function keyUpFromGridWedge(startPos)
     {
         switch(startPos)
@@ -378,6 +642,8 @@ Rectangle {
             break;
         }
     }
+
+
     function keyUpGridWedge(wantedPos)
     {
         if(wantedPos < grid.count)
@@ -393,7 +659,7 @@ Rectangle {
     GridView {
         objectName: "MainScreen_grid"
         id: grid
-        cellWidth: width / 3
+        cellWidth: guiconfig.isWedge ? width / 3 : width / 4
         cellHeight: 149
         opacity: root.childOpacity
         interactive: false
@@ -402,27 +668,35 @@ Rectangle {
         model: favoriteModel
         anchors.left: parent.left
         anchors.leftMargin: gridSideMargin
-        anchors.right: iconsBackWedge.left
+        anchors.right: guiconfig.isWedge ? iconsBackWedge.left : parent.right
         anchors.rightMargin: gridSideMargin
-        height: cellHeight * 3
+        height: guiconfig.isWedge ? cellHeight * 3 : cellHeight * 2
         anchors.top: parent.top
-        anchors.topMargin: 50
+        anchors.topMargin: guiconfig.isWedge ? 50 : 79
         keyNavigationWraps: true
         highlightFollowsCurrentItem: false
+        /* Keyboard navigation only works on PC when interactive is true.
+         * Hook it up to simulation so it works when window has been resized
+         * and show the simulation F1-F5 buttons atleast....
+         */
         currentIndex: -1
+
         property bool remove: false
         property int removeIndex: -1
         property int lastIndex: -1
         property int fromCtrl: -1
+
         onFocusChanged: {
             if (!focus) {
                 lastIndex = currentIndex
-                currentIndex = -1
+                currentIndex = -1 // Deselect to get rid of selection indication
             }
             else {
                 startMainWheelTimeout()
+                // If we get focus due to a mouse press, we just keep the index,
+                // but if we get focus by key navigation we restore the last index.
                 if (currentIndex < 0 || currentIndex >= count) {
-                    if (-1 === lastIndex) {
+                    if (-1 === lastIndex) { // first time.
                         if(fromCtrl >= 0)
                             lastIndex = bestFirstPosition(fromCtrl, grid.count)
                         else
@@ -434,56 +708,96 @@ Rectangle {
                     lastIndex = currentIndex
             }
         }
+
         Keys.onPressed: {
             event.accepted = true;
             if(MKeys.pressedFn("RIGHT", event.key)) {
                 if(-1 == grid.currentIndex && -1 != grid.lastIndex)
                     grid.currentIndex = grid.lastIndex
                 else {
-                    if(grid.currentIndex % 3 === 2 || grid.currentIndex === grid.count - 1) {
-                        var row = ~~(grid.currentIndex / 3)
-                        switch(row) {
-                        case 0:
-                            camera_icon_wedge.focus = true
-                            break
-                        case 1:
-                            video_icon_wedge.focus = true
-                            break;
-                        case 2:
-                            settings_icon_wedge.focus = true
-                            break;
+                    if(guiconfig.isWedge) {
+                        if(grid.currentIndex % 3 === 2 || grid.currentIndex === grid.count - 1) {
+                            var row = ~~(grid.currentIndex / 3)
+                            switch(row) {
+                            case 0:
+                                camera_icon_wedge.focus = true
+                                break
+                            case 1:
+                                video_icon_wedge.focus = true
+                                break;
+                            case 2:
+                                settings_icon_wedge.focus = true
+                                break;
+                            }
                         }
+                        else
+                            moveCurrentIndexRight();
+
                     }
-                    else
-                        moveCurrentIndexRight();
+                    else {
+                        if(grid.currentIndex === grid.count - 1)
+                            camera_icon.focus = true
+                        else
+                            moveCurrentIndexRight()
+                    }
                 }
             }
             else if(MKeys.pressedFn("LEFT", event.key)) {
                 if(-1 == grid.currentIndex && -1 != grid.lastIndex)
                     grid.currentIndex = grid.lastIndex
                 else
-                    keyLeftFromGridWedge(grid.currentIndex)
+                {
+                    if(guiconfig.isWedge)
+                    {
+                        keyLeftFromGridWedge(grid.currentIndex)
+                    }
+                    else if(!guiconfig.isWedge)
+                    {
+                        if(grid.currentIndex == 0)
+                        {
+                            settings_icon.focus = true
+                        }
+                        else
+                        {
+                            moveCurrentIndexLeft()
+                        }
+                    }
+                }
             }
             else if(MKeys.pressedFn("UP", event.key)) {
                 if(-1 == grid.currentIndex && -1 != grid.lastIndex)
                     grid.currentIndex = grid.lastIndex
-                else
-                    keyUpFromGridWedge(grid.currentIndex)
+                else {
+                    if(guiconfig.isWedge)
+                    {
+                        keyUpFromGridWedge(grid.currentIndex)
+                    }
+                    else
+                    {
+                        keyUpFromGridVictory(grid.currentIndex)
+                    }
+                }
             }
             else if(MKeys.pressedFn("DOWN", event.key)) {
                 if(-1 == grid.currentIndex && -1 != grid.lastIndex)
                     grid.currentIndex = grid.lastIndex
                 else {
-                    if(currentIndex < grid.count - 3)
-                        moveCurrentIndexDown()
-                    else if(grid.currentIndex % 3 < 2){
-                        var newIdx = (grid.currentIndex % 3) + 1;
-                        if(newIdx >= grid.count -1)
-                            newIdx = 0
-                        grid.currentIndex = newIdx
+                    if(guiconfig.isWedge) {
+                        if(currentIndex < grid.count - 3)
+                            moveCurrentIndexDown()
+                        else if(grid.currentIndex % 3 < 2){
+                            var newIdx = (grid.currentIndex % 3) + 1;
+                            if(newIdx >= grid.count -1)
+                                newIdx = 0
+                            grid.currentIndex = newIdx
+                        }
+                        else
+                            camera_icon_wedge.focus = true
                     }
                     else
-                        camera_icon_wedge.focus = true
+                    {
+                        keyDownFromGridVictory( grid.currentIndex)
+                    }
                 }
             }
             else
@@ -494,16 +808,20 @@ Rectangle {
                 grid.remove = false
             }
         }
+
         removeDisplaced: Transition {
             NumberAnimation { easing.type: Easing.InOutQuad; properties: "x,y"; duration: 300 }
         }
+
         moveDisplaced: Transition {
             NumberAnimation { easing.type: Easing.InOutQuad; properties: "x,y"; duration: 300 }
         }
+
         delegate: Item {
             id: delegateRoot
             width: grid.cellWidth
             height: grid.cellHeight
+
             FramedImage {
                 id: frameImage
                 text: qsTranslate("MENUS", model.text) + guiconfig.emptyString
@@ -515,6 +833,7 @@ Rectangle {
                 source: "qrc:///icons/" + icon + ".png"
                 showInvertedFocus: true
                 selectable: itemEnabled
+
                 onPressed: {
                     if (selectable) {
                         grid.focus = true
@@ -522,6 +841,7 @@ Rectangle {
                     }
                 }
                 onReleased: { grid.lastIndex = index; grid.currentIndex = -1 }
+
                 onPressAndHold: {
                     if(!isstatic)
                     {
@@ -529,24 +849,36 @@ Rectangle {
                         grid.removeIndex = index
                         loc.setImage(this, delegateRoot)
                     }
+                    /* Here we the invert the focus immediatly because
+                       the deleteCandidateIcon already indicates the press.
+                       We also both drop the focus indication because we don't
+                       want it to be kept selected after the release. */
                     grid.currentIndex = -1
                 }
+
                 function gotClick()
                 {
                     if (grid.remove && (grid.removeIndex === index))
                     {
                         grid.model.remove(index)
                         grid.remove = false
+                        // After removal, the grid control will by design indicate the next selected item,
+                        // which we don't want, force no selection.
                         grid.currentIndex = -1
                     }
+                    // AARRGGHH! There must ALWAYS be an exception to the golden rule, mustn't it?
                     else if (selectable && settingsList === "cameraSettingsLiveView")
                     {
                         Camera.setLiveViewState(true)
                     }
+                    // We have the following check to make sure we cannot double click on the favorites
                     else if(selectable && menu_loader.visible && (root.state === ""))
                     {
                         stopMainWheelTimeout()
                         grid.remove = false
+
+                        // Since menu will be visible for a short time until sub menu is totally loaded,
+                        // we make it temporarily invisible
                         menu_loader.visible = false
                         menu_loader.subItem = settingsList
                         menu_loader.subItemLoader = itemFile
@@ -554,6 +886,8 @@ Rectangle {
                         root.state = clicked_state
                     }
                 }
+
+
                 onClicked: {
                     gotClick()
                 }
@@ -578,26 +912,33 @@ Rectangle {
             }
         }
     }
+
     Timer {
         id: pressAndHoldTimer
         interval: 250
         running: false
         repeat: false
     }
+
     MouseArea {
         id: loc
         enabled: grid.remove
+
         property int dragIndex: grid.indexAt(mouseX, mouseY)
         property int newIndex: -1
         property bool changed: false
         property var dragImage
         property var gridPositionItem
+
         anchors.fill: root
+
         onReleased: {
             if (changed)
             {
                 behavior_x.enabled = true
                 behavior_y.enabled = true
+                // For some extremely strange reason, gridPositionItem might be null...
+                // Have not found the reason, but as noted before, QML is a reeeeeeeeeeally buggy environment...
                 if(gridPositionItem !== null)
                 {
                     fakeImage.x = gridPositionItem.x
@@ -606,17 +947,21 @@ Rectangle {
             }
             else if ((dragIndex === grid.removeIndex) && (newIndex !== -1) )
             {
+                // Just a click or similar, remove item
                 grid.model.remove(dragIndex)
                 grid.currentIndex = -1
                 fakeImage.visible = false
             }
+
             grid.remove = false
             grid.removeIndex = -1
             changed = false
             newIndex = -1
             pressAndHoldTimer.stop()
         }
+
         onPressed: {
+            // Check that position is on the marked icon
             if(grid.indexAt(mouseX, mouseY) === grid.removeIndex)
             {
                 newIndex = grid.removeIndex
@@ -640,27 +985,35 @@ Rectangle {
                 }
             }
         }
+
         onEnabledChanged: {
             if (!enabled)
                 fakeImageVisible()
         }
+
         function fakeImageVisible() {
             fakeImage.visible = animate_x.running || animate_y.running
         }
+
         function setImage(img, pos) {
             loc.dragImage = img
             loc.gridPositionItem = pos
+
             fakeImage.text = img.text
             fakeImage.textColor = img.textColor
             fakeImage.source = img.source
             fakeImage.width = img.width
             fakeImage.height = img.height
+
             behavior_x.enabled = false
             behavior_y.enabled = false
         }
+
         FramedImage {
             id: fakeImage
+
             visible: false
+
             states: State {
                 name: "active"
                 when: fakeImage.visible
@@ -671,9 +1024,11 @@ Rectangle {
                     restoreEntryValues: false
                 }
             }
+
             onVisibleChanged: {
                 loc.dragImage.visible = !visible
             }
+
             Behavior on x {
                 id: behavior_x
                 enabled: false
@@ -681,9 +1036,11 @@ Rectangle {
                     id: animate_x
                     duration: 400
                     easing.type: Easing.InOutQuad
+
                     onRunningChanged: loc.fakeImageVisible()
                 }
             }
+
             Behavior on y {
                 id: behavior_y
                 enabled: false
@@ -691,9 +1048,13 @@ Rectangle {
                     id: animate_y
                     duration: 400
                     easing.type: Easing.InOutQuad
+
                     onRunningChanged: loc.fakeImageVisible()
                 }
             }
+
+
+            // Show the little '+' icon also.
             Image {
                 visible: parent.visible
                 source: "qrc:///icons/DeleteCandidateIcon.png"
@@ -704,18 +1065,30 @@ Rectangle {
             }
         }
     }
+
+
     Connections {
         target: (menu_loader.status === Loader.Ready) ? menu_loader.item : null
         onSubMenuAboutToShow: {
+            // If we're going to about screen, update (read) the firmware versions from the suc.
             if("generalSettingsAbout" === menuName) {
                 suc.requestLensFirmwareVersion()
                 suc.requestLensCounter()
+
+                if(!guiconfig.isWedge) {
+                    suc.requestViewFinderFirmwareVersion()
+                    suc.requestBodyCounter()
+                }
             }
         }
     }
+
+
+    // To be able to swipe the menu to the right to get rid of it
     MouseArea {
         objectName: "MainScreen_swipe_area"
         enabled: menu_loader.active && !menu_loader.preventSwipe
+
         id: swipe_area
         anchors.top: root.top
         anchors.bottom: root.bottom
@@ -731,8 +1104,10 @@ Rectangle {
         drag.filterChildren: true
         drag.onActiveChanged: {
             if (!drag.active) {
+                // Its visible make sure it flies in or out
                 if (drag.target.x > (root.x + root.width / constants.swipeLengthDividor))
                 {
+                    // Make sure eventual loading is finished before killing it
                     menu_loader.asynchronous = false
                     menu_loader.asynchronous = true
                     menu_loader.active = false;
@@ -748,6 +1123,7 @@ Rectangle {
             {
             }
         }
+        // Note that mouse area must be parent of loader in order to allow sweeping away of settings
         Loader {
             id: menu_loader
             objectName: "menu_Loader"
@@ -761,44 +1137,58 @@ Rectangle {
             property var itemValues: []
             property bool preventSwipe: (item !== null) && item.preventSwipe !== undefined && item.preventSwipe
             property bool populate: true
-            property string subItem: ""
+
+            // To directly activate a sub list
+            property string subItem: "" // settingsList
             property string subItemLoader: ""
             property string label: ""
             property string scrollToSubmenuItem: ""
+
             Behavior on x {
                 enabled: root.state !== "add_favorite"
                 NumberAnimation { easing.type: Easing.InOutQuad; duration: constants.menuSwipeDuration }
             }
+
             onLoaded: {
                 if (menu_loader.populate)
                     menu_loader.item.populateModel(menu_loader.itemValues);
                 menu_loader.item.forceActiveFocus()
+                // Shall we load sub menu?
                 if(menu_loader.subItem != "")
                 {
                     menu_loader.item.activateSubMenu(subItem, subItemLoader, label)
                 }
                 subItem = ""
                 label = ""
+
                 if (scrollToSubmenuItem != "")
                 {
                     menu_loader.item.setScrollToSubmenuItem(scrollToSubmenuItem)
                     scrollToSubmenuItem = ""
                 }
             }
+
+            // NOTE: Closes Menu.qml (since this loader is the parent).
             Keys.onPressed: {
-                if(MKeys.pressedFnAcc("ESCAPE", event))
+                if((MKeys.pressedFnAcc("ESCAPE", event)) || (!guiconfig.isWedge && MKeys.pressedFnAcc("LEFT", event)))
                 {
                     active = false;
                     root.closeMenu()
                 }
-                if(!MKeys.pressedFnAcc("LEFT", event))
+                if(guiconfig.isWedge && MKeys.pressedFnAcc("LEFT", event))
+                {
+                    // Prevent key from propagating
+                }
+                else
                 {
                     event.accepted = false
                 }
             }
             Component.onDestruction: active = false
         }
+
     }
+
     Text {
         visible: !guiconfig.hideDemoItems
         anchors.top: parent.top
@@ -806,10 +1196,27 @@ Rectangle {
         color: "white"
         text: qsTr("Build:" ) + System.versionID + guiconfig.emptyString
     }
+
     onStateChanged: console.log("Main state", state)
     states: [
         State {
             name: ""
+            // NOTE: the "!menu_loader.active" part causes a (dismissed) auto state change when another state is set
+            // hence a warning message in the log:
+            // "Can't apply a state change as part of a state definition"
+            /* Warning: here be dragons.
+             * This is disabled because it catches everything making it impossible for any other state to have a when.
+             * Possibly the inverse is wanted in another state, but unknown which that would be.
+             * According to ludwig this was added as a workaround to avoid a crash when/after using the
+             * "FW Update Retry" function under service menu. Now seems to work without this, so disabled!
+             * If you uncomment this you'll break the other states "when", eg. "liveview"!!!!!!!
+             * Also, noone knows why && !menu_loader.active which causes the warning as noted above. Disabled as well.
+             */
+            /*
+            when: !(System.system_state === System.StateUpgrade || Upgrader.isProcessing)
+                  && !menu_loader.active
+            */
+
             PropertyChanges { target: root; focus: true; restoreEntryValues: false }
             PropertyChanges { target: grid; visible: true }
             PropertyChanges { target: menu_loader; x: root.x + root.width; visible: true; restoreEntryValues: false }
@@ -827,6 +1234,7 @@ Rectangle {
             PropertyChanges { target: menu_loader; itemValues: MenuItems.cameraMenuItems; active: true; x: root.x - constants.viewEndLineWidth; width: root.width + constants.viewEndLineWidth }
             PropertyChanges { target: swipe_area; drag.minimumX: root.x - constants.viewEndLineWidth}
             PropertyChanges { target: BodySync; currentState: BodySync.MENU; restoreEntryValues: false }
+
         },
         State {
             name: "add_favorite"
@@ -841,6 +1249,7 @@ Rectangle {
             PropertyChanges { target: menu_loader; visible: true; restoreEntryValues: false }
             PropertyChanges { target: BodySync; currentState: BodySync.MENU; restoreEntryValues: false }
         },
+
         State {
             name: "settings_menu"
             StateChangeScript { script: {
@@ -880,33 +1289,45 @@ Rectangle {
             }
         }
     ]
+
     FavoriteModel {
         id: favoriteModel
         wifiAvailable: prodinfo.wifiAvailable
     }
+
+    // This is to make sure that any favorites in the stored configuration from en earlier software version has any
+    // items that is not available or implemented anymore. This populates a list of the available items that then
+    // is compared with the favorites list stored in the configuration.
     function addImplementedItems(sectionItems)
     {
         sectionItems.forEach(function(v)
         {
             var isDemo = (typeof v.demo !== 'undefined') && (v.demo !== undefined && v.demo);
             var isEnabled = (typeof v.enableCond === 'undefined') || v.enableCond === undefined || v.enableCond === "" || eval(v.enableCond)
-            if((v.settingsList !== "")  && (!isDemo || !guiconfig.hideDemoItems))
+            if((v.settingsList !== "") /*&& !FavoriteModel.isInList(v.settingsList)*/ && (!isDemo || !guiconfig.hideDemoItems))
             {
                 favoriteModel.addImplementedMenuItem(v.settingsList, isEnabled)
             }
         });
     }
+
     function setAvailableFavoriteItems()
     {
+        // Populate the various implemented menus to the "available" list.
         favoriteModel.clearImplementedMenuItemList()
         addImplementedItems(MenuItems.cameraMenuItems)
         addImplementedItems(MenuItems.videoMenuItems)
         addImplementedItems(MenuItems.getSettingsMenuItems(prodinfo.wifiAvailable))
+
+        // Construct the favorites from configuration, can only be done after this point.
         favoriteModel.reReadModel();
     }
+
     Component.onCompleted: {
         setAvailableFavoriteItems()
     }
+
+    // Let the favorite list be dynamically changed
     Connections{
         target: prodinfo
         onWifiRegionChanged: setAvailableFavoriteItems()
@@ -917,17 +1338,24 @@ Rectangle {
     }
     Connections {
         target: cambody
+        // Changing camera system may enable or disable some favorite items.
         onCapabilitiesChanged: setAvailableFavoriteItems()
         onHts_attachedChanged: setAvailableFavoriteItems()
     }
     Connections {
         target: suc
+        // Changing camera system may enable or disable some favorite items.
         onCambody_attachedChanged: setAvailableFavoriteItems()
     }
     Connections {
         target: BodySync
+        // Changing Dial mode may enable or disable some favorite items.
         onCurrentDialModeChanged: setAvailableFavoriteItems()
     }
+
+    // This loader pre-load SettingsGeneric
+    // in order to reduce load time when menu is activated.
+    // Hopefully it will not be garbage collected and thrown away before that
     Loader {
         objectName: "settingsGeneric_Loader"
         visible: false
@@ -935,6 +1363,7 @@ Rectangle {
         source: "qrc:///settings/SettingsGeneric.qml"
         focus: false
         asynchronous: true
+        // Let the QML stay in memory
         onLoaded: {
             source = ""
             active = false

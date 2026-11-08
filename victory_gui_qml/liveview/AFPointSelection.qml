@@ -3,10 +3,13 @@ import com.hasselblad.camera 1.0
 import "qrc:///scripts/Keys.js" as MKeys
 import com.hasselblad.globalstateinfo 1.0
 import com.hasselblad.bodysync 1.0
+
 import "qrc:///common"
 import "qrc:/components"
+
 Item {
     id: root
+    // The AF point is 4x4 mm on the sensor. The sensor is 44x33 mm. Given that we calculate the size of AF points in this context
     property real afPointWidth: Camera.firstComponent(configstore.focus_size) * width
     property real afPointHeight: Camera.secondComponent(configstore.focus_size) * height
     property real sizeFactor: 1
@@ -16,29 +19,36 @@ Item {
     property bool selectionVisible: false
     readonly property real bracketWidth: 1 * sizeFactor
     readonly property int middleIndex: afc.xCount * afc.yCount / 2
+
     AFCalc {
         id: afc
         screenWidth: root.width
         screenHeight: root.height
         onXCountChanged: afGrid.requestPaint()
-        isActive: true
+        isActive: true //Started from loader so safe to set to active
         idText: "In AFPointSelection"
     }
+
     function setSelectedPoint(index)
     {
         GlobalStateInfo.afSselectedIndex = index
         afc.resetSavedIndexes()
         selectionVisible = true
+//        console.log("Selected pos (x, y)", index % afc.xCount, Math.floor(index / afc.xCount))
     }
+
     function selectAndClose()
     {
         afc.selectAndSave()
         closeAFPointSelection()
     }
+
     signal closeAFPointSelection()
+
     GlobalConstants {
         id: constants
     }
+
     Canvas {
         id: afGrid
         anchors.centerIn: parent
@@ -51,6 +61,7 @@ Item {
             ctx.clearRect(0, 0, width, height)
             var lineWidth = Math.round(1 * sizeFactor)
             ctx.lineWidth = lineWidth
+
             ctx.beginPath()
             ctx.strokeStyle = outerCol
             var iX
@@ -99,9 +110,11 @@ Item {
             }
             ctx.stroke()
             bracketLength = Math.round(bracketLength - lineWidth)
+
             ctx.beginPath()
             ctx.strokeStyle = innerCol
             ctx.lineWidth = lineWidth
+
             for(iX = 0; iX < afc.xCount; iX++)
             {
                 for(iY = 0; iY < afc.yCount; iY++)
@@ -136,12 +149,15 @@ Item {
                     }
                 }
             }
+
             ctx.stroke()
             ctx.restore()
         }
+
         MouseArea {
             anchors.fill: parent
             onPressed: {
+                // find index of selected point
                 var xIndex = Math.floor(mouse.x / afc.afItemWidth)
                 var yIndex = Math.floor(mouse.y / afc.afItemHeight)
                 var index = xIndex + yIndex * afc.xCount
@@ -149,6 +165,8 @@ Item {
             }
         }
     }
+
+
     Rectangle {
         x: afGrid.x + afc.afSselectedXIndex * afc.afItemWidth + (afc.afItemWidth - afPointWidth) / 2
         y: afGrid.y + afc.afSselectedYIndex * afc.afItemHeight + (afc.afItemHeight - afPointHeight) / 2
@@ -158,6 +176,7 @@ Item {
         border.color: constants.hblOrange
         border.width: 3 * sizeFactor
     }
+
     Keys.onPressed: {
         var xIndex = GlobalStateInfo.afSselectedIndex % afc.xCount
         if (event.isAutoRepeat)
@@ -217,11 +236,24 @@ Item {
         }
         else if(MKeys.pressedFnAcc("ISO_WB", event))
         {
+            // Prevent key strokes to propagate further
         }
     }
+
+    // This caused problems when SQUARE button was hit quickly several times. The signal comes late, and disrupts the sizeIndex
+    // in the middle of setNextSize() function resulting in the focus point moving around, and in worst case totally disappear
+//    Connections {
+//        target: configstore
+//        onFocusSizeChanged: {
+//            //Update sizeIndex on change instead of direct binding since we sometimes need to override the value
+//            updateSizeIndex()
+//        }
+//    }
+
     Component.onCompleted: {
         afGrid.requestPaint()
     }
+
     Connections {
         target: BodySync
         onCurrentDialModeChanged: {
@@ -230,4 +262,6 @@ Item {
             }
         }
     }
+
 }
+

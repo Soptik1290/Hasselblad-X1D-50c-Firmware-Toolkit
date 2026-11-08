@@ -1,19 +1,23 @@
 import QtQuick 2.0
 import "qrc:///scripts/Keys.js" as MKeys
+
 Rectangle {
     objectName: "CertificationScreen_root"
     id: root
     property alias headerBgCol: headerBg.color
     property alias splashBgCol: splashBg.color
     property color splashBorderCol: "black"
+
     property string headingText: ""
     property string contentText1: ""
     property string contentText2: ""
     property string contentText3: ""
     property string contentText4: ""
-    property string image1Source: "qrc:///icons/exclamationMark.png"
-    property string image2Source: "qrc:///icons/exclamationMark.png"
+    property string image1Source: "qrc:///icons/exclamationMark.png" // A default initial value
+    property string image2Source: "qrc:///icons/exclamationMark.png" // A default initial value
+
     color: constants.menuBackgroundColor
+
     Rectangle {
         id: headerBg
         color: "black"
@@ -24,6 +28,8 @@ Rectangle {
             bottom: header.bottom
         }
     }
+
+    // Header text
     Text {
         id: header
         anchors {
@@ -38,6 +44,7 @@ Rectangle {
         text: qsTr(headingText) + guiconfig.emptyString
         font.capitalization: Font.AllUppercase
     }
+
     Rectangle {
         id: splashBg
         color: "white"
@@ -49,6 +56,7 @@ Rectangle {
             right: headerBg.right
             bottom: parent.bottom
         }
+
         Column {
             id: splashContent
             spacing: constants.splashContentSpacing
@@ -57,6 +65,7 @@ Rectangle {
                 leftMargin: constants.splashContentLeftMargin
                 verticalCenter: parent.verticalCenter
             }
+
             Text {
                 anchors {
                     left: parent.left
@@ -71,14 +80,19 @@ Rectangle {
                     capitalization: Font.AllUppercase
                 }
             }
+
             Row {
                 anchors {
                     left: parent.left
+                    //right: parent.right
                 }
                 spacing: 20
+
                 Text {
                     anchors {
                         verticalCenter: img1.verticalCenter
+//                        right: parent.left
+//                        rightMargin: 20
                     }
                     horizontalAlignment: Text.AlignLeft
                     color: "black"
@@ -86,17 +100,22 @@ Rectangle {
                     font {
                         family: constants.helveticaFont
                         pixelSize : constants.contentTextSize
+                        //capitalization: Font.AllUppercase
                     }
                 }
+
                 Image {
                     id: img1
                     anchors.verticalCenter: parent.verticalCenter
                     horizontalAlignment: Image.AlignLeft
                     source: image1Source
                 }
+
                 Text {
                     anchors {
                         verticalCenter: img1.verticalCenter
+//                        left: parent.left
+//                        right: parent.right
                     }
                     horizontalAlignment: Text.AlignLeft
                     color: "black"
@@ -129,9 +148,13 @@ Rectangle {
             }
         }
     }
+
+
     MouseArea {
         anchors.fill: parent
         enabled: !certificationView.active
+
+        // We must have this here to be able to drag:
         drag {
             target: root
             axis: Drag.XAxis
@@ -142,8 +165,10 @@ Rectangle {
         }
         drag.onActiveChanged: {
             if (!drag.active) {
+                // Done dragging
                 if (drag.target.x > (root.width / constants.swipeLengthDividor))
                 {
+                    // Dragged enough to the right. Close the window
                     closeSubDialog()
                 }
                 root.x = 0
@@ -151,6 +176,7 @@ Rectangle {
         }
         onClicked: {}
     }
+
     Rectangle {
         id: viewEndLine
         color: constants.cameraViewLineColor
@@ -159,6 +185,10 @@ Rectangle {
         anchors.top: parent.top
         width: constants.viewEndLineWidth
     }
+
+
+
+
     Loader {
         anchors.fill: parent
         id: certificationView
@@ -171,4 +201,5 @@ Rectangle {
             certificationView.active = false
         }
     }
+
 }

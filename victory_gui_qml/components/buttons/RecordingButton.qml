@@ -1,9 +1,11 @@
 import QtQuick 2.5
 import com.hasselblad.video 1.0
+
 Item {
     id: root
     width: recordingIcon.width
     height: recordingIcon.height
+
     Image {
         id: recordingIcon
         visible: root.visible && !stopIcon.visible
@@ -22,6 +24,7 @@ Item {
             onClicked: VideoControl.setVideoRecordState(true)
         }
     }
+
     Image {
         id: stopIcon
         visible: root.visible && VideoControl.videoMode === VideoControl.Record

@@ -1,5 +1,7 @@
 import QtQuick 2.0
 import com.hasselblad.video 1.0
+
+// Recording indicator
 Rectangle {
     id: recording
     visible: VideoControl.videoMode === VideoControl.Record
@@ -16,6 +18,7 @@ Rectangle {
             label.opacity = 1 - label.opacity
         }
     }
+
     Text {
         id: label
         anchors {
@@ -32,3 +35,4 @@ Rectangle {
         styleColor: "black"
     }
 }
+

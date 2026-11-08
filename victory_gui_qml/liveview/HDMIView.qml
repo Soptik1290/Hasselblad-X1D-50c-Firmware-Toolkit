@@ -1,4 +1,5 @@
 import QtQuick 2.0
+
 import com.hasselblad.systemmanager 1.0
 import com.hasselblad.video 1.0
 import com.hasselblad.lens 1.0
@@ -6,23 +7,29 @@ import com.hasselblad.config 1.0
 import com.hasselblad.camera 1.0
 import com.hasselblad.cambody 1.0
 import com.hasselblad.globalstateinfo 1.0
+
 import "qrc:///components"
 import "qrc:///components/buttons"
 import "qrc:///components/controls"
+
 import "qrc:/scripts/commonfunc.js" as Cmn
 import "qrc:///scripts/Keys.js" as MKeys
+
 Rectangle {
     objectName: "HDMIView_root"
     color: "black"
     focus: true
     property bool isVideo: System.camera_mode === System.CameraModeVideo
+    property bool isTechCam: (configstore.CameraType !== Config.CameraTypeHsystem && !guiconfig.isWedge)
     property real sizeFactor: 640 / 1024
+
     MouseArea {
         anchors.fill: parent
         onClicked: {}
         onDoubleClicked: {}
         onPressAndHold: {}
     }
+
     Loader {
         id: popup
         objectName: "HDMIView_popupLoader"
@@ -35,6 +42,7 @@ Rectangle {
         onLoaded: popup.item.forceActiveFocus()
         z:10
     }
+
     ExposureButton {
         id: exposureButton
         z: 1
@@ -52,19 +60,22 @@ Rectangle {
             x = Cmn.exposureButtonPos.x
             y = Cmn.exposureButtonPos.y
         }
-        minDragY: 90
-        maxDragY: parent.height - 55
+        minDragY: 90//manualFocusIndicator.y + manualFocusIndicator.height
+        maxDragY: parent.height - 55//imageLeftIndicator.y
     }
+
     ShutterSpeedControl {
         id: shutterSpeedSetting
         visible: Camera.canShow & Camera.PropTV && (cambody.capabilities & Cambody.CapabilityGuiExposure) !== 0
         forceHighlight: shutterSpeedMouseArea.containsPress
         outlineText: ((Camera.canChange & Camera.PropTV) === 0)
         shutterSpeedValue: cambody.TV_out_of_range ? "--" : cambody.shutterSpeed
+
         anchors.top: parent.top
         anchors.topMargin: constants.cameraViewLineTopBottomMargin + 23
         anchors.right: parent.right
         anchors.rightMargin: constants.cameraViewMargin
+
         MouseArea {
             id: shutterSpeedMouseArea
             anchors.fill: parent
@@ -75,6 +86,7 @@ Rectangle {
             }
         }
     }
+
     BatteryIndicatorScaled {
         anchors {
             top: parent.top
@@ -85,7 +97,9 @@ Rectangle {
         batteryWidth: 19
         height: 43
     }
+
     Keys.onReleased: commonKeyHandleReleased(event)
+
     function zoom()
     {
         if (VideoControl.videoMode === VideoControl.View)
@@ -100,21 +114,28 @@ Rectangle {
             VideoControl.setZoomState(false)
         }
     }
+
+    /* This view will (for most cases of HDMI) not have focus since since changing HDMI overlays needs to be handled
+       in EVFWindow. This means that Keys.onPressed will not be called here. */
     Keys.onPressed: {
         if(!isVideo && (configstore.CameraType !== Config.CameraTypeHsystem) && MKeys.pressedFnAcc("CROSS", event))
         {
+            // Exit
             Camera.setLiveViewState(false)
         }
         else if(!isVideo && (VideoControl.videoMode !== VideoControl.Zoom) && MKeys.pressedFnAcc("SQUARE", event))
         {
+            // Increase overlay index. Call signal defined in main
             nextOverlay()
         }
         else if(MKeys.pressedFnAcc("STAR", event))
         {
+            // 100% Zoom in/out
             zoom()
         }
         else if(isVideo && (configstore.CameraType !== Config.CameraTypeHsystem) && MKeys.pressedFnAcc("CROSS", event))
         {
+            // Next valid Shutterspeed value
             var tvup = cambody.TV
             tvup = tvup + configstore.CustomOption_StepsInc
             if(tvup > Lens.TV_max)
@@ -125,6 +146,7 @@ Rectangle {
         }
         else if(isVideo && (configstore.CameraType !== Config.CameraTypeHsystem) && MKeys.pressedFnAcc("SQUARE", event))
         {
+            // Previous valid Shutterspeed value
             var tvdown = cambody.TV
             tvdown = tvdown - configstore.CustomOption_StepsInc
             var tvmin = Math.max(suc.TV_min, 60)
@@ -136,6 +158,7 @@ Rectangle {
         }
         else if ((configstore.CameraType !== Config.CameraTypeHsystem) && isVideo &&
                  (MKeys.pressedFnAcc("MENU", event) || MKeys.pressedFnAcc("PLAY", event))) {
+            //Let touch window handle these keys in hdmi liveview + video mode
             event.accepted = false
         }
         else
@@ -143,6 +166,7 @@ Rectangle {
             event.accepted = true
         }
     }
+
     Text {
         id: topHeader
         text: qsTr("HDMI LIVE VIEW") + guiconfig.emptyString
@@ -158,6 +182,7 @@ Rectangle {
             family: constants.menuItemFontName
         }
     }
+
     RecordingIndicator {
         id: recIndicator
         anchors {
@@ -167,6 +192,7 @@ Rectangle {
             leftMargin: 21 * sizeFactor
         }
     }
+
     RecordingTime {
         visible: recIndicator.visible
         anchors {
@@ -176,6 +202,7 @@ Rectangle {
             bottomMargin: 11 * sizeFactor
         }
     }
+
     RecordingButton {
         id: recordingButton
         visible: (configstore.CameraType === Config.CameraTypeFlashsync) &&
@@ -188,20 +215,28 @@ Rectangle {
             bottomMargin: 11 * sizeFactor
         }
     }
+
     ConfirmationButtons {
         id: confirmButtons
         color: root.color
         property bool isZoom: (VideoControl.videoMode === VideoControl.Zoom)
-        property string lastTextVideoStr: isZoom ? "" : qsTr("Display") + guiconfig.emptyString
+        property string lastTextVideoStr: isTechCam ? "+" : (isZoom ? "" : qsTr("Display") + guiconfig.emptyString)
         property string lastTextCameraStr: isZoom ? "" : (qsTr("Display") + guiconfig.emptyString)
         transparentBackground: true
-        sideOriented: true
+        sideOriented: guiconfig.isWedge
         firstText: GlobalStateInfo.afSelectionActive ? qsTr("Reset") + guiconfig.emptyString :
-                   !isVideo ? qsTr("Exit") + guiconfig.emptyString : ""
+                   isVideo && isTechCam ? "-" :
+                   (!isVideo && (isTechCam || guiconfig.isWedge)) ? qsTr("Exit") + guiconfig.emptyString:
+                                                                                       ""
         middleText: GlobalStateInfo.afSelectionActive ? (qsTr("Select") + guiconfig.emptyString) :
                     VideoControl.videoMode !== VideoControl.Record ? (qsTr("Zoom") + guiconfig.emptyString) : ""
         lastText: GlobalStateInfo.afSelectionActive ? (qsTr("AF Point Size") + guiconfig.emptyString) :
                   isVideo ? lastTextVideoStr : lastTextCameraStr
+        // Workaround:
+        // Just setting font.bold to true when isVideo does not work, since when font.bold is false
+        // the font is shown as bold anyway... font.bold thus have to be undefined to be shown as non bold. QML does not allow
+        // us to set any bool property to be set to undefined...
+        // The state machine below works though:
         Item {
             states: [
                 State {
@@ -215,6 +250,7 @@ Rectangle {
             ]
         }
     }
+
     Image {
         id: touchIcon
         source: "qrc:///icons/generalSettingsTouch.png"
@@ -239,6 +275,7 @@ Rectangle {
         visible: tpLoader.active && tpLoader.item !== null &&
                  (tpLoader.item.inZoomMode || (guiconfig.isWedge && configstore.hdmi_tp_move_focus && tpLoader.item.inFocusMode))
     }
+
     Loader {
         objectName: "hdmiTouchpadLoader"
         id: tpLoader
@@ -257,4 +294,5 @@ Rectangle {
             item.isInHDMI = true
         }
     }
+
 }

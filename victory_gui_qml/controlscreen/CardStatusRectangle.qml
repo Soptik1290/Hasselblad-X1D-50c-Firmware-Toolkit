@@ -1,5 +1,7 @@
 import QtQuick 2.0
+
 import com.hasselblad.storage 1.0
+
 Rectangle {
     id: root
     property alias text: text_field.text
@@ -27,3 +29,4 @@ Rectangle {
         font.pixelSize: 24
     }
 }
+

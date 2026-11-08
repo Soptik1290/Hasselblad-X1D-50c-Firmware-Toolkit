@@ -4,10 +4,12 @@ import com.hasselblad.systemmanager 1.0
 import com.hasselblad.globalstateinfo 1.0
 import com.hasselblad.camera 1.0
 import com.hasselblad.config 1.0
+
 import "qrc:///settings"
 import "qrc:///components/buttons"
 import "qrc:///components/popups"
 import "qrc:///scripts/Keys.js" as MKeys
+
 Rectangle {
     id: list_delegate
     objectName: "MediaListViewImageDelegate"
@@ -18,6 +20,7 @@ Rectangle {
     property bool isInstantPreview: false
     property bool loadImage: false
     property bool pinching: false
+
     signal prepareScaling()
     signal scaled(real scale, int maxWidth, int maxHeight, var point, var duration, var easing)
     signal loaded()
@@ -26,51 +29,65 @@ Rectangle {
     signal initPinching()
     signal openImageRating()
     signal openImageRateFilter()
+
     onActiveFocusChanged: {
         if (activeFocus && imageRatingActive) {
             imageRatingPopup.forceActiveFocus()
         }
     }
+
     onInitPinching: {
         list_delegate.scaled(1.01, scaling.maxWidth, scaling.maxHeight, null, 0, 0)
     }
+
     function hideInstantAVTV()
     {
         meta_data_overlay.hideInstantAVTV()
     }
+
+
+    // Make sure we show overlay if user is swiping to another image
     Connections {
         target: media_list
         onCurrentIndexChanged: {
             resetMetaData()
         }
     }
+
     function resetMetaData()
     {
         meta_data_overlay.showOverlay = true
     }
+
     Photo {
         id: list_img
         anchors.centerIn: parent
         width: scaling.scale * parent.width
         height: scaling.scale * parent.height
         source: list_delegate.loadImage ? image : ""
+//        onVisibleChanged: console.log("visible changed", image, "now:", visible)
+
         onStatusChanged: {
             if (status === Image.Ready)
                 list_delegate.loaded()
         }
     }
+
     Item {
         id: scaling
         property int maxWidth: imageWidth !== undefined ? imageWidth : list_img.implicitWidth
         property int maxHeight: imageHeight !== undefined ? imageHeight : list_img.implicitHeight
         property real maxScale: Math.max(maxWidth / parent.width, maxHeight / parent.height)
+
         property real minScale: 0.9
+
         scale: 1
         Binding on scale {
             when: media_list.currentIndex !== index
             value: 1
         }
     }
+
     Keys.onPressed: {
         autoZoomLongPressTimer.stop()
         if (event.isAutoRepeat)
@@ -109,6 +126,7 @@ Rectangle {
             autoZoomLongPressTimer.start()
         }
         else if (System.isTethered && (MKeys.pressedFn("NAVLEFT", event.key) || MKeys.pressedFn("NAVRIGHT", event.key))) {
+            // In tethered only the active image can be browsed so need to disable thumbwheel navigation
             event.accepted = true
         }
         else if(MKeys.pressedFn("TPDOUBLECLICK", event.key)) {
@@ -120,7 +138,9 @@ Rectangle {
             event.accepted = false
         }
     }
+
     Keys.onReleased: {
+        // Eat the released event
         if (MKeys.pressedFn("TRUEFOCUS", event.key)
                 || MKeys.pressedFn("AF_D", event.key)
                 || MKeys.pressedFn("ZOOM_IN", event.key))
@@ -128,6 +148,7 @@ Rectangle {
             if(autoZoomLongPressTimer.running)
             {
                 autoZoomLongPressTimer.stop()
+                // Short press.
                 zoomIn1Step()
             }
         }
@@ -136,11 +157,13 @@ Rectangle {
         else
             event.accepted = false
     }
+
     MetaDataOverlay {
         id: meta_data_overlay
         anchors.fill: parent
         isInstantPreview: root.isInstantPreview
         visible: showOverlay && !imageRatingPopup.visible
+
         Binding on histogramData {
             when: histogram !== undefined
             value: histogram
@@ -195,6 +218,7 @@ Rectangle {
         }
         metaVolumeType: ContentModel.browseVolume
     }
+
     Loader {
         function shouldShowIntervalTimer()
         {
@@ -220,7 +244,9 @@ Rectangle {
             }
         }
     }
+
     PinchArea {
+        // Only allow pinching when not tethering
         id: pincher
         enabled: !System.isTethered
         anchors.fill: parent
@@ -245,6 +271,8 @@ Rectangle {
             list_delegate.prepareScaling()
             meta_data_overlay.showOverlay = false
         }
+        // This replaces the mousearea in the pitch area. This construction is needed since it seems
+        // propagateComposedEvents does not work 100% correct (it misses the first swipe to left/right)
         property int previousX: -1
         property int previousY: -1
         property double previousClickTime: -1
@@ -261,6 +289,7 @@ Rectangle {
             else
             {
                 console.log("Unregistered click at:", mousex, mousey + y, "previousClickTime:", previousClickTime, "now:", now)
+
             }
         }
         function doOnDoubleClicked (mousex, mousey)
@@ -277,6 +306,7 @@ Rectangle {
             previousY = -1
             previousClickTime = -1
         }
+
         MouseArea {
             id: clickAreaBeyond
             enabled: media_list.enableMouseClick
@@ -296,6 +326,7 @@ Rectangle {
             {
                 pincher.doOnPressed(mouse.x, mouse.y + clickAreaAbove.height)
             }
+
             MouseArea {
                 id: imageRateArea
                 anchors {
@@ -303,7 +334,7 @@ Rectangle {
                     top: parent.top
                     bottom: parent.bottom
                 }
-                enabled: configstore.imageRating && !Camera.inSession
+                enabled: configstore.imageRating && !Camera.inSession //Is in session during interval
                 width: meta_data_overlay.visible ? meta_data_overlay.imageRateClickAreaWidth : 0
                 onClicked: list_delegate.openImageRating()
             }
@@ -328,13 +359,15 @@ Rectangle {
                 pincher.doOnPressed(mouse.x, mouse.y)
             }
         }
-    }
+    } // PinchArea
+
     Timer {
         id: autoZoomLongPressTimer
         running: false
         interval: 350
         repeat: false
         onTriggered: {
+            // Timer timed out, thus this is a long press -> zoom to 100%
             var point = Qt.point(list_delegate.width / 2, list_delegate.height / 2)
             if (guiconfig.isWedge && display === ContentModel.lastExposureName()) {
                 point = Qt.point(ContentModel.lastExposureFocusPointX()*list_delegate.width, ContentModel.lastExposureFocusPointY()*list_delegate.height)
@@ -342,9 +375,12 @@ Rectangle {
             list_delegate.scaled(scaling.maxScale, scaling.maxWidth, scaling.maxHeight, point, constants.zoomFullAnimateTime, Easing.InQuad)
         }
     }
+
     function zoomIn1Step() {
         list_delegate.scaled(zoomFactor, scaling.maxWidth, scaling.maxHeight, Qt.point(list_delegate.width / 2, list_delegate.height / 2), -1, Easing.Linear)
     }
+
+
     Component {
         id: ratingComponent
         ImageRatingPopup {
@@ -359,6 +395,7 @@ Rectangle {
             onOpenFilter: list_delegate.openImageRateFilter()
         }
     }
+
     Loader{
         id: imageRatingPopup
         anchors.fill: list_delegate
@@ -368,4 +405,20 @@ Rectangle {
         visible: imageRatingActive && !pincher.pinch.active
         asynchronous: true
     }
-}
+
+    //Disable image filtering for now
+    /*FilterButton {
+        id: filterImage
+        anchors {
+            top: list_delegate.top
+            left: list_delegate.left
+            leftMargin: 10
+            topMargin: 10 + constants.topMetaHeight
+        }
+        highlight: imageRatingPopup.filterIconSelected
+        visible: (filteringImages || imageRatingActive) && !pincher.pinch.active
+        enabled: visible
+        onClicked: list_delegate.openImageRateFilter()
+    }*/
+
+} // Rectangle

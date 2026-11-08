@@ -1,12 +1,15 @@
 import QtQuick 2.0
+
 Rectangle {
     property alias text: label.text
     property real sizeFactor: 1
     property alias pixelSize: label.font.pixelSize
+
     property bool outlineText: false
     property color outlineColor: "grey"
     property color outlineTextColor: "white"
     property color nonOutlinedTextColor: "white"
+
     color: outlineText ? outlineColor : nonOutlinedTextColor
     border.color: outlineText ? outlineStyleColor : "black"
     border.width: Math.max(1, 1 * sizeFactor)

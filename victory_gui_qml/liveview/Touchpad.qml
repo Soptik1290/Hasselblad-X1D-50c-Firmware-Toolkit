@@ -1,10 +1,15 @@
 import QtQuick 2.5
+
 import com.hasselblad.globalstateinfo 1.0
 import com.hasselblad.config 1.0
 import com.hasselblad.camera 1.0
 import com.hasselblad.video 1.0
 import com.hasselblad.systemmanager 1.0
+
 import "qrc:/components"
+
+//Must use MultiTouch to handle the case that the nose touches the screen before EVF is activated.
+//This case results in multiple touch events and a MouseArea will not receive any events in that case.
 MultiPointTouchArea {
     id: root
     property int xLastPos: 0
@@ -26,24 +31,29 @@ MultiPointTouchArea {
     property real zoomStepFinal: 0.003
     property bool wasInTouchArea: false
     property bool isInHDMI: false
+
     onInZoomModeChanged: {
         if (inZoomMode) {
             zoomCalc.lastPos = VideoControl.zoomPoint
         }
     }
+
     AFCalc {
         id: afc
         screenWidth: root.width
         screenHeight: root.height
         idText: "In Touchpad"
     }
+
     ZoomCalc {
         id: zoomCalc
         minInterval: 50
     }
+
     onPressed: {
         GlobalStateInfo.touchpadZoomActive = inZoomMode
         for (var i = 0; i < touchPoints.length; i++) {
+            //Find first point inside touchpad
             if (isInTouchArea(touchPoints[i].x, touchPoints[i].y)) {
                 wasInTouchArea = true
                 xLastPos = touchPoints[i].x
@@ -53,12 +63,16 @@ MultiPointTouchArea {
         }
         wasInTouchArea = false
     }
+
     onReleased: {
         GlobalStateInfo.touchpadZoomActive = false
     }
+
     onTouchUpdated: {
+        //Check enabled to cover case where we start pressing before disabling with half-press
         if (enabled) {
             var i = 0
+            //Check if any point is inside touch area
             for ( i = 0; i < touchPoints.length; i++) {
                 var x = touchPoints[i].x
                 var y = touchPoints[i].y
@@ -76,17 +90,21 @@ MultiPointTouchArea {
                     return
                 }
             }
+            //Didn't find any point inside touch area.
             wasInTouchArea = false
         }
     }
+
     function isInTouchArea(x,y) {
         return x >= xStart && x < xStart+padWidth &&
                y >= yStart && y < yStart+padHeight
     }
+
     function updateAfIndexRelativePosition(x,y) {
         var xDiff = x-xLastPos
         var yDiff = y-yLastPos
         if (Math.abs(xDiff) >= relativeStepSize) {
+            //Move one step on x-axis and update xLastPos
             var modulo = GlobalStateInfo.afSselectedIndex % afc.xCount
             if ((xDiff < 0 && modulo > 0) ||
                 (xDiff > 0 && modulo < afc.xCount-1)) {
@@ -96,6 +114,7 @@ MultiPointTouchArea {
             }
         }
         if (Math.abs(yDiff) >= relativeStepSize) {
+            //Move one step on y-axis and update yLastPos
             if ((yDiff < 0 && GlobalStateInfo.afSselectedIndex >= afc.xCount) ||
                 (yDiff > 0 && GlobalStateInfo.afSselectedIndex < afc.xCount*(afc.yCount-1))) {
                 GlobalStateInfo.afSselectedIndex = GlobalStateInfo.afSselectedIndex + (yDiff < 0 ? -1 : 1)*afc.xCount
@@ -104,6 +123,7 @@ MultiPointTouchArea {
             }
         }
     }
+
     function updateZoomPosition(x,y) {
         var xDiff = x-xLastPos
         var yDiff = y-yLastPos
@@ -127,6 +147,7 @@ MultiPointTouchArea {
         }
         VideoControl.restartLiveViewImageTimeout()
     }
+
     function initValues() {
         afc.updateSizeIndex()
         if (GlobalStateInfo.afSselectedIndex < 0) {

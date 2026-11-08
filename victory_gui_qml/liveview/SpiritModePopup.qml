@@ -1,20 +1,27 @@
 import QtQuick 2.0
+
 import com.hasselblad.guiconfig 1.0
 import com.hasselblad.config 1.0
 import com.hasselblad.bodysync 1.0
 import com.hasselblad.spiritlevel 1.0
 import com.hasselblad.video 1.0
+
 import "qrc:///components/buttons"
 import "qrc:///scripts/Keys.js" as MKeys
+
 FocusScope
 {
     objectName: "SpiritModePopup_focusScope"
     id: popupContainer
     property real sizeFactor: 640 / 1024
+
+    // This is the item that shall have focus when popup is closed
     property Item returnToItem: null
     property int listItemHeight: 220 * sizeFactor
-    property bool wasEnabled: false
+    property bool wasEnabled: false //Workaround for state "NOTSHOWING" triggering BodySync.currentState each time component is created
     property int notShowingBodyState: BodySync.MAIN
+
+    // returnItem is the calling item that shall receive focus when closed
     function open(returnItem) {
         notShowingBodyState = BodySync.currentState
         if(typeof returnItem !== "undefined")
@@ -25,11 +32,13 @@ FocusScope
         {
             returnToItem = null
         }
+
         visible = true
         if(typeof preventLiveViewSwipe !== "undefined")
         {
             preventLiveViewSwipe = true
         }
+
         if(configstore.Spiritlevel_UserCalibration)
         {
             spiritModeUser.focus = true
@@ -38,6 +47,7 @@ FocusScope
         {
             spiritModeNormal.focus = true
         }
+
         VideoControl.prohibitZoom = true
     }
     function close() {
@@ -49,6 +59,7 @@ FocusScope
         VideoControl.prohibitZoom = false
         userButton.buttonPressed = false
     }
+
     anchors.fill: parent
     Keys.onPressed: {
         event.accepted = true
@@ -66,19 +77,25 @@ FocusScope
         }
     }
     Keys.onReleased: userButton.buttonPressed = false
+
     MouseArea {
         preventStealing: true
         z: 100
         anchors.fill: parent
+
         onClicked: close()
         onDoubleClicked: {}
         onPressAndHold: {}
+
+
         Rectangle {
+            // opacity is inherited to all children, so we avoid it on the popupContainer-parent by creating this rectangle instead.
             id: fadeOutParentRect
             color: constants.popupFadeoutColor
             anchors.fill: parent
             opacity: 0.5
         }
+
         Rectangle {
             id: popup
             color: constants.popupBackgroundColor
@@ -88,8 +105,9 @@ FocusScope
             anchors {
                 leftMargin: 110 * sizeFactor
                 rightMargin: 110 * sizeFactor
-                topMargin: 110 * sizeFactor
-                bottomMargin: 110 * sizeFactor
+                topMargin: 110 * sizeFactor// 77
+                bottomMargin: 110 * sizeFactor// 77
+
                 left: parent.left
                 right: parent.right
                 bottom: parent.bottom
@@ -109,10 +127,13 @@ FocusScope
                 font.capitalization: Font.AllUppercase
             }
             MouseArea {
+                // This mouse-area is to prevent closing the dialog when clicking on it. We only want close outside the popup.
                 anchors.fill: parent
                 z: -1
+
                 onClicked: { }
             }
+
             Rectangle {
                 anchors.fill: spiritModeNormal
                 color: spiritModeNormalMouseArea.pressed  || !configstore.Spiritlevel_UserCalibration ? constants.hblOrange : "transparent"
@@ -121,6 +142,7 @@ FocusScope
                     anchors.fill: parent
                     onClicked: {
                         VideoControl.restartLiveViewImageTimeout()
+
                         if(configstore.Spiritlevel_UserCalibration)
                         {
                             configstore.Spiritlevel_UserCalibration = false
@@ -156,6 +178,7 @@ FocusScope
                     }
                 }
             }
+
             Rectangle {
                 anchors.fill: spiritModeUser
                 color: spiritModeUserMouseArea.pressed || (configstore.Spiritlevel_UserCalibration && spiritModeUser.focus) ? constants.hblOrange : "transparent"
@@ -197,6 +220,7 @@ FocusScope
                     }
                 }
             }
+
             MenuButton {
                 id: userButton
                 anchors {
@@ -233,8 +257,11 @@ FocusScope
                         clicked()
                     }
                 }
+
             }
+
         }
+
         states: [
             State {
                 name: "NOTSHOWING"
@@ -244,7 +271,9 @@ FocusScope
                     script: {
                         popupContainer.focus = false;
                         wasEnabled = false
+                        // It worked very bad to set BodySync.currentState in PropertyChanges, so we set it in this script instead
                         BodySync.currentState = notShowingBodyState
+                        // Set focus to caller
                         if (popupContainer.returnToItem !== null)
                             popupContainer.returnToItem.forceActiveFocus()
                     }
@@ -258,11 +287,13 @@ FocusScope
                     script: {
                         popupContainer.focus = true;
                         wasEnabled = true
+                        // It worked very bad to set BodySync.currentState in PropertyChanges, so we set it in this script instead
                         BodySync.currentState = BodySync.MENU
                     }
                 }
             }
         ]
+
         transitions: [
             Transition {
                 PropertyAnimation {

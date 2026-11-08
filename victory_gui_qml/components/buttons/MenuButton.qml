@@ -1,4 +1,5 @@
 import QtQuick 2.0
+
 Item {
     id: root
     signal clicked()
@@ -18,6 +19,7 @@ Item {
     property string buttonData
     property bool highlight: false
     property bool buttonPressed: false
+
     width: {
         var expectedWidth = isImageButton ? (buttonImage.width + 2 * spacing) : buttonText.implicitWidth + 2 * spacing
         if(0 != minWidth)
@@ -27,17 +29,21 @@ Item {
         return expectedWidth
     }
     height: constants.buttonHeight
+
     Rectangle {
         id: buttonBorder
+
         radius: 0
         color: buttonColor
         border {
             color: isEnabled ? (highlight ? borderColorHighLight : borderColor) : constants.buttonDisabledColor
             width: buttonBorderWidth
         }
+
         height: parent.height
         width: parent.width
     }
+
     Text {
         id: buttonText
         text: root.text
@@ -47,6 +53,7 @@ Item {
             horizontalCenter: buttonBorder.horizontalCenter
         }
         width: root.minWidth - (buttonBorderWidth + buttonBorderTextMargin) * 2
+
         font.pixelSize: fontPixelSize
         fontSizeMode: Text.HorizontalFit
         verticalAlignment: Text.AlignVCenter
@@ -54,6 +61,7 @@ Item {
         color: isEnabled ? ((mousePressed || buttonPressed) ? constants.buttonTextPressedColor : constants.buttonTextColor) : constants.buttonDisabledColor
         visible: !isImageButton
     }
+
     Image {
         id: buttonImage
         anchors.centerIn: buttonBorder
@@ -61,9 +69,11 @@ Item {
         source: buttonData
         clip: true
     }
+
     MouseArea {
         id: ma
         anchors.fill: buttonBorder
         onClicked: if(isEnabled) root.clicked()
     }
 }
+

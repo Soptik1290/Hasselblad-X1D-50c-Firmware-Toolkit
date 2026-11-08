@@ -30,6 +30,15 @@ Tento projekt slouží k průzkumu, dešifrování, rozbalení, úpravám, loká
 7. **[07 – Porovnání všech 6 verzí firmwaru (`dokumentace/07-porovnani-verzi-firmwaru.md`)](dokumentace/07-porovnani-verzi-firmwaru.md)**
    * Kompletní srovnání verzí `v1.20.0`, `v1.20.1`, `v1.21.0`, `v1.22.0`, `v1.24.0` a `v1.25.0`: velikosti a hashe kontejnerů, vývoj koprocesorů (`FARM`, `FX3`, `SPC`, `SUC`), přidané funkce (zvuková odezva ALSA/TFA9882 ve `v1.21.0`, Focus Bracketing ve `v1.22.0`, 4µm krokování nových XCD objektivů ve `v1.24.0`) a ověření dvoufázového `PrivateHeader::Checksum`.
 
+### Dokumentace vlastního firmwaru a budoucí aplikace Builder (`custom_firmware_dokumentace/`)
+
+* **[00 – Architektura a technická pravidla Custom Firmware Builderu (`custom_firmware_dokumentace/00-architektura-custom-firmware-builderu.md`)](custom_firmware_dokumentace/00-architektura-custom-firmware-builderu.md)** – Specifikace paměťových ukazatelů, JSON schématu modulů a 4 kritických pravidel z reálného ARMv7 běhu (Wayland `TouchWindow` vs. `EVFWindow`, Qt 5.4 velká písmena u C++ signálů, limit `3000..20000` pro `DebugAfSpeed` v `/usr/bin/configstore` a D-Bus signatury).
+* **[01 – Modul Odlehčená verze X1D Lite (`custom_firmware_dokumentace/01-modul-odlehcena-verze-x1d-lite.md`)](custom_firmware_dokumentace/01-modul-odlehcena-verze-x1d-lite.md)** – Uvolnění `+78,4 KB` v QRC tabulce a `−26,14 MB` na eMMC odstraněním cizích modelů (`H6D`/`A6D`/`CFV`) a komentářů.
+* **[02 – Moduly pro zrychlení startu a odezvy UI (`custom_firmware_dokumentace/02-moduly-rychlost-boot-a-odezva-ui.md`)](custom_firmware_dokumentace/02-moduly-rychlost-boot-a-odezva-ui.md)** – Katalog modulů `MOD-SPD-01` až `MOD-SPD-06`.
+* **[03 – Moduly pro výdrž baterie a chlazení (`custom_firmware_dokumentace/03-moduly-vydrz-baterie-a-chlazeni.md`)](custom_firmware_dokumentace/03-moduly-vydrz-baterie-a-chlazeni.md)** – Katalog modulů `MOD-BAT-01` až `MOD-BAT-05`.
+* **[04 – Moduly pro skryté a nové funkce UI (`custom_firmware_dokumentace/04-moduly-skryte-a-nove-funkce-ui.md`)](custom_firmware_dokumentace/04-moduly-skryte-a-nove-funkce-ui.md)** – Katalog modulů `MOD-FEAT-01` až `MOD-FEAT-06`.
+* **[05 – Modul Continuous Autofocus `AF-C` + Touch-to-Track (`custom_firmware_dokumentace/05-modul-continuous-autofocus-afc.md`)](custom_firmware_dokumentace/05-modul-continuous-autofocus-afc.md)** – Samostatný modul `MOD-FEAT-AFC` (`build_custom_firmware.py --mode afc`) nad továrním `1.25.0`.
+
 ---
 
 ## Rychlý start a nástroje

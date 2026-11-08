@@ -58,8 +58,11 @@ Before repacking or flashing any modified firmware, run the automated safety swe
 python verify_firmware_safety.py --fast
 ```
 It verifies:
-1. **QML & JS Syntax Integrity** across all 128 QML and 9 JS files.
-2. **QRC Slot Capacity & Comment-Stripped Headroom** (confirming every modified file fits its compressed `zlib` slot, with **+60.2 KB** freed by automatic comment stripping in `patch_victory_qrc_file.py`).
+1. **QML & JS Syntax Integrity + Qt 5.4 / `configstore` / Wayland Runtime Guards** across all 128 QML and 9 JS files:
+   - Blocks uppercase C++ signal handlers inside `Connections {}` (`onFocusModeChanged`, `onWBModeChanged`, `onDriveModeChanged`, `onLMModeChanged`, `onSVChanged`, `onEVADJChanged`, `onBracketingDelayTimeChanged`, etc.) which fail in Qt 5.4's `QQmlConnectionsParser` (must bind to a lowercase QML property such as `property int currentFocusMode: Camera.FocusMode` -> `onCurrentFocusModeChanged:` instead).
+   - Verifies that any assignment to `configstore.DebugAfSpeed` stays within `/usr/bin/configstore`'s hardcoded bounds (`3000 .. 20000` at `0x13d68..0x13de0`, where `19000` is the maximum valid dropdown value).
+   - Ensures `liveview/EVFWindow.qml` sets `visible: showContent` and `main.qml`'s `evfWindow` Loader sets `visible: false` so the inactive `1024×768` EVF Wayland surface does not cover the `640×480` `TouchWindow` and steal touch/mouse events.
+2. **QRC Slot Capacity & Comment-Stripped Headroom** (confirming every modified file fits its compressed `zlib` slot, with **+58.9 KB to +78.4 KB** freed by automatic comment stripping in `patch_victory_qrc_file.py`).
 3. **Binary ELF & QRC Decompression Round-Trip** (`405/405` assets).
 4. **U-Boot A/B Rollback Protection & `rootfs` Symlink Integrity** (verifying that `hbl-upgrade` only flashes the inactive eMMC bank and never overwrites U-Boot `/dev/mtd0`, and checking `/sbin/init` + `readlink` so `hbl-post-upgrade` sets `boot_ok=1`).
 5. **`.cim` Cryptographic & Two-Stage Checksum Verification** across all firmware containers.
@@ -117,12 +120,14 @@ python run_arm_emulator.py --cim "firmware/X1D_v1_25_0.cim"
      3. **`patch_libm.py` (Binary ELF Patch for `libm.so.6`)**: In-place modification of `.gnu.version_d` to export `GLIBC_2.27` for 5 essential math symbols (`logf`, `expf`, `exp2f`, `powf`, `log2f`), allowing Mesa's `swrast_dri.so` (LLVMpipe) to load seamlessly on Yocto GLIBC 2.22 without altering the rest of the camera rootfs.
      4. **Mesa GLVND & Wayland-EGL Integration**: Replaces proprietary Vivante EGL libraries with standard Wayland EGL (`libwayland-egl.so.1`, `libEGL.so.1.0.0`, `libGLESv2.so.2`).
 3. **Daemon Initialization & Display Sleep Prevention**:
-   - Launches `dbus-daemon --system` and `arm_emulator/mock_hardware_dbus.py` simulating camera hardware (MCU SUC, FPGA FARM, lens body).
-   - Starts the camera's real ARMv7 `/usr/bin/configstore`.
+   - Launches `dbus-daemon --system` and `arm_emulator/mock_hardware_dbus.py` simulating camera hardware and D-Bus methods (`com.hasselblad.camera` including `setLiveViewState(bs)`, `StartSession(bb)`, `StopSession()`, `StartExposing(b)`, `FindFocus(b)`, plus `com.hasselblad.cambody` + `/spiritlevel`, `storage`, `systemmanager`, `lens`, `suc`, `bodysync`, `farm`).
+   - Starts the camera's real ARMv7 `/usr/bin/configstore` (enforcing hardware property bounds across all 162 settings, e.g., `DebugAfSpeed` within `3000..20000`).
    - Configures `GUI_idle_timeout = 0` and `BACKLIGHT_brightness = 100` over D-Bus to prevent display sleeping after 10 seconds of inactivity.
-4. **Weston Compositor & `victory-gui` Execution**:
+   - Automatically compares the `.cim` modification timestamp against `<cim>_extracted/rootfs` so rebuilt `.cim` images are automatically re-extracted before container launch.
+4. **Weston Compositor, Dual-Window Wayland Stacking (`TouchWindow` vs. `EVFWindow`) & `victory-gui` Execution**:
    - The container hosts a virtual X11 display `Xvfb :0` (640×480) with **Weston 3.0** providing the Wayland socket `/tmp/wayland-0`.
-   - The native unmodified camera binary executes inside the chroot:
+   - `/usr/bin/victory-gui` creates two Wayland surfaces: `TouchWindow` (`640×480`, `"main"`) and ~2.7s after startup `EVFWindow` (`1024×768`, `"overlay"`). In our custom firmware builds (`X1D_v1_25_0_afc.cim` and `X1D_v1_25_0_x1d_lite.cim`), `EVFWindow.qml` uses `visible: showContent` (`Window.Hidden` when EVF/HDMI is inactive) so the invisible `1024×768` overlay does not steal mouse/touch focus from `TouchWindow`.
+   - The native camera binary executes inside the chroot:
      ```bash
      /usr/bin/victory-gui -platform wayland-egl --wedge
      ```

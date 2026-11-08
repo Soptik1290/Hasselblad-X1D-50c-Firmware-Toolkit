@@ -1,5 +1,6 @@
 import QtQuick 2.0
 import com.hasselblad.suc 1.0
+
 Item{
     id: root
     visible: false
@@ -13,6 +14,7 @@ Item{
         source: "qrc:///icons/FlashStatus.png"
         scale: 1
         visible: true
+
         Timer {
             id: flash_timer
             running: false
@@ -21,6 +23,7 @@ Item{
             triggeredOnStart: false
             onTriggered: flashImage.visible = !flashImage.visible
         }
+
         states: [
             State {
                 name: "visible"

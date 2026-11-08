@@ -1,11 +1,15 @@
 import QtQuick 2.2
+
 import com.hasselblad.camera 1.0
 import com.hasselblad.config 1.0
 import com.hasselblad.globalstateinfo 1.0
 import com.hasselblad.settings 1.0
+
 import "qrc:/components"
+
 import "qrc:///scripts/commonfunc.js" as Cmn
 import "qrc:///scripts/Keys.js" as MKeys
+
 Item {
     objectName: "IntervalTimerScreen_root"
     id: root
@@ -19,9 +23,12 @@ Item {
     property bool isIntervalTimer: Camera.intervalTimerCountDown > 0
     property bool isLongExposure: Camera.exposureTimerCount > 0
     property bool overlay: false
+
     Keys.onPressed: {
+        // If no timer is ongoing let someone else handle the keys
         if (Camera.intervalTimerCountDown === 0 && Camera.exposureTimerCount == 0)
             return
+
         if(MKeys.pressedFnAcc("STAR", event)) {
             Camera.stopIntervalTimer()
             GlobalStateInfo.selfTimerAborted = true
@@ -33,27 +40,32 @@ Item {
                 Camera.finishExposure()
         }
         else if (MKeys.pressedFn("EXPOSURE", event.key)) {
+            // EXPOSURE press is allowed to stop, but only if exposure has started (ongoing)
             if(0 === Camera.intervalTimerCountDown && Camera.exposureTimerCount > 0) {
                 Camera.finishExposure()
                 event.accepted = true
             }
-            else
+            else // any other case
                 event.accepted = true
         } else if (!MKeys.pressedFn("MENU", event.key)) {
+            // eat everything but MENU
             event.accepted = true
         }
     }
+
     MouseArea {
         anchors.fill: parent
         onClicked: {}
         z: 200
     }
+
     Rectangle {
         id: bg
         color: "black"
         anchors.fill: parent
         opacity: overlay ? 0 : 1;
     }
+
     Row {
         id: statusRow
         visible: !overlay
@@ -66,6 +78,7 @@ Item {
         }
         height: constants.cameraViewLineTopBottomMargin - constants.cameraViewMargin
         spacing: constants.cameraViewMargin + 20
+
         BatteryIndicatorScaled {
             id: batteryIndicator
             visible: guiconfig.isWedge && (isLongExposure || isIntervalTimer)
@@ -75,6 +88,7 @@ Item {
             height: 59
         }
     }
+
     Text {
         id: header_text
         visible: !overlay
@@ -91,8 +105,10 @@ Item {
               isLongExposure ? qsTr("Exposing") : ""
         font.capitalization: Font.AllUppercase
     }
+
     Row {
         id: intervalTimerRow
+
         anchors {
             verticalCenter: bg.verticalCenter
             verticalCenterOffset: -40
@@ -100,6 +116,7 @@ Item {
             leftMargin: 50
         }
         spacing: 30
+
         Image {
             id: intervalTimerIcon
             visible: isIntervalTimer || (isLongExposure && configstore.intervalActive)
@@ -107,6 +124,7 @@ Item {
             scale: 0.8
             anchors.verticalCenter: parent.verticalCenter
         }
+
         Text {
             id: intervalTimer
             text: Camera.intervalTimerCountDown
@@ -119,16 +137,19 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             anchors.verticalCenterOffset: (implicitHeight - baselineOffset) * 0.5
         }
+
         Row {
             id: frameCounter
             anchors.verticalCenter: intervalTimerIcon.verticalCenter
             spacing: 10
+
             Image {
                 id: frameLeftBracket
                 height: framesLbl.height
                 anchors.verticalCenter: parent.verticalCenter
                 source: "qrc:/icons/Left_Bracket_outline.png"
             }
+
             Text {
                 id: framesLbl
                 text: {
@@ -136,7 +157,7 @@ Item {
                     {
                         if(255 === configstore.IntervalNumberOfShots)
                         {
-                            return '\u221e'
+                            return '\u221e' // unlimited, show infinity character
                         }
                         else
                         {
@@ -171,6 +192,7 @@ Item {
             }
         }
     }
+
     ConfirmationButtons {
         id: buttons
         visible: (guiconfig.isWedge || configstore.CameraType !== Config.CameraTypeHsystem) && (isIntervalTimer || isLongExposure || cambody.exposure_abortable)
@@ -179,4 +201,4 @@ Item {
         middleText: isIntervalTimer || isLongExposure ? qsTr("Exit") : ""
         firstText: isLongExposure ? Cmn.tdur(Camera.exposureTimerCount) + "   " + qsTr("Finish Exposure") : ""
     }
-}
+} // root Item

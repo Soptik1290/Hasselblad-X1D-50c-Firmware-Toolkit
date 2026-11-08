@@ -2,8 +2,10 @@ import QtQuick 2.0
 import com.hasselblad.storage 1.0
 import com.hasselblad.video 1.0
 import com.hasselblad.config 1.0
+
 import "qrc:///components/buttons"
 import "qrc:///scripts/Keys.js" as MKeys
+
 Rectangle {
     id: list_delegate
     objectName: "MediaListViewVideoDelegate"
@@ -11,14 +13,17 @@ Rectangle {
     color: "black"
     focus: true
     property alias loadImage: overlay.loadImage
+
     signal loaded()
     signal playbackVideo()
     signal stopPlaybackVideo()
     signal openImageRateFilter()
+
     MouseArea {
         anchors.fill: parent
         onClicked: list_delegate.playbackVideo()
     }
+
     Keys.onPressed: {
         if(MKeys.pressedFn("HALFPRESS", event.key))
         {
@@ -53,12 +58,15 @@ Rectangle {
             event.accepted = false
         }
     }
+
     Keys.onReleased: {
+        // Eat the released event
         if(MKeys.pressedFn("AF_D", event.key))
             event.accepted = true
         else
             event.accepted = false
     }
+
     Connections {
         target: configstore
         onExpModeChanged: {
@@ -68,6 +76,7 @@ Rectangle {
             }
         }
     }
+
     VideoOverlay {
         id: overlay
         anchors.fill: parent
@@ -83,5 +92,18 @@ Rectangle {
             when: display !== undefined
             value: display
         }
+        //Disable image filtering for now
+        /*FilterButton {
+            id: filterImage
+            anchors {
+                top: parent.top
+                left: parent.left
+                leftMargin: 10
+                topMargin: 10 + constants.topMetaHeight
+            }
+            visible: filteringImages
+            enabled: visible
+            onClicked: list_delegate.openImageRateFilter()
+        }*/
     }
 }

@@ -1,16 +1,25 @@
 import QtQuick 2.0
 import com.hasselblad.camera 1.0
+
 import "qrc:///components/buttons"
+
 Popover {
     id: popDriveMode
+
     property int gridspacing: constants.popupGridSpacing
+
     onFocusChanged: if (focus) grid.focus = true
+
     heading: qsTr("DRIVE MODE") + guiconfig.emptyString
+
     contentItem: grid
+
     content: Item {
         anchors.fill: parent
+
         GridView {
             id: grid
+
             interactive: false
             anchors {
                 fill: parent
@@ -20,12 +29,16 @@ Popover {
                 bottomMargin: 41
             }
             boundsBehavior: Flickable.StopAtBounds
+
             keyNavigationWraps: false
+
             cellWidth: width / 2
             cellHeight: height / 2
+
             model: grid_model
             Component.onCompleted: updateFocus()
             onCountChanged: updateFocus()
+
             function updateFocus() {
                 for (var i = 0; i < model.count; i++) {
                     if (model.get(i).drivemode === Camera.DriveMode) {
@@ -34,6 +47,7 @@ Popover {
                     }
                 }
             }
+
             function setSelected()
             {
                 Camera.DriveMode = grid_model.get(grid.currentIndex).drivemode
@@ -41,8 +55,10 @@ Popover {
             }
             delegate: Item {
                 id: grid_delegate
+
                 width: grid.cellWidth - gridspacing
                 height: grid.cellHeight - gridspacing
+
                 FramedImage {
                     text: qsTr(model.text) + guiconfig.emptyString
                     textColor: constants.popupTextColor
@@ -54,6 +70,7 @@ Popover {
                     focus: parent.GridView.isCurrentItem
                     source: icon
                     showInvertedFocus: true
+
                     onPressed: {
                         grid.focus = true
                     }
@@ -63,7 +80,9 @@ Popover {
                     }
                 }
             }
+
         }
+
         ListModel {
             id: grid_model
             ListElement {
@@ -78,4 +97,4 @@ Popover {
             }
         }
     }
-}
+} // PopOver

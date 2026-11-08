@@ -1,4 +1,5 @@
 import QtQuick 2.0
+
 Item {
     id: root
     property int labelMargin: 11
@@ -21,16 +22,19 @@ Item {
     property color outlineColor: "grey"
     property alias outlineStyleColor: label_string.styleColor
     property string icon: ""
+
     height: value_string.height
-    width: (labelIcon.visible ? labelColumn.width : 0) + label_string.width + value_string.width + unit1_string.width + value2_string.width + unit2_string.width
+    width: (labelIcon.visible ? labelColumn.width : 0) + label_string.width + value_string.width + unit1_string.width + value2_string.width + unit2_string.width // Note that childrenrect.width does not give correct width when text changed
     Row {
         id: textRow
         anchors.top: parent.top
+
         Column {
             id: labelColumn
             anchors.bottom: root.labelLow ? value_string.bottom : undefined;
             anchors.bottomMargin: root.labelMargin
             spacing: 4
+
             Item{
                 width: labelIcon.width + 10
                 height: labelIcon.height
@@ -42,6 +46,7 @@ Item {
                     anchors.left: parent.left
                 }
             }
+
             RoundedTextIndicator {
                 id: toplabel_string
                 visible: text != ""
@@ -54,6 +59,7 @@ Item {
                 outlineTextColor: root.outlineStyleColor
                 nonOutlinedTextColor: label_string.color
             }
+
             Text {
                 id: label_string
                 color: ((root.focus && root.allowHighlightBracket) || root.forceHighlight) && !outlineText ?
@@ -64,9 +70,11 @@ Item {
                 font.bold: true
                 style: outlineText ? Text.Outline : Text.Normal
                 styleColor: "white"
+                // labelLow means we anchor by text baseline, otherwise AlightTop (which is the default)
                 font.family: constants.cameraControlTextFontName
             }
         }
+
         Text {
             id: value_string
             anchors.top: parent.top
@@ -104,10 +112,14 @@ Item {
             id: unit2_string
             color: label_string.color
             font.bold: true
+
+            // labelLow means we anchor by text baseline, otherwise AlightTop (which is the default)
             anchors.baseline: value2_string.baseline
             style : label_string.style
             styleColor: label_string.styleColor
             font.family: constants.cameraControlTextFontName
         }
-    }
-}
+    } // Row
+
+} // Item
+

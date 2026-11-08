@@ -1,4 +1,5 @@
 import QtQuick 2.0
+
 Item {
     id: root
     width: 8*cross.width
@@ -15,7 +16,9 @@ Item {
     property real topOverlayHeight: 0
     property real bottomOverlayHeight: 0
     property bool dragAtTop: y === minDragY + topOverlayHeight
+
     signal toolReleased()
+
     Rectangle {
         id: circleOutline
         anchors.fill: parent
@@ -23,6 +26,7 @@ Item {
         radius: width/2
         border.width: 5
         border.color: "black"
+
         Rectangle {
             id: circle
             anchors.fill: parent
@@ -32,6 +36,7 @@ Item {
             border.width: 3
             border.color: "white"
         }
+
         Rectangle {
             id: crossOutline
             anchors.centerIn: cross
@@ -41,6 +46,7 @@ Item {
             border.color: "black"
             color: "transparent"
         }
+
         Rectangle {
             id: cross
             anchors.centerIn: parent
@@ -50,6 +56,7 @@ Item {
             border.color: "white"
             color: "transparent"
         }
+
         Image {
             id: eyeDropper
             anchors.bottom: cross.top
@@ -57,6 +64,7 @@ Item {
             source: "qrc:///icons/LargeIconGreyBalanceTool_outline.png"
         }
     }
+
     MouseArea {
         id: dragArea
         anchors.fill: parent
@@ -69,6 +77,7 @@ Item {
             minimumY: root.minDragY + topOverlayHeight
             maximumY: root.maxDragY - bottomOverlayHeight
         }
+
         onPressedChanged: {
             if (!pressed) {
                 toolReleased()
@@ -76,3 +85,4 @@ Item {
         }
     }
 }
+

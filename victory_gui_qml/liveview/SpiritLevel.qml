@@ -1,10 +1,13 @@
 import QtQuick 2.0
+
 import com.hasselblad.config 1.0
 import com.hasselblad.spiritlevel 1.0
 import com.hasselblad.video 1.0
 import com.hasselblad.systemmanager 1.0
 import com.hasselblad.bodysync 1.0
+
 import "qrc:///scripts/Keys.js" as MKeys
+
 Item {
     id: root
     property alias popupOpen: spiritModePopup.visible
@@ -13,19 +16,21 @@ Item {
     property real xDegrees: SpiritLevel.horizontalLevel
     property real yDegrees: -SpiritLevel.verticalLevel
     property int orientation: SpiritLevel.cameraOrientation
-    property bool keepEnabled: true
+    property bool keepEnabled: true // specifies whether spiritlevel should be kept alive even if it times out.
     property bool highlight: false
     property bool allowSquare: false
     property bool allowCross: false
-    property bool compactMode: false
+    property bool compactMode: false //When displaying spiritlevel together with other info
     property Item previouslyActiveItem: null
     property bool userLevelEnabled: BodySync.currentDialMode !== BodySync.DmFullauto &&
                                     !(BodySync.hdmiCableConnected && VideoControl.videoMode !== VideoControl.Off)
     property int bottomY: spiritModeBracketLeft.y + spiritModeBracketLeft.height
+
     onUserLevelEnabledChanged: {
         highlight = false
         spiritModePopup.close()
     }
+
     function openSpiritPopup()
     {
         highlightTimer.stop()
@@ -33,6 +38,7 @@ Item {
         VideoControl.restartLiveViewImageTimeout()
         spiritModePopup.open(root)
     }
+
     Timer {
         id: highlightTimer
         interval: constants.wheelTimeoutTimeMs
@@ -42,7 +48,9 @@ Item {
             highlight = false
         }
     }
+
     Keys.onPressed: {
+        //Let all keypresses through if we aren't allowed to modify spirit level
         if (!userLevelEnabled) {
             event.accepted = false
             return
@@ -61,6 +69,7 @@ Item {
         }
         else if(highlight && MKeys.pressedFnAcc("STAR", event))
         {
+            // Open popup
             openSpiritPopup()
         }
         else
@@ -68,10 +77,13 @@ Item {
             event.accepted = false
         }
     }
+
+    // Dummy mouse area. Without it, sweep away does not work properly. QML Magic...
     MouseArea {
         propagateComposedEvents: true
         anchors.fill: parent
     }
+
     Rectangle {
         enabled: userLevelEnabled
         anchors.fill: spiritMode
@@ -82,6 +94,7 @@ Item {
             onClicked: openSpiritPopup()
         }
     }
+
     Image {
         id: spiritMode
         anchors.left: parent.left
@@ -90,6 +103,7 @@ Item {
         anchors.topMargin: 11 * sizeFactor
         source: SpiritLevel.usingUserLevel ? "qrc:///icons/SpiritUserMode.png" : "qrc:///icons/SpiritNormalMode.png"
     }
+
     Image {
         id: spiritModeBracketLeft
         visible: userLevelEnabled
@@ -97,6 +111,7 @@ Item {
         anchors.top: spiritMode.top
         source: "qrc:///icons/SpiritModeBracketLeft.png"
     }
+
     Image {
         id: spiritModeBracketRight
         visible: userLevelEnabled
@@ -104,6 +119,7 @@ Item {
         anchors.top: spiritMode.top
         source: "qrc:///icons/SpiritModeBracketRight.png"
     }
+
     SpiritBar {
         id: yAxis
         anchors.right: parent.right
@@ -114,6 +130,7 @@ Item {
         height: Math.round((compactMode ? 0.55 : 0.75)*root.height)
         degrees: yDegrees
         sizeFactor: root.sizeFactor
+
         Behavior on degrees {
             NumberAnimation {
                 duration: 100
@@ -121,6 +138,7 @@ Item {
             }
         }
     }
+
     SpiritBar {
         id: xAxis
         rotation: 90
@@ -131,6 +149,7 @@ Item {
         width: yAxis.width
         degrees: xDegrees
         sizeFactor: root.sizeFactor
+
         Behavior on degrees {
             NumberAnimation {
                 duration: 100
@@ -138,6 +157,7 @@ Item {
             }
         }
     }
+
     SpiritModePopup {
         objectName: "SpiritLevel_spiritModePopup"
         id: spiritModePopup
@@ -145,6 +165,8 @@ Item {
         anchors.fill: parent
         sizeFactor: root.sizeFactor
     }
+
+    // States for orientation
     states: [
         State {
             name: "LandscapeVFDownwards"
@@ -181,6 +203,8 @@ Item {
             PropertyChanges { target: root; xDegrees: SpiritLevel.horizontalLevel; yDegrees: -SpiritLevel.verticalLevel }
         }
     ]
+
+
     Connections {
         target: SpiritLevel
         onRunningChanged: {
@@ -190,31 +214,38 @@ Item {
                 SpiritLevel.enabled(visible)
         }
     }
+
     Connections {
         target: System
         onSystem_stateChanged: if(System.system_state === System.StateUp) SpiritLevel.enabled(visible)
     }
+
     Binding {
         target: SpiritLevel
         property: "usingUserLevel"
         value: configstore.Spiritlevel_UserCalibration
     }
+
     function setSpiritLevel()
     {
         SpiritLevel.enabled(visible)
     }
+
     onVisibleChanged: {
         setSpiritLevel()
+
         if(visible)
         {
             forceActiveFocus()
         }
         else
         {
+            // If we leave spirit level, highlight should be no more
             highlightTimer.stop()
             highlight = false
         }
     }
+
     Component.onCompleted: {
         if(typeof hideStatusIcons !== "undefined")
         {

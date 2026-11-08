@@ -117,8 +117,9 @@ These features have a complete C++ implementation for the X1D (`Wedge`), but rem
 One of the most interesting discoveries in the X1D-50c firmware is in `SettingsGeneric.qml` (lines 703–825). Because the X1D-50c relies on contrast-detection autofocus (CDAF) computed inside the **FARM FPGA** combined with stepping motors in XCD lenses, Hasselblad engineers built an entire AF tuning panel into the GUI (hidden behind `!guiconfig.hideDemoItems`):
 
 1. **`DebugAfSpeedEnable` + `DebugAfSpeed` (Autofocus Motor Speed)**:
-   - `SettingsMiddleLayer` (`victory-gui`, offset `0x1bf2d8`) defines 13 discrete stepping speeds:
+   - `SettingsMiddleLayer` (`victory-gui`, offset `0x1bf2d8` / `0x82b90`) defines 13 discrete stepping speeds in the dropdown:
      `7000`, `9000`, `11000`, `13000`, `15000`, `17000`, `19000`, `21000`, `23000`, `25000`, `27000`, `29000`, `31000`.
+   - **Important `/usr/bin/configstore` Range Limit (`0x13d68..0x13de0`):** Disassembly of `/usr/bin/configstore` revealed that the daemon enforces **`min = 3000`**, **`max = 20000`** (`0x4e20`), and **`default = 5000`**. Any value `> 20000` (`21000..31000`) is rejected by `configstore` (`Property DebugAfSpeed could not be set to new value`). Thus, the maximum valid dropdown option is **`19000`** (or direct integer **`20000`** from QML), delivering a **3.8× to 4.0× faster** stepping speed than the `5000` default.
    - `msg2dbus` forwards this value over the **`af_cmd_speed`** channel (offset `0x53597` in `msg2dbus`) directly to the XCD lens controller!
 2. **`fpga_debug` ("Brenner" – FPGA Contrast Metric Weighting)**:
    - The Brenner gradient evaluates focus sharpness inside the active AF zone on the FPGA.
@@ -158,7 +159,8 @@ What happens if we enable `grid_model` on the X1D?
   ...
   0x328a8: b    WedgeStateMachine::findFocus ; otherwise (for ANY non-MF mode), run single-shot CDAF!
   ```
-- **Conclusion**: `WedgeStateMachine` in `camera-daemon` only checks whether `FocusMode == 3` (`Focus_MAN`) or `!= 3`. `AF-C` and `True Focus` are implemented for the **H6D** (`Victory`), where phase-detection AF and gyro-assisted True Focus are handled by the reflex body processor (`cambody`). On the X1D-50c, selecting `AF-C` or `True Focus` simply triggers standard single-shot **`AF-S`**.
+- **Conclusion (Stock Behavior vs. Our Custom `AF-C` Engine)**: `WedgeStateMachine` in `camera-daemon` only checks whether `FocusMode == 3` (`Focus_MAN`) or `!= 3`. Simply unhiding the `AF-C` icon in `PopoverFocusMode.qml` causes the camera to perform a single CDAF pass and sit in `"Session is idle, starting liveview"`.
+- **Our Working `AF-C` Implementation for X1D-50c (`MOD-FEAT-AFC`):** In [`custom_firmware_dokumentace/05-modul-continuous-autofocus-afc.md`](../custom_firmware_dokumentace/05-modul-continuous-autofocus-afc.md) ([`build_custom_firmware.py --mode afc`](../build_custom_firmware.py)), we engineered a full continuous CDAF session-cycling state machine in `main.qml` on top of `WedgeStateMachine` that continuously re-evaluates focus while holding `HALFPRESS` / `AF-D` in `Config.Focus_AFC (2)`, accelerates the XCD stepping motor (`DebugAfSpeed = 19000`, `DebugAfSpeedEnable = true`), adds single-tap **Touch-to-Track** in LiveView, and guarantees instant full-shutter priority (`EXPOSURE`).
 
 ---
 

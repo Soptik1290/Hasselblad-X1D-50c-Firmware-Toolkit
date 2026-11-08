@@ -1,4 +1,6 @@
+
 import QtQuick 2.0
+
 Item {
     objectName: "settingsCheckbox"
     property int boxSize: 30
@@ -7,7 +9,10 @@ Item {
     property int itemSpacing: 20
     property bool isEnabled: true
     property int checkBoxTextRightMargin: constants.subSettingDropDownXMargin
+
     signal checkChange()
+
+    // Checkbox
     Rectangle{
         id: check
         anchors {
@@ -21,6 +26,9 @@ Item {
         border.color: isEnabled ? "white" : "grey"
         border.width: 2
     }
+
+
+    // Text
     Text {
         id: checkText
         anchors {
@@ -31,6 +39,7 @@ Item {
             verticalCenterOffset: guiconfig.usingUnicodeLanguage ? 0 : (height - baselineOffset) / 2
         }
         fontSizeMode: Text.HorizontalFit
+
         text: checkboxText + ":"
         color: isEnabled ? constants.menuItemColor : "grey"
         font.family: constants.menuItemFontName
@@ -38,6 +47,7 @@ Item {
         verticalAlignment: Text.AlignVCenter
         horizontalAlignment: Text.AlignRight
     }
+
     Image {
         source: isEnabled ? "qrc:///icons/Check.png" : "qrc:///icons/Check_inactive.png"
         anchors.left: check.left
@@ -46,6 +56,7 @@ Item {
         anchors.topMargin: -5
         visible: value ? true : false
     }
+
     MouseArea{
         enabled: isEnabled
         anchors.fill: parent
@@ -53,3 +64,4 @@ Item {
     }
     Keys.onReturnPressed: if(isEnabled) checkChange()
 }
+

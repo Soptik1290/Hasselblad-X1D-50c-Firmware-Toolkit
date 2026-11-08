@@ -45,6 +45,10 @@ Protože C++ vlastnost `guiconfig.hideDemoItems` vrací v produkčním režimu `
 6. **Menu Autofocus (`cameraSettingsAutofocus`, řádky 52–58 – volitelné jako samostatný pod-přepínač „AF Engineering Debug“):**
    - `af_fir` (`AF prefilter`), `af_log` (`Save AF sequence`), `af_full_scan` (`AF debug scan`), `fpga_debug` (`Brenner`), `DebugAfSpeedEnable` (`Enable AF Speed`), `DebugAfSpeed` (`AF Speed`), `DebugAfMode` (`AF Mode`).
 
+> [!WARNING]
+> **Hardwarový limit `DebugAfSpeed` v `/usr/bin/configstore` (`3000 .. 20000`):**
+> Ačkoliv rozbalovací seznam v `SettingsMiddleLayer` (`/usr/bin/victory-gui` na `0x82b90`) vypisuje hodnoty `7000` až `31000`, disassembling binárky `/usr/bin/configstore` (`0x13d68..0x13de0`) prokázal, že démon kontroluje přísný rozsah `DebugAfSpeed_minval = 3000` a `DebugAfSpeed_maxval = 20000` (výchozí hodnota `5000`). Jakýkoliv výběr `21000..31000` v menu `configstore` odmítne a ponechá předchozí hodnotu. Nejvyšší platná volba v menu je proto **`19000`** (nebo přímý zápis `20000` z QML), což zrychlí krokový motor XCD objektivů **3,8× až 4,0×**.
+
 ### Co je třeba změnit
 V aplikaci Builder lze buď:
 - **Varianta A (Globální odemknutí):** V [`victory_gui_qml/settings/SettingsGeneric.qml`](file:///d:/Plocha/projekty/X1D_FirmwareDump/victory_gui_qml/settings/SettingsGeneric.qml#L53) změnit řádek 53:

@@ -1,11 +1,15 @@
 import QtQuick 2.2
+
 import com.hasselblad.camera 1.0
 import com.hasselblad.config 1.0
 import com.hasselblad.globalstateinfo 1.0
 import com.hasselblad.settings 1.0
+
 import "qrc:/components"
+
 import "qrc:///scripts/commonfunc.js" as Cmn
 import "qrc:///scripts/Keys.js" as MKeys
+
 Item {
     objectName: "BracketingScreen_root"
     id: root
@@ -23,9 +27,12 @@ Item {
     property string bracketingAdjustText: configstore.bracketingActive ?
                                               (Camera.AEB_EVADJ/12.0).toFixed(1) + " EV" :
                                               Settings.getDisplayValue("FocusBracketingStepSize", configstore.FocusBracketingStepSize)
+
     Keys.onPressed: {
+        // If no session is ongoing let someone else handle the keys
         if (!Camera.inSession)
             return
+
         if(MKeys.pressedFnAcc("ABORT", event)) {
             Camera.stopIntervalTimer()
             GlobalStateInfo.selfTimerAborted = true
@@ -33,6 +40,7 @@ Item {
                 Camera.finishExposure()
         }
         else if (MKeys.pressedFn("EXPOSURE", event.key)) {
+            // EXPOSURE press is allowed to stop, but only if exposure has started (ongoing)
             if(Camera.exposureTimerCount > 0) {
                 Camera.finishExposure()
                 event.accepted = true
@@ -41,17 +49,20 @@ Item {
         else
             event.accepted = true
     }
+
     MouseArea {
         anchors.fill: parent
         onClicked: {}
         z: 200
     }
+
     Rectangle {
         id: bg
         color: "black"
         anchors.fill: parent
         opacity: overlay ? 0 : 1;
     }
+
     Row {
         id: statusRow
         visible: !overlay
@@ -64,6 +75,7 @@ Item {
         }
         height: constants.cameraViewLineTopBottomMargin - constants.cameraViewMargin
         spacing: constants.cameraViewMargin + 20
+
         BatteryIndicatorScaled {
             id: batteryIndicator
             anchors.verticalCenter: parent.verticalCenter
@@ -72,6 +84,7 @@ Item {
             height: 59
         }
     }
+
     Text {
         id: header_text
         visible: !overlay
@@ -90,6 +103,8 @@ Item {
                              ""
         font.capitalization: Font.AllUppercase
     }
+
+
     Image {
         id: bracketingIcon
         source: configstore.bracketingActive ? "qrc:///icons/LargeIconBracketing.png" : "qrc:///icons/LargeIconFocusBracketing.png"
@@ -99,6 +114,7 @@ Item {
         anchors.left: bg.left
         anchors.leftMargin: 60
     }
+
     Row {
         id: countRow
         anchors {
@@ -108,9 +124,11 @@ Item {
             leftMargin: 50
         }
         spacing: 30
+
         Text {
             id: bracketingCounter
             text: {
+                // Special value if focus bracketing and symmetric method
                 if(configstore.focusBracketingActive &&
                    (configstore.FocusBracketingStrategy === Config.FocusBracketingToNearToInf))
                 {
@@ -130,16 +148,19 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             anchors.verticalCenterOffset: (implicitHeight - baselineOffset) * 0.5
         }
+
         Row {
             id: frameCounter
             anchors.verticalCenter: parent.verticalCenter
             spacing: 10
+
             Image {
                 id: frameLeftBracket
                 height: framesLbl.height
                 anchors.verticalCenter: parent.verticalCenter
                 source: "qrc:/icons/left_bracket.png"
             }
+
             Text {
                 id: framesLbl
                 text: numberOfFrames
@@ -160,6 +181,7 @@ Item {
             }
         }
     }
+
     Text {
         id: bracketingAdjust
         text: bracketingAdjustText
@@ -170,6 +192,7 @@ Item {
         fontSizeMode: Text.HorizontalFit
         verticalAlignment: Text.AlignVCenter
         horizontalAlignment: Text.AlignRight
+
         anchors {
             top: countRow.bottom
             topMargin: guiconfig.isLatin(buttons.firstText) ? 20 : 0
@@ -177,6 +200,7 @@ Item {
             leftMargin: 50
         }
     }
+
     Text {
         id: longExposure
         visible: isLongExposure
@@ -193,9 +217,11 @@ Item {
             left: bracketingIcon.left
         }
     }
+
     Text {
         id: initialDelay
         visible: Camera.intervalTimerCountDown > 0
+        // NOTE: If in the future intervalTimerCountDown gets larger than 60 seconds, call the Cmn.tdur function to format the text:
         text: Camera.intervalTimerCountDown + " " + qsTr("s")
         color: "white"
         font.pixelSize: 45
@@ -208,10 +234,11 @@ Item {
             left: longExposure.left
         }
     }
+
     ConfirmationButtons {
         id: buttons
         color: bg.color
         sideOriented: true
         firstText: qsTr("Exit")
     }
-}
+} // root Item

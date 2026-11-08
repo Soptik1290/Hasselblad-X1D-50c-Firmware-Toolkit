@@ -1,27 +1,39 @@
 import QtQuick 2.0
 import com.hasselblad.upgrade 1.0
 import com.hasselblad.systemmanager 1.0
+
 import "qrc:/components"
 import "qrc:/components/buttons"
+
 Rectangle {
     objectName: "PopoverError_root"
     anchors.fill: parent
     id: root
+
     property real sizeFactor: Math.min(width / 640.0, height / 480.0)
     property bool showButtons: true
+
+
+    // Set these properties outside this
     property alias heading: headingText.text
     property alias icon: busyIcon.source
     property alias subText: subTextItem.text
     property alias errcodeText: errcodeTextItem.text
     property alias bottomText: bottomTextItem.text
+
     property int iconTopMargin: 40 * sizeFactor
     property int textWidth: root.width - 20 * sizeFactor
     property int buttonWidth: (root.width - 30 * sizeFactor) / 2
     property bool showEmergencyButtons: true
     property bool showIcon: true
+
     property int showFWUpdateRetryCounter: 0
+
     color: "black"
+
     StatusRow { }
+
+    // Header
     Text {
         id: headingText
         visible: text.length !== 0
@@ -38,6 +50,8 @@ Rectangle {
         font.pixelSize: constants.popupHeaderTextSize * sizeFactor
         font.capitalization: Font.AllUppercase
     }
+
+    // Firmware version
     Text {
         visible: (showFWUpdateRetryCounter >= 5)
         text: "Firmware " + System.versionID
@@ -51,6 +65,8 @@ Rectangle {
             horizontalCenter: parent.horizontalCenter
         }
     }
+
+    // The icon
     Image {
         id: busyIcon
         anchors {
@@ -64,7 +80,10 @@ Rectangle {
             onClicked: showFWUpdateRetryCounter++
         }
         scale: sizeFactor
+
     }
+
+    // Error-code
     Text {
         id: errcodeTextItem
         anchors {
@@ -83,6 +102,7 @@ Rectangle {
         verticalAlignment: Text.AlignVCenter
         wrapMode: Text.WordWrap
     }
+
     Column {
         id: textLayout
         anchors {
@@ -96,6 +116,8 @@ Rectangle {
             bottomMargin: 10 * sizeFactor
         }
         spacing: 6 * sizeFactor
+
+        // SubText (Describe the issue)
         Text {
             visible: text != ""
             id: subTextItem
@@ -111,6 +133,8 @@ Rectangle {
             verticalAlignment: Text.AlignVCenter
             wrapMode: Text.WordWrap
         }
+
+        // Bottom text (Standard information)
         Text {
             id: bottomTextItem
             anchors {
@@ -126,6 +150,8 @@ Rectangle {
             wrapMode: Text.WordWrap
         }
     }
+
+
     Row {
         id: buttonRow
         anchors {
@@ -141,6 +167,7 @@ Rectangle {
         layoutDirection: Qt.RightToLeft
         visible: showButtons
         enabled: showButtons
+
         MenuButton {
             id: saveLogsButton
             spacing: constants.menuButtonSpacing / 2 * sizeFactor
@@ -185,12 +212,16 @@ Rectangle {
                 minWidth: maxWidth
             }
         }
+
     }
+
+    // Prevent closing when clicking outside of popup
     MouseArea {
         z: -1
         anchors.fill: parent
         onClicked: {}
     }
+
     Loader {
         objectName: "subDialog_Loader"
         anchors.fill: parent
@@ -200,8 +231,10 @@ Rectangle {
         asynchronous: true
         focus: active
         onActiveChanged: {
+            // If active becomes false, a dialog was closed, and list must get focus
             if(!active)
             {
+                // Make sure to break various bindings that could case this to be active again
                 subDialog.active = false
                 root.forceActiveFocus()
             }
@@ -211,4 +244,4 @@ Rectangle {
             subDialog.active = false
         }
     }
-}
+} // Rectangle

@@ -117,8 +117,9 @@ Tyto položky mají v C++ daemonech kompletně dokončenou implementaci pro X1D 
 Nejunikátnější nález v celém firmwaru X1D-50c se skrývá v `SettingsGeneric.qml` (řádky 703–825). Protože X1D-50c používá kontrastní ostření (CDAF) počítané v čipu **FARM FPGA** a krokový motor v objektivech řady XCD, vývojáři si v GUI nechali kompletní ladicí panel autofokusu (skrytý za `!guiconfig.hideDemoItems`):
 
 1. **`DebugAfSpeedEnable` + `DebugAfSpeed` (Rychlost motoru autofokusu)**:
-   - V `SettingsMiddleLayer` (`victory-gui`, offset `0x1bf2d8`) je definováno 13 diskrétních rychlostí:
+   - V `SettingsMiddleLayer` (`victory-gui`, offset `0x1bf2d8` / `0x82b90`) je v rozbalovacím seznamu definováno 13 diskrétních rychlostí:
      `7000`, `9000`, `11000`, `13000`, `15000`, `17000`, `19000`, `21000`, `23000`, `25000`, `27000`, `29000`, `31000`.
+   - **Důležitý nález z `/usr/bin/configstore` (`0x13d68..0x13de0`):** Démon `configstore` má pro `DebugAfSpeed` natvrdo zakódovaný rozsah **`min = 3000`**, **`max = 20000`** (`0x4e20`) a **`default = 5000`**. Hodnoty `21000..31000` démon odmítne (`Property DebugAfSpeed could not be set to new value`). Nejvyšší platná hodnota z menu je proto **`19000`** (nebo přímý integer **`20000`** z QML), což představuje **3,8× až 4,0× zrychlení** oproti výchozím `5000`.
    - `msg2dbus` tuto hodnotu posílá přes kanál **`af_cmd_speed`** (offset `0x53597` v `msg2dbus`) přímo do řadiče objektivu XCD!
 2. **`fpga_debug` („Brenner“ – vážení kontrastní metriky v FPGA)**:
    - Brennerův gradient je matematická funkce, podle které FPGA vyhodnocuje ostrost obrazu v ostřícím bodě.
@@ -158,7 +159,8 @@ Co se stane, když v QML povolíme `grid_model` i pro X1D?
   ...
   0x328a8: b    WedgeStateMachine::findFocus ; jinak (pro JAKÝKOLIV jiný režim) spusť jednorázové CDAF ostření!
   ```
-- **Závěr**: Třída `WedgeStateMachine` v `camera-daemon` testuje pouze to, zda je `FocusMode == 3` (`Focus_MAN`) nebo `!= 3`. Režimy `AF-C` a `True Focus` jsou určeny pro zrcadlovku **H6D** (`Victory`), kde fázové ostření a gyroskopický výpočet True Focusu provádí procesor v těle zrcadlovky (`cambody`). Na X1D-50c se proto po odemknutí ikonek `AF-C` a `True Focus` v menu oba režimy při focení chovají identicky jako běžné jednorázové ostření **`AF-S`**.
+- **Závěr (tovární chování vs. náš vlastní `AF-C` engine)**: Třída `WedgeStateMachine` v `camera-daemon` testuje pouze to, zda je `FocusMode == 3` (`Focus_MAN`) nebo `!= 3`. Pokud by se pouze odemkla ikonka `AF-C` v `PopoverFocusMode.qml`, fotoaparát provede jen jedno zaostření a zůstane čekat ve stavu `"Session is idle, starting liveview"`.
+- **Naše plnohodnotná implementace `AF-C` pro X1D-50c (`MOD-FEAT-AFC`):** V modulu [`custom_firmware_dokumentace/05-modul-continuous-autofocus-afc.md`](../custom_firmware_dokumentace/05-modul-continuous-autofocus-afc.md) ([`build_custom_firmware.py --mode afc`](../build_custom_firmware.py)) jsme nad `WedgeStateMachine` postavili vlastní kontinuální CDAF engine v `main.qml`, který při držení `HALFPRESS` / `AF-D` v režimu `Config.Focus_AFC (2)` automaticky cykluje CDAF relace (`stopSession()` -> `startSession(showLiveView, true)`), aktivuje zrychlení motoru XCD (`DebugAfSpeed = 19000`, `DebugAfSpeedEnable = true`), podporuje **Touch-to-Track** v LiveView a má okamžitou prioritu plného domáčknutí spouště (`EXPOSURE`).
 
 ---
 

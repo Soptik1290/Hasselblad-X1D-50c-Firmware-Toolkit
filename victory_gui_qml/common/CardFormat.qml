@@ -1,11 +1,15 @@
 import QtQuick 2.0
+
 import com.hasselblad.storage 1.0
 import com.hasselblad.config 1.0
 import com.hasselblad.farm 1.0
+
 import "qrc:///components"
 import "qrc:///components/buttons"
 import "qrc:///components/popups"
+
 import "qrc:///scripts/Keys.js" as MKeys
+
 Rectangle {
     objectName: "CardFormat_root"
     id: root
@@ -53,13 +57,17 @@ Rectangle {
     property int bottomTextCenterMargin: constants.bottomTextCenterMargin
     property bool allowAskCard: areAllPresent
     property bool sideOriented: guiconfig.isWedge
+
+    // Reducing some complexity, making comparisons more readable.
     readonly property bool isCard0Present: ContentModel.card0Status !== ContentModel.STORAGE_ABSENT
     readonly property bool isCard1Present: ContentModel.card1Status !== ContentModel.STORAGE_ABSENT
     readonly property bool areAllPresent: isCard0Present && isCard1Present
     readonly property bool isAnyPresent: isCard0Present || isCard1Present
     readonly property bool areAllAbsent: !isAnyPresent
+
     z:200
     focus: true
+
     Text {
         id: topHeader
         text: qsTr("FORMAT") + guiconfig.emptyString
@@ -70,7 +78,9 @@ Rectangle {
         color: constants.dialogHeaderColor
         font.capitalization: Font.AllUppercase
         font.family: constants.menuItemFontName
+
     }
+
     Text {
         id: subHeader
         anchors {
@@ -86,7 +96,9 @@ Rectangle {
         font.pixelSize: 60
         fontSizeMode: Text.HorizontalFit
         horizontalAlignment: Text.AlignHCenter
+        //font.capitalization: Font.AllUppercase
     }
+
     Image {
         id: imgExclamationMark
         source: "qrc:///icons/exclamationMark.png"
@@ -104,6 +116,7 @@ Rectangle {
             }
         ]
     }
+
     Text {
         id: subText
         anchors {
@@ -119,10 +132,13 @@ Rectangle {
         fontSizeMode: Text.HorizontalFit
         horizontalAlignment: Text.AlignHCenter
     }
+
     function exitDialog()
     {
+        // Exit dialog here
         parent.active = false
     }
+
     function format()
     {
         if(actualCardToFormat !== Config.CardNone || root.state === "FormatCard")
@@ -130,13 +146,18 @@ Rectangle {
         else
             console.log("format() fail, state: " + root.state + ", cardToFormat:" + actualCardToFormat);
     }
+
     Component.onCompleted: {
         if (root.actualCardToFormat === Config.CardNone) {
+            // Allow returning to AskCard state on card insert/removal changes.
             allowAskCard = true;
         }
     }
+
+
     Keys.onPressed: {
         event.accepted = true;
+        // Make sure nothing can disturb formatting
         if(state !== "Formatting" && state !== "CardBusy")
         {
             if(MKeys.pressedFn("HALFPRESS", event.key) || MKeys.pressedFn("EXPOSURE", event.key))
@@ -151,10 +172,13 @@ Rectangle {
             }
         }
     }
+
     MouseArea{
         anchors.fill: parent
         onClicked: {}
     }
+
+    // This grid is only visible in the AskCard state.
     Grid {
         id: selectCardGrid
         visible: false
@@ -163,15 +187,18 @@ Rectangle {
         anchors.top: root.top
         anchors.topMargin: 216
         anchors.horizontalCenter: imgExclamationMark.horizontalCenter
+
         MenuButton {
             text: guiconfig.storageSlotName(Config.Card0) + guiconfig.emptyString
             onClicked: cardToFormat = Config.Card0
         }
+
         MenuButton {
             text: guiconfig.storageSlotName(Config.Card1) + guiconfig.emptyString
             onClicked: cardToFormat = Config.Card1
         }
     }
+
     ConfirmationButtons {
         id: confirmButtons
         color: root.color
@@ -180,6 +207,7 @@ Rectangle {
         firstText: qsTr("Exit") + guiconfig.emptyString
         lastText: qsTr("Format") + guiconfig.emptyString
     }
+
     PopoverBusy {
         id: formatInfo
         anchors.fill: parent
@@ -190,6 +218,7 @@ Rectangle {
         visible: false
         enabled: false
     }
+
     PopoverBusy {
         id: cardBusyInfo
         anchors.fill: parent
@@ -200,6 +229,7 @@ Rectangle {
         visible: false
         enabled: false
     }
+
     states: [
         State {
             name: "Formatting"
@@ -231,17 +261,20 @@ Rectangle {
         },
         State {
             name: "NoCard"
+            // This state is used when no card is available, or when selected card is not available.
             when: (!isCard0Present || (actualCardToFormat === Config.Card1)) && (!isCard1Present || (actualCardToFormat === Config.Card0))
             PropertyChanges { target: root; subHeader: qsTranslate("CardFormat", "No card available."); subText: qsTranslate("MENUS", "Please insert card...") }
             PropertyChanges { target: imgExclamationMark; visible: false }
             PropertyChanges { target: confirmButtons; firstText: qsTranslate("MENUS", "Exit"); lastAvailable: false }
             PropertyChanges { target: confirmButtons; lastText: "" }
         },
+        // Catch-all error state. We should never end up here:
         State {
             name: ""
             PropertyChanges { target: root; subHeader: "Undefined state."; subText: qsTranslate("MENUS", "Error.") }
         }
     ]
+
     onStateChanged: console.log("New state for CardFormat: ", state)
     transitions: [
         Transition {
@@ -250,5 +283,7 @@ Rectangle {
                 script: exitDialog()
             }
         }
+
     ]
 }
+

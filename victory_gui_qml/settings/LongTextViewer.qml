@@ -1,37 +1,46 @@
 import QtQuick 2.0
 import "qrc:///scripts/Keys.js" as MKeys
+
 Rectangle {
     id: root
     color: constants.menuBackgroundColor
     property string headingText
     property alias longText: longTextItem.text
     focus: true
+
+
     Keys.onPressed: {
         event.accepted = true
-        if(MKeys.pressedFn("ESCAPE", event.key)) {
+        if(MKeys.pressedFn("ESCAPE", event.key) || (!guiconfig.isWedge && MKeys.pressedFn("LEFT", event.key))) {
             closeSubDialog()
         }
-        else if(MKeys.pressedFn("LEFT", event.key) || MKeys.pressedFn("UP", event.key)) {
+        else if((guiconfig.isWedge && MKeys.pressedFn("LEFT", event.key)) || MKeys.pressedFn("UP", event.key)) {
             longTextFlick.contentY -= longTextItem.font.pixelSize
             longTextFlick.returnToBounds()
         }
-        else if(MKeys.pressedFn("RIGHT", event.key) || MKeys.pressedFn("DOWN", event.key)) {
+        else if((guiconfig.isWedge && MKeys.pressedFn("RIGHT", event.key)) || MKeys.pressedFn("DOWN", event.key)) {
             longTextFlick.contentY += longTextItem.font.pixelSize
             longTextFlick.returnToBounds()
         }
-        else if(MKeys.pressedFn("CROSS", event.key))
+        else if((guiconfig.isWedge && MKeys.pressedFn("CROSS", event.key))   ||
+                (!guiconfig.isWedge && MKeys.pressedFn("SQUARE", event.key))   )
         {
+            // Page down
             longTextFlick.contentY += longTextFlick.height
             longTextFlick.returnToBounds()
         }
-        else if(MKeys.pressedFn("SQUARE", event.key))
+        else if((guiconfig.isWedge && MKeys.pressedFn("SQUARE", event.key)) ||
+                (!guiconfig.isWedge && MKeys.pressedFn("CROSS", event.key))   )
         {
+            // Page up
             longTextFlick.contentY -= longTextFlick.height
             longTextFlick.returnToBounds()
         }
         else
             event.accepted = false;
     }
+
+
     Rectangle {
         id: viewEndLine
         color: constants.cameraViewLineColor
@@ -40,11 +49,14 @@ Rectangle {
         anchors.top: parent.top
         width: constants.viewEndLineWidth
     }
+
     MouseArea{
         anchors.left: viewEndLine.right
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.bottom: parent.bottom
+
+        // We must have this here to be able to drag:
         drag {
             target: root
             axis: Drag.XAxis
@@ -55,14 +67,17 @@ Rectangle {
         }
         drag.onActiveChanged: {
             if (!drag.active) {
+                // Done dragging
                 if (drag.target.x > (root.width / constants.swipeLengthDividor))
                 {
+                    // Dragged enough to the right. Close the window
                     closeSubDialog()
                 }
                 root.x = -constants.viewEndLineWidth
             }
         }
         onClicked: {}
+        // Header text
         Text{
             id: header
             anchors.left: parent.left
@@ -75,6 +90,7 @@ Rectangle {
             font.capitalization: Font.AllUppercase
             text: qsTr(headingText) + guiconfig.emptyString
         }
+        // Long text
         Item {
             id: longTextHolder
             anchors.left: parent.left
@@ -101,6 +117,7 @@ Rectangle {
                     wrapMode: Text.Wrap
                 }
             }
+
             Rectangle{
                 color: "grey"
                 anchors.right: parent.right
@@ -110,6 +127,6 @@ Rectangle {
                 y: longTextFlick.visibleArea.yPosition * longTextFlick.height
                 height: Math.max(20, longTextFlick.visibleArea.heightRatio * longTextFlick.height)
             }
-        }
-    }
+        } // Item
+    } // Rectangle
 }

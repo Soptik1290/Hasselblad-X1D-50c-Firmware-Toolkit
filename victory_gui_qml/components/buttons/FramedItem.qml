@@ -1,4 +1,5 @@
 import QtQuick 2.0
+
 Rectangle {
     id: root
     objectName: "FramedItem_root"
@@ -10,22 +11,25 @@ Rectangle {
     radius: 0
     property bool selectable: true
     opacity: selectable ? 1 : 0.5
+
+    // The color the text should have
     property color textColor: "white"
     property color borderHighlightColor: constants.highlightColor
     property color backColor: "transparent"
     property alias content: childContent.children
     property alias textWrapping: subheading.wrapMode
     property string text: ""
-    property bool showInvertedFocus: false
-    property bool showBoldTextAtFocus: true
+    property bool showInvertedFocus: false // true -> invert frame colors when selected
+    property bool showBoldTextAtFocus: true // true -> text will be fat when button focused
     property bool showBoldText: showBoldTextAtFocus && (mouseArea.containsMouse && mouseArea.pressed)
-    property bool showFrameAtFocus: false
+    property bool showFrameAtFocus: false // true -> frame will be highlighted when button focused
     property bool forceShowHighlite: false
     signal clicked()
     signal pressAndHold()
     signal pressed()
     signal released()
     property bool acceptKeys: true
+
     Keys.onReturnPressed: {
         if(acceptKeys)
         {
@@ -37,10 +41,12 @@ Rectangle {
             event.accepted = false
         }
     }
+
     Item {
         id: childContent
         anchors.centerIn: parent
     }
+
     Text {
         id: subheading
         visible: parent.text != ""
@@ -56,6 +62,7 @@ Rectangle {
         horizontalAlignment: Text.AlignHCenter
         wrapMode: guiconfig.usingUnicodeLanguage ? Text.NoWrap : Text.Wrap
     }
+
     MouseArea {
         id: mouseArea
         anchors.top: root.top

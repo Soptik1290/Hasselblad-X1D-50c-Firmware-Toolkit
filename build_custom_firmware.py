@@ -253,6 +253,19 @@ exit 1
 """
 
 
+AFC_MODULE_FILES = (
+    "common/GlobalStateInfo.qml",
+    "common/TouchWindow.qml",
+    "components/popups/PopoverFocusMode.qml",
+    "controlscreen/ControlScreen.qml",
+    "liveview/AFIndicator.qml",
+    "liveview/EVFWindow.qml",
+    "liveview/LiveViewImage.qml",
+    "liveview/LiveViewOverlay.qml",
+    "main.qml",
+)
+
+
 def strip_all_qml_js_in_workspace() -> Dict[str, int]:
     """Strips comments and blank lines from all 137 .qml and .js files in victory_gui_qml/."""
     code_files = sorted(
@@ -308,8 +321,16 @@ def extract_factory_rootfs_from_cim(cim_path: Path) -> bytes:
     raise RuntimeError("rootfs item not found in template .cim")
 
 
-def patch_all_qrc_into_victory_gui(orig_vgui: bytes) -> Tuple[bytes, Dict[str, int]]:
-    """Patches all 405 QRC resources from victory_gui_qml/ into victory-gui with zlib level 9."""
+def patch_qrc_into_victory_gui(
+    orig_vgui: bytes,
+    only_paths: Tuple[str, ...] = None,
+    strip_comments_in_memory: bool = True,
+) -> Tuple[bytes, Dict[str, Any]]:
+    """
+    Patches QRC resources from victory_gui_qml/ into victory-gui with zlib level 9.
+    If `only_paths` is provided (e.g. `AFC_MODULE_FILES`), ONLY those QRC slots are
+    modified and all other 397 QRC resources remain 100% factory-original.
+    """
     blob = bytearray(orig_vgui)
     rmap = ResourceMap(blob)
 
@@ -317,6 +338,7 @@ def patch_all_qrc_into_victory_gui(orig_vgui: bytes) -> Tuple[bytes, Dict[str, i
     packed_before = 0
     packed_after = 0
     patched_count = 0
+    slot_details: List[Dict[str, Any]] = []
 
     for entry in rmap.entries:
         rpath = entry["path"]
@@ -324,11 +346,12 @@ def patch_all_qrc_into_victory_gui(orig_vgui: bytes) -> Tuple[bytes, Dict[str, i
         base = DATA_BASE + entry["data_offset"]
         slot = rmap.slot_size(entry)
 
-        if flags & 0x1:
-            old_used = 4 + u32(blob, base)
-        else:
-            old_used = 4 + u32(blob, base)
+        old_used = 4 + u32(blob, base)
         packed_before += old_used
+
+        if only_paths is not None and rpath not in only_paths:
+            packed_after += old_used
+            continue
 
         disk_file = QML_DIR / rpath
         if not disk_file.exists():
@@ -337,13 +360,17 @@ def patch_all_qrc_into_victory_gui(orig_vgui: bytes) -> Tuple[bytes, Dict[str, i
 
         replacement = disk_file.read_bytes()
         is_code = rpath.endswith((".qml", ".js"))
+        if is_code and strip_comments_in_memory:
+            replacement = strip_qml_js_comments(replacement)
+            err = check_balanced_syntax(replacement, rpath)
+            if err:
+                raise RuntimeError(f"Syntax error after in-memory comment strip in {err}")
 
         if flags & 0x1:
             compressed = zlib.compress(replacement, 9)
             compressed_payload_len = 4 + len(compressed)
             needed = 4 + compressed_payload_len
             if not is_code and needed >= old_used:
-                # Keep original PNG stream if zlib-9 is not smaller
                 packed_after += old_used
                 continue
             if needed > slot:
@@ -354,6 +381,14 @@ def patch_all_qrc_into_victory_gui(orig_vgui: bytes) -> Tuple[bytes, Dict[str, i
             blob[base + 8 + len(compressed) : base + slot] = b"\x00" * (slot - needed)
             packed_after += needed
             patched_count += 1
+            slot_details.append({
+                "path": rpath,
+                "flags": flags,
+                "slot_capacity": slot,
+                "old_used": old_used,
+                "new_used": needed,
+                "spare_bytes": slot - needed,
+            })
         else:
             needed = 4 + len(replacement)
             if needed > slot:
@@ -363,6 +398,14 @@ def patch_all_qrc_into_victory_gui(orig_vgui: bytes) -> Tuple[bytes, Dict[str, i
                 blob[base + 4 : base + 4 + len(replacement)] = replacement
                 blob[base + 4 + len(replacement) : base + slot] = b"\x00" * (slot - needed)
                 patched_count += 1
+                slot_details.append({
+                    "path": rpath,
+                    "flags": flags,
+                    "slot_capacity": slot,
+                    "old_used": old_used,
+                    "new_used": needed,
+                    "spare_bytes": slot - needed,
+                })
             packed_after += needed
 
     stats = {
@@ -372,8 +415,51 @@ def patch_all_qrc_into_victory_gui(orig_vgui: bytes) -> Tuple[bytes, Dict[str, i
         "packed_after": packed_after,
         "packed_saved": packed_before - packed_after,
         "free_pool_after": total_slot_capacity - packed_after,
+        "slot_details": slot_details,
     }
     return bytes(blob), stats
+
+
+def build_stock_rootfs_with_patched_gui(
+    factory_rootfs_bz2: bytes, patched_vgui: bytes
+) -> Tuple[bytes, Dict[str, Any]]:
+    """
+    Rebuilds rootfs.tar.bz2 on top of the stock 1.25.0 rootfs, replacing ONLY
+    `/usr/bin/victory-gui` while keeping all coprocessor blobs and scripts factory-original.
+    """
+    out_buf = io.BytesIO()
+    kept_files = 0
+    uncompressed_bytes = 0
+
+    with tarfile.open(fileobj=io.BytesIO(factory_rootfs_bz2), mode="r:bz2") as tar_in:
+        with tarfile.open(fileobj=out_buf, mode="w:bz2", compresslevel=9) as tar_out:
+            for member in tar_in:
+                if member.name == "./usr/bin/victory-gui" and member.isfile():
+                    member.size = len(patched_vgui)
+                    uncompressed_bytes += member.size
+                    tar_out.addfile(member, io.BytesIO(patched_vgui))
+                    kept_files += 1
+                    continue
+
+                if member.isfile():
+                    uncompressed_bytes += member.size
+                    tar_out.addfile(member, tar_in.extractfile(member))
+                else:
+                    tar_out.addfile(member)
+                kept_files += 1
+
+    new_rootfs_bz2 = out_buf.getvalue()
+    stats = {
+        "kept_members": kept_files,
+        "removed_members_count": 0,
+        "removed_uncompressed_bytes": 0,
+        "uncompressed_bytes": uncompressed_bytes,
+        "compressed_before_bytes": len(factory_rootfs_bz2),
+        "compressed_after_bytes": len(new_rootfs_bz2),
+        "compressed_saved_bytes": len(factory_rootfs_bz2) - len(new_rootfs_bz2),
+        "removed_files": [],
+    }
+    return new_rootfs_bz2, stats
 
 
 def build_x1d_clean_rootfs(factory_rootfs_bz2: bytes, patched_vgui: bytes) -> Tuple[bytes, Dict[str, Any]]:
@@ -453,23 +539,48 @@ def build_x1d_clean_rootfs(factory_rootfs_bz2: bytes, patched_vgui: bytes) -> Tu
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Build lightweight X1D-only custom firmware (.cim)")
-    parser.add_argument("-o", "--output", type=Path, default=OUTPUT_CIM, help="Output .cim file path")
+    parser = argparse.ArgumentParser(description="Build modular custom X1D-50c firmware (.cim)")
+    parser.add_argument(
+        "-m",
+        "--mode",
+        choices=("afc", "lite"),
+        default="afc",
+        help="Build mode: 'afc' (Default 1.25.0 + Continuous Autofocus AF-C module) or 'lite' (X1D-only lightweight)",
+    )
+    parser.add_argument("-o", "--output", type=Path, default=None, help="Output .cim file path")
     args = parser.parse_args()
+
+    if args.output is None:
+        args.output = (
+            FIRMWARE_DIR / "X1D_v1_25_0_afc.cim"
+            if args.mode == "afc"
+            else FIRMWARE_DIR / "X1D_v1_25_0_x1d_lite.cim"
+        )
 
     t0 = time.time()
     print("=" * 80)
-    print(" BUILDING CUSTOM LIGHTWEIGHT X1D-50c FIRMWARE (X1D-ONLY, NO COMMENTS)")
+    if args.mode == "afc":
+        print(" BUILDING CUSTOM X1D-50c FIRMWARE: DEFAULT 1.25.0 + CONTINUOUS AUTOFOCUS (AF-C)")
+    else:
+        print(" BUILDING CUSTOM LIGHTWEIGHT X1D-50c FIRMWARE (X1D-ONLY, NO COMMENTS)")
     print("=" * 80)
 
-    # 1. Strip comments from all QML/JS files in victory_gui_qml/
-    print("\n[1/5] Stripping comments and blank lines from all QML/JS files in victory_gui_qml/ ...")
-    qml_stats = strip_all_qml_js_in_workspace()
-    print(
-        f"      -> Processed {qml_stats['total_code_files']} QML/JS files: "
-        f"{qml_stats['bytes_before']:,} B -> {qml_stats['bytes_after']:,} B "
-        f"(saved {qml_stats['bytes_saved']:,} B)"
-    )
+    if args.mode == "lite":
+        print("\n[1/5] Stripping comments and blank lines from all QML/JS files in victory_gui_qml/ ...")
+        qml_stats = strip_all_qml_js_in_workspace()
+        print(
+            f"      -> Processed {qml_stats['total_code_files']} QML/JS files: "
+            f"{qml_stats['bytes_before']:,} B -> {qml_stats['bytes_after']:,} B "
+            f"(saved {qml_stats['bytes_saved']:,} B)"
+        )
+    else:
+        print(f"\n[1/5] Validating {len(AFC_MODULE_FILES)} modified AF-C QML files against factory 1.25.0 baseline ...")
+        for rel in AFC_MODULE_FILES:
+            raw = (QML_DIR / rel).read_bytes()
+            err = check_balanced_syntax(raw, rel)
+            if err:
+                raise RuntimeError(f"QML syntax error in {err}")
+        print(f"      -> All {len(AFC_MODULE_FILES)} AF-C module QML files passed syntax verification.")
 
     # 2. Extract original victory-gui & rootfs from template X1D_v1_25_0.cim (for clean repeatability)
     print("\n[2/5] Extracting factory baseline rootfs & victory-gui from X1D_v1_25_0.cim ...")
@@ -477,32 +588,42 @@ def main():
     with tarfile.open(fileobj=io.BytesIO(factory_rootfs_bz2), mode="r:bz2") as tar:
         orig_vgui = tar.extractfile("./usr/bin/victory-gui").read()
 
-    # 3. Patch all 137 cleaned QML/JS files into victory-gui
-    print("\n[3/5] Patching cleaned X1D-only QML/JS resources into /usr/bin/victory-gui (zlib-9) ...")
-    patched_vgui, qrc_stats = patch_all_qrc_into_victory_gui(orig_vgui)
+    # 3. Patch QML/JS files into victory-gui
+    only_paths = AFC_MODULE_FILES if args.mode == "afc" else None
+    print(
+        f"\n[3/5] Patching {'8 AF-C module' if args.mode == 'afc' else 'all 137'} QRC resources into /usr/bin/victory-gui (zlib-9) ..."
+    )
+    patched_vgui, qrc_stats = patch_qrc_into_victory_gui(
+        orig_vgui, only_paths=only_paths, strip_comments_in_memory=True
+    )
     (EXTRACTED_DIR / "victory-gui").write_bytes(patched_vgui)
     print(
         f"      -> Patched {qrc_stats['patched_resources']} QRC slots: "
         f"{qrc_stats['packed_before']:,} B -> {qrc_stats['packed_after']:,} B "
         f"(freed +{qrc_stats['packed_saved']:,} B; total free QRC pool: {qrc_stats['free_pool_after']:,} B)"
     )
+    if args.mode == "afc":
+        for sd in qrc_stats["slot_details"]:
+            print(
+                f"         * {sd['path']:40s} slot={sd['slot_capacity']:6,d} B | "
+                f"used={sd['new_used']:6,d} B | spare=+{sd['spare_bytes']:5,d} B"
+            )
 
-    # 4. Rebuild rootfs.tar.bz2 without non-X1D coprocessor firmware blobs
-    print("\n[4/5] Rebuilding rootfs.tar.bz2 (removing Victory/Albatross/Idun/A6D/H6D blobs) ...")
-    clean_rootfs_bz2, rootfs_stats = build_x1d_clean_rootfs(factory_rootfs_bz2, patched_vgui)
-    (EXTRACTED_DIR / "rootfs").write_bytes(clean_rootfs_bz2)
+    # 4. Rebuild rootfs.tar.bz2
+    if args.mode == "afc":
+        print("\n[4/5] Rebuilding stock 1.25.0 rootfs.tar.bz2 (injecting ONLY /usr/bin/victory-gui) ...")
+        new_rootfs_bz2, rootfs_stats = build_stock_rootfs_with_patched_gui(factory_rootfs_bz2, patched_vgui)
+    else:
+        print("\n[4/5] Rebuilding rootfs.tar.bz2 (removing Victory/Albatross/Idun/A6D/H6D blobs) ...")
+        new_rootfs_bz2, rootfs_stats = build_x1d_clean_rootfs(factory_rootfs_bz2, patched_vgui)
+
+    (EXTRACTED_DIR / "rootfs").write_bytes(new_rootfs_bz2)
     (EXTRACTED_DIR / "rootfs_stats.json").write_text(
         json.dumps(rootfs_stats, indent=2, ensure_ascii=False), encoding="utf-8"
     )
     print(
-        f"      -> Removed {rootfs_stats['removed_members_count']} non-X1D files/links "
-        f"({rootfs_stats['removed_uncompressed_bytes']:,} B uncompressed)"
-    )
-    print(
         f"      -> rootfs.tar.bz2 size: {rootfs_stats['compressed_before_bytes']:,} B -> "
-        f"{rootfs_stats['compressed_after_bytes']:,} B "
-        f"(saved {rootfs_stats['compressed_saved_bytes']:,} B = "
-        f"{rootfs_stats['compressed_saved_bytes'] / (1024 * 1024):.2f} MB)"
+        f"{rootfs_stats['compressed_after_bytes']:,} B"
     )
 
     # 5. Pack custom .cim container
@@ -515,10 +636,7 @@ def main():
     new_cim_sz = args.output.stat().st_size
     print("\n" + "=" * 80)
     print(f" BUILD COMPLETE in {elapsed:.1f}s: {args.output}")
-    print(
-        f" .CIM Size: {orig_cim_sz:,} B -> {new_cim_sz:,} B "
-        f"(Saved {orig_cim_sz - new_cim_sz:,} B / {(orig_cim_sz - new_cim_sz)/(1024*1024):.2f} MB)"
-    )
+    print(f" .CIM Size: {orig_cim_sz:,} B -> {new_cim_sz:,} B")
     print("=" * 80)
 
 

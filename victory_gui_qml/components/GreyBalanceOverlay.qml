@@ -4,23 +4,29 @@ import com.hasselblad.farm 1.0
 import com.hasselblad.systemmanager 1.0
 import com.hasselblad.camera 1.0
 import com.hasselblad.config 1.0
+
 import "qrc:/browseview"
 import "qrc:/components/controls"
+
 Item {
     id: root
     property string metaImgName
     property int metaVolumeType
     property bool ramOnly: farm.ram_only_mode === Farm.RamModeRamOnly
     property bool isTethered: System.isTethered
+
     property string progressDots: ""
     property int greyBalanceTemp: 0xffff
     property int tint: 0xffff
+
     function volumeSymbol(index)
     {
+        // Tethered mode overrides any storage volume.
         if(isTethered)
             return "USB"
         return guiconfig.storageSlotLetter(index)
     }
+
     Rectangle {
         id: topMeta
         color: "black"
@@ -32,6 +38,7 @@ Item {
         }
         height: constants.topMetaHeight
     }
+
     Rectangle {
         id: volumeBack
         color: ramOnly ? "red" : "transparent"
@@ -47,6 +54,7 @@ Item {
             bottomMargin: 4
         }
     }
+
     Text {
         id: cardSymbol
         color: "white"
@@ -57,6 +65,7 @@ Item {
             leftMargin: isTethered ? 6 : 2
             rightMargin: isTethered ? 6 : 2
         }
+        // TODO: Here fix the CARD type & slot preferably with an image instead of text.
         text: guiconfig.emptyString + (ramOnly ? qsTr("DEMO - NO STORAGE").toUpperCase() : volumeSymbol(metaVolumeType))
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
@@ -65,6 +74,7 @@ Item {
         font.bold: ramOnly && !guiconfig.usingUnicodeLanguage
         font.family: ramOnly && guiconfig.usingUnicodeLanguage ? "DroidSansFallback" : constants.dialogTextFontName
     }
+
     Text {
         id: imgName
         color: "white"
@@ -79,8 +89,10 @@ Item {
             rightMargin: constants.metaDataMargins
         }
         elide: Text.ElideRight
-        text: metaImgName.replace(/\.[^/.]+$/, "")
+        // TODO: Here fix the CARD type+ slot preferably with an image instead of text.
+        text: metaImgName.replace(/\.[^/.]+$/, "") // This regex cuts off the file extension from the picture name!
     }
+
     Text {
         id: imgGreyBalanceWorking
         visible: progressDots !== ""
@@ -100,6 +112,7 @@ Item {
         verticalAlignment: Text.AlignVCenter
         text: qsTr("Calculating") + progressDots + guiconfig.emptyString
     }
+
     Text {
         id: imgGreyBalanceTemp
         visible: progressDots === ""

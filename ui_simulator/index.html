@@ -1645,6 +1645,7 @@
       isos: ["100", "200", "400", "800", "1600", "3200", "6400", "12800", "25600"],
       isoIdx: 0,
       focusMode: "AF-S",
+      lastAutoFocusMode: "AF-S",
       favorites: [
         { text: "Quality", icon: "LargeIconQuality", settingsList: "cameraSettingsQuality", cat: "CAMERA SETTINGS" },
         { text: "Autofocus", icon: "LargeIconAutofocus", settingsList: "cameraSettingsAutofocus", cat: "CAMERA SETTINGS" },
@@ -2490,10 +2491,10 @@
     }
 
     function openFocusModePopover() {
-      // PopoverFocusMode.qml: model: guiconfig.isWedge ? grid_model_wedge : grid_model
+      // PopoverFocusMode.qml: grid_model_wedge now includes AF-S, AF-C (Continuous Focus), and MF!
       const options = (!guiconfig.isWedge || !guiconfig.hideDemoItems)
-        ? ["AF-S (Single)", "AF-C (Continuous - H6D)", "True Focus (AF-T - H6D)", "MF (Manual)"]
-        : ["AF-S", "MF"];
+        ? ["AF-S (Single)", "AF-C (Continuous)", "True Focus (AF-T - H6D)", "MF (Manual)"]
+        : ["AF-S (Single Focus)", "AF-C (Continuous Focus)", "MF (Manual Focus)"];
       state.popover = {
         type: "focusMode",
         title: "FOCUS MODE (PopoverFocusMode.qml)",
@@ -2511,6 +2512,12 @@
         inspectSetting(state.popover.name, state.popover.title);
       } else if (state.popover.type === "focusMode") {
         state.focusMode = opt.split(" ")[0];
+        if (state.focusMode === "AF-S" || state.focusMode === "AF-C") {
+          state.lastAutoFocusMode = state.focusMode;
+          setVal("DebugAfSpeed", "19000");
+          setVal("DebugAfSpeedEnable", state.focusMode === "AF-C");
+        }
+        inspectFocusMode();
       }
       state.popover = null;
       renderScreen();
@@ -2559,7 +2566,7 @@
 
     function pressTopBtn(btn) {
       if (btn === "AF_MF") {
-        state.focusMode = (state.focusMode === "MF") ? "AF-S" : "MF";
+        state.focusMode = (state.focusMode === "MF") ? (state.lastAutoFocusMode || "AF-S") : "MF";
         showToast(`Režim ostření: ${state.focusMode}`);
         renderScreen();
       } else if (btn === "AE_L") {
@@ -2569,7 +2576,11 @@
       } else if (btn === "AF_D") {
         const fn = getVal("Userbutton_AFDriveFunction");
         inspectSetting("Userbutton_AFDriveFunction", "AF-D Button");
-        showToast(`Tlačítko AF-D → ${fn}`);
+        if (state.focusMode === "AF-C") {
+          showToast(`AF-C Continuous Tracking aktivní (DebugAfSpeed=19000)`);
+        } else {
+          showToast(`Tlačítko AF-D → ${fn}`);
+        }
       } else if (btn === "ISO_WB") {
         const fn = getVal("Userbutton_ISOWBFunction");
         showToast(`Tlačítko ISO/WB → ${fn}`);
@@ -2629,21 +2640,21 @@
       const isEn = state.lang === "en";
       document.getElementById("xrayContent").innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-          <strong style="font-size:15px; color:#fff">Focus Mode (<code>PopoverFocusMode.qml</code>)</strong>
-          <span class="status-pill stub">${isEn ? "AF-C & True Focus are H6D-only" : "AF-C a True Focus pouze pro H6D"}</span>
+          <strong style="font-size:15px; color:#fff">Focus Mode (<code>PopoverFocusMode.qml</code> + <code>main.qml</code>)</strong>
+          <span class="status-pill ok">${isEn ? "AF-C Custom Module Active (X1D_v1_25_0_afc.cim)" : "Modul AF-C aktivní (X1D_v1_25_0_afc.cim)"}</span>
         </div>
         <div class="xray-grid">
-          <div class="k">${isEn ? "QML Condition:" : "QML podmínka:"}</div>
-          <div class="v">model: guiconfig.isWedge ? grid_model_wedge : grid_model</div>
+          <div class="k">${isEn ? "Current Mode:" : "Aktuální režim:"}</div>
+          <div class="v" style="color:#69f0ae; font-weight:bold">${state.focusMode} ${state.focusMode === "AF-C" ? "(DebugAfSpeed=19000)" : ""}</div>
           <div class="k">${isEn ? "X1D State Machine:" : "Stavový automat X1D:"}</div>
-          <div class="v">WedgeStateMachine::checkFocusMode() @ 0x32860</div>
-          <div class="k">${isEn ? "C++ Behavior:" : "Chování v C++:"}</div>
-          <div class="v">${isEn ? "Only checks FocusMode == 3 (Focus_MAN) vs != 3" : "Testuje pouze FocusMode == 3 (Focus_MAN) vs != 3"}</div>
+          <div class="v">WedgeStateMachine::checkFocusMode() @ 0x32864 + Continuous CDAF Loop</div>
+          <div class="k">${isEn ? "AF-C Engine:" : "AF-C Engine:"}</div>
+          <div class="v">${isEn ? "180ms Lock Hold + Auto Session Cycle + Touch-to-Track" : "180ms podržení zámku + Automatický cyklus + Touch-to-Track"}</div>
         </div>
-        <div style="margin-top:10px; padding:8px 10px; background:#14161b; border-left:3px solid var(--err-red); color:#d0d7de; font-size:12.5px;">
+        <div style="margin-top:10px; padding:8px 10px; background:#14161b; border-left:3px solid #69f0ae; color:#d0d7de; font-size:12.5px;">
           ${isEn
-            ? "Inside <code>camera-daemon</code>, <code>WedgeStateMachine</code> only executes <code>CMP r3, #3</code> (Manual Focus). For any other value (<code>AF-S=1</code>, <code>AF-C=2</code>, <code>AF-T=6</code>), it invokes single-shot CDAF <code>WedgeStateMachine::findFocus()</code>."
-            : "V <code>camera-daemon</code> třída <code>WedgeStateMachine</code> porovnává pouze <code>CMP r3, #3</code> (manuální ostření). Pro jakoukoliv jinou hodnotu (<code>AF-S=1</code>, <code>AF-C=2</code>, <code>AF-T=6</code>) volá jednorázové kontrastní ostření <code>WedgeStateMachine::findFocus()</code>."
+            ? "Custom <strong>Continuous Autofocus (AF-C)</strong> module on top of factory <code>1.25.0</code>: unlocks <code>Config.Focus_AFC (2)</code> in <code>PopoverFocusMode.qml</code>, boosts XCD stepping speed via <code>configstore.DebugAfSpeed = 19000</code> (3.8× faster than default 5000), runs continuous <code>WedgeStateMachine</code> CDAF refocusing while holding <code>HALFPRESS</code> or <code>AF-D</code> with instant full-shutter priority, and enables real-time Touch-to-Track &amp; EVF Touchpad AF point movement."
+            : "Vlastní modul <strong>Continuous Autofocus (AF-C)</strong> nad továrním <code>1.25.0</code>: odemyká <code>Config.Focus_AFC (2)</code> v <code>PopoverFocusMode.qml</code>, zrychluje krokový motor XCD objektivů přes <code>configstore.DebugAfSpeed = 19000</code> (3,8× rychleji než výchozích 5000), spouští kontinuální <code>WedgeStateMachine</code> CDAF přeostřování po dobu držení <code>HALFPRESS</code> nebo <code>AF-D</code> s okamžitou prioritou plné spouště a přidává Touch-to-Track i posun AF bodu na EVF touchpadu za běhu."
           }
         </div>
       `;

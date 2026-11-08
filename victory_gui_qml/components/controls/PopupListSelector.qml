@@ -1,13 +1,19 @@
+
 import QtQuick 2.0
 import com.hasselblad.settings 1.0
 import "qrc:/scripts/Keys.js" as MKeys
+
 ListSelector {
     id: root
+
     property int gridspacing: 10
     property alias model: list.model
     property string currentlySelectedValue: null
+
     signal selectedValueChanged(string value);
+
     onFocusChanged: if (focus) list.focus = true;
+
     function itemSelected(index)
     {
         if (index >= 0)
@@ -16,6 +22,7 @@ ListSelector {
         }
         root.close();
     }
+
     function setSelected()
     {
         if(visible && (list.currentIndex >= 0))
@@ -23,24 +30,29 @@ ListSelector {
             root.selectedValueChanged(list.model[list.currentIndex])
         }
     }
+
     function setSelectedClose()
     {
         setSelected()
         root.close();
     }
+
     contentItem: list
     content: Item {
         anchors.fill: parent
+
         ListView {
             id: list
             objectName: "popup_listSelector"
             clip: true
+
             anchors.top: parent.top
             anchors.bottom: parent.bottom
             anchors.left: parent.left
             anchors.right: parent.right
             boundsBehavior: Flickable.StopAtBounds
             highlightMoveVelocity: 800
+
             orientation: ListView.Vertical
             highlightRangeMode: ListView.StrictlyEnforceRange
             preferredHighlightBegin: list.height / 2 - list.height / constants.numberOfItemsVisibleInList / 2
@@ -50,14 +62,19 @@ ListSelector {
                 setSelected()
                 close()
             }
+
             function positionHighlight() {
+                // We do not want it to slowly "roll" to position, so we set duration
+                // temporarily to 0
                 var oldHighlightMoveDuration = list.highlightMoveDuration;
                 list.highlightMoveDuration = 0;
                 list.currentIndex = list.model.indexOf(currentlySelectedValue);
                 list.highlightMoveDuration = oldHighlightMoveDuration;
             }
+
             onCountChanged: positionHighlight()
             Component.onCompleted: positionHighlight()
+
             highlight: Rectangle {
                 color: constants.popupBackgroundColor
                 height: list.height / constants.numberOfItemsVisibleInList
@@ -66,7 +83,9 @@ ListSelector {
                     anchors.fill: parent
                 }
             }
+
             property real itemFontSizeBase: 50 * 5 / constants.numberOfItemsVisibleInList
+
             delegate: Item {
                 id: theItem
                 height: list.height / constants.numberOfItemsVisibleInList
@@ -91,6 +110,7 @@ ListSelector {
                         event.accepted = false
                     }
                 }
+
                 MouseArea {
                     id: mouseArea
                     anchors.fill: parent

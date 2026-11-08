@@ -18,14 +18,27 @@ import dbus.mainloop.glib
 from gi.repository import GLib
 
 
+SERVICES_BY_NAME = {}
+
+
 class HasselbladService(dbus.service.Object):
     def __init__(self, srv_name, obj_path, default_props=None):
-        self.conn = dbus.bus.BusConnection(dbus.Bus.TYPE_SYSTEM)
-        self.bus_name = dbus.service.BusName(srv_name, self.conn)
+        existing = SERVICES_BY_NAME.get(srv_name)
+        if existing is not None:
+            self.conn = existing.conn
+            self.bus_name = existing.bus_name
+        else:
+            self.conn = dbus.bus.BusConnection(dbus.Bus.TYPE_SYSTEM)
+            self.bus_name = dbus.service.BusName(srv_name, self.conn)
+            SERVICES_BY_NAME[srv_name] = self
         super().__init__(self.conn, obj_path)
         self.srv_name = srv_name
         self.obj_path = obj_path
         self.props = default_props or {}
+
+    def update_prop(self, iface, key, val):
+        self.props[key] = val
+        self.PropertiesChanged(iface, {key: val}, [])
 
     @dbus.service.method("org.freedesktop.DBus.Properties", in_signature="ss", out_signature="v")
     def Get(self, interface_name, property_name):
@@ -49,11 +62,88 @@ class HasselbladService(dbus.service.Object):
     def PropertiesChanged(self, interface_name, changed_properties, invalidated_properties):
         pass
 
-    # Generic method fallbacks called by victory-gui / libappscommon
-    @dbus.service.method("com.hasselblad.camera", in_signature="b", out_signature="")
-    def setLiveViewState(self, state):
-        print(f"[{self.srv_name}] setLiveViewState({state})")
+    # Camera methods called by victory-gui / libappscommon
+    @dbus.service.method("com.hasselblad.camera", in_signature="bs", out_signature="")
+    def setLiveViewState(self, state, receiver):
+        print(f"[{self.srv_name}] setLiveViewState({bool(state)}, '{receiver}')")
         self.props["liveViewState"] = dbus.Boolean(state)
+        vid = SERVICES_BY_NAME.get("com.hasselblad.video")
+        if vid is not None:
+            vid.update_prop("com.hasselblad.video", "videoMode", dbus.Int32(1 if state else 0))
+
+    @dbus.service.method("com.hasselblad.camera", in_signature="bb", out_signature="")
+    def SetShowLiveViewWhenFinished(self, after_exp, after_non_exp):
+        self.props["showLiveViewWhenFinished"] = dbus.Boolean(after_exp or after_non_exp)
+
+    @dbus.service.method("com.hasselblad.camera", in_signature="bb", out_signature="")
+    def StartSession(self, show_lv, force_af):
+        fmode = int(self.props.get("FocusMode", 1))
+        print(f"[{self.srv_name}] StartSession(showLV={bool(show_lv)}, forceAF={bool(force_af)}, FocusMode={fmode})")
+        if show_lv:
+            vid = SERVICES_BY_NAME.get("com.hasselblad.video")
+            if vid is not None and int(vid.props.get("videoMode", 0)) == 0:
+                vid.update_prop("com.hasselblad.video", "videoMode", dbus.Int32(1))
+        self.update_prop("com.hasselblad.camera", "inSession", dbus.Boolean(True))
+        if fmode != 3 or force_af:
+            self.update_prop("com.hasselblad.camera", "findingFocus", dbus.Boolean(True))
+
+            def _finish_af():
+                if bool(self.props.get("inSession", False)):
+                    self.props["lastAfReturnStatus"] = dbus.UInt32(0)
+                    self.props["lastAfResult"] = dbus.UInt32(1)
+                    self.props["findingFocus"] = dbus.Boolean(False)
+                    self.PropertiesChanged(
+                        "com.hasselblad.camera",
+                        {
+                            "lastAfReturnStatus": dbus.UInt32(0),
+                            "lastAfResult": dbus.UInt32(1),
+                            "findingFocus": dbus.Boolean(False),
+                        },
+                        [],
+                    )
+                return False
+
+            GLib.timeout_add(160, _finish_af)
+
+    @dbus.service.method("com.hasselblad.camera", in_signature="", out_signature="")
+    def StopSession(self):
+        print(f"[{self.srv_name}] StopSession()")
+        self.props["findingFocus"] = dbus.Boolean(False)
+        self.props["inSession"] = dbus.Boolean(False)
+        self.PropertiesChanged(
+            "com.hasselblad.camera",
+            {"findingFocus": dbus.Boolean(False), "inSession": dbus.Boolean(False)},
+            [],
+        )
+
+    @dbus.service.method("com.hasselblad.camera", in_signature="b", out_signature="")
+    def StartExposing(self, liveview_after):
+        print(f"[{self.srv_name}] StartExposing(liveviewAfter={bool(liveview_after)})")
+        self.update_prop("com.hasselblad.camera", "Exposing", dbus.Boolean(True))
+
+        def _finish_exp():
+            self.update_prop("com.hasselblad.camera", "Exposing", dbus.Boolean(False))
+            self.update_prop("com.hasselblad.camera", "inSession", dbus.Boolean(False))
+            return False
+
+        GLib.timeout_add(120, _finish_exp)
+
+    @dbus.service.method("com.hasselblad.camera", in_signature="", out_signature="")
+    def StopExposing(self):
+        print(f"[{self.srv_name}] StopExposing()")
+        self.update_prop("com.hasselblad.camera", "Exposing", dbus.Boolean(False))
+
+    @dbus.service.method("com.hasselblad.camera", in_signature="", out_signature="")
+    def FinishExposure(self):
+        self.update_prop("com.hasselblad.camera", "Exposing", dbus.Boolean(False))
+
+    @dbus.service.method("com.hasselblad.camera", in_signature="b", out_signature="uu")
+    def FindFocus(self, show_video):
+        return (dbus.UInt32(0), dbus.UInt32(1))
+
+    @dbus.service.method("com.hasselblad.camera", in_signature="", out_signature="")
+    def StopFindFocus(self):
+        self.update_prop("com.hasselblad.camera", "findingFocus", dbus.Boolean(False))
 
     @dbus.service.method("com.hasselblad.camera", in_signature="u", out_signature="")
     def setIso(self, iso):
@@ -63,6 +153,14 @@ class HasselbladService(dbus.service.Object):
     @dbus.service.method("com.hasselblad.video", in_signature="bsi", out_signature="")
     def setVideoPlaybackState(self, active, filename, pos):
         print(f"[{self.srv_name}] setVideoPlaybackState({active}, {filename}, {pos})")
+
+    @dbus.service.method("com.hasselblad.cambody", in_signature="b", out_signature="")
+    def do_hts_polling(self, enable):
+        print(f"[{self.srv_name}] do_hts_polling({bool(enable)})")
+
+    @dbus.service.method("com.hasselblad.spiritlevel", in_signature="ib", out_signature="")
+    def do_spiritlevel(self, mode, enable):
+        print(f"[{self.srv_name}] do_spiritlevel(mode={int(mode)}, enable={bool(enable)})")
 
     @dbus.service.method("org.freedesktop.systemd1.Manager", in_signature="ss", out_signature="o")
     def StartUnit(self, name, mode):
@@ -87,13 +185,21 @@ def main():
                 "canShow": dbus.UInt32(0xFFFFFFFF),
                 "canChange": dbus.UInt32(0xFFFFFFFF),
                 "iso": dbus.UInt32(100),
+                "SV": dbus.Int32(18),
                 "WBMode": dbus.Int32(2),       # Daylight
-                "FocusMode": dbus.Int32(0),    # AF-S Single
-                "DriveMode": dbus.Int32(0),    # Single
-                "LMMode": dbus.Int32(0),       # Center-weighted
+                "FocusMode": dbus.Int32(1),    # Config.Focus_AFS (1)
+                "DriveMode": dbus.Int32(1),    # Config.Drive_SINGLE (1)
+                "LMMode": dbus.Int32(1),       # Config.LM_CENTER (1)
                 "EVADJ": dbus.Int32(0),
                 "FLASH_EVADJ": dbus.Int32(0),
+                "AEB_EVADJ": dbus.Int32(0),
+                "focus_point": dbus.UInt32((1920 << 16) | 1440),
+                "focus_size": dbus.UInt32(0),
+                "findingFocus": dbus.Boolean(False),
+                "lastAfResult": dbus.UInt32(1),
+                "lastAfReturnStatus": dbus.UInt32(0),
                 "inSession": dbus.Boolean(False),
+                "Exposing": dbus.Boolean(False),
                 "exposing": dbus.Boolean(False),
             },
         ),
@@ -117,6 +223,14 @@ def main():
                 "isBMode": dbus.Boolean(False),
                 "isTMode": dbus.Boolean(False),
                 "batteryLevel": dbus.Int32(95),
+            },
+        ),
+        (
+            "com.hasselblad.cambody",
+            "/spiritlevel",
+            {
+                "roll": dbus.Int32(0),
+                "pitch": dbus.Int32(0),
             },
         ),
         # 3. Storage service (SD Card 1 inserted, 1420 shots remaining)

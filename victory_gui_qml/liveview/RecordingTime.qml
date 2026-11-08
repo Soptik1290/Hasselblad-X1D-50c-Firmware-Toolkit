@@ -1,5 +1,6 @@
 import QtQuick 2.0
 import com.hasselblad.video 1.0
+
 Text {
     id: recordingTime
     text: VideoControl.videoMode === VideoControl.Record ? (((VideoControl.position / 60) < 10 ? "0" : "") + Math.floor((VideoControl.position / 60)) + ":" +

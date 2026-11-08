@@ -1,18 +1,21 @@
 import QtQuick 2.0
 import com.hasselblad.licensemodel 1.0
 import "qrc:///scripts/Keys.js" as MKeys
+
 Rectangle {
     objectName: "LicenseViewer_root"
     id: root
     property string headingText
     property int itemHeight: 78
     property int currentItemYValue: licenseList.currentItem != null ? licenseList.currentItem.mapToItem(licenseList, licenseList.contentY * 0, 0).y : 0
+
     function licenseTextSelected(packageName)
     {
         licenseTextView.setSource("LongTextViewer.qml", {"headingText": "<font color=\"" + constants.menuHighlightColor + "\">" + qsTranslate("MENUS", "GENERAL SETTINGS") + ":</font> &nbsp;" + qsTranslate("MENUS", "LICENSES"), "longText": LicenseModel.getLicenseText(packageName) })
         licenseTextView.active = true
     }
     color: constants.menuBackgroundColor
+
     Rectangle {
         id: viewEndLine
         color: constants.cameraViewLineColor
@@ -21,30 +24,38 @@ Rectangle {
         anchors.top: parent.top
         width: constants.viewEndLineWidth
     }
+
+
     MouseArea {
         anchors.left: viewEndLine.right
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         enabled: !licenseTextView.active
+
+        // We must have this here to be able to drag:
         drag {
             target: root
             axis: Drag.XAxis
-            minimumX: 0
+            minimumX: 0//-constants.viewEndLineWidth
             maximumX: root.width
             threshold: constants.dragThreshold
             filterChildren: true
         }
         drag.onActiveChanged: {
             if (!drag.active) {
+                // Done dragging
                 if (drag.target.x > (root.width / constants.swipeLengthDividor))
                 {
+                    // Dragged enough to the right. Close the window
                     closeSubDialog()
                 }
                 root.x = 0
             }
         }
         onClicked: {}
+
+        // Header text
         Text {
             id: header
             anchors.left: parent.left
@@ -57,6 +68,7 @@ Rectangle {
             text: qsTr(headingText) + guiconfig.emptyString
             font.capitalization: Font.AllUppercase
         }
+
         ListView {
             objectName: "LicenseViewer_licenseList"
             id: licenseList
@@ -75,6 +87,7 @@ Rectangle {
             property bool highlightAllow: false
             property int lastIndex: -1
             currentIndex: -1
+
             orientation: ListView.Vertical
             highlightMoveDuration: constants.highlightMoveDuration
             highlight: Rectangle {
@@ -83,10 +96,13 @@ Rectangle {
                 height: itemHeight
                 width: licenseList.width
             }
+
             delegate: Item {
                 height: itemHeight
                 width: licenseList.width
+                // Workaround since QML does not let us easily access model data roles outside a delegate:
                 property var itemModel: model
+
                 Rectangle{
                     id: leftDot
                     color: "white"
@@ -98,6 +114,7 @@ Rectangle {
                     anchors.left: parent.left
                     anchors.leftMargin: 5
                 }
+
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     anchors.verticalCenterOffset: 6
@@ -119,9 +136,10 @@ Rectangle {
                     }
                 }
             }
+
             Keys.onPressed: {
-                event.accepted = true
-                if(MKeys.pressedFn("LEFT", event.key) || MKeys.pressedFn("NAVUP", event.key)) {
+                event.accepted = true // assume we trig on something
+                if((guiconfig.isWedge && MKeys.pressedFn("LEFT", event.key)) || MKeys.pressedFn("NAVUP", event.key)) {
                     startMenuWheelTimeout();
                     highlightAllow = true
                     if(-1 != currentIndex || -1 == lastIndex)
@@ -132,9 +150,9 @@ Rectangle {
                     {
                         currentIndex = lastIndex
                     }
-                    lastIndex = currentIndex
+                    lastIndex = currentIndex // This may look peculiar, but its in order!
                 }
-                else if(MKeys.pressedFn("RIGHT", event.key) || MKeys.pressedFn("NAVDOWN", event.key)) {
+                else if((guiconfig.isWedge && MKeys.pressedFn("RIGHT", event.key)) || MKeys.pressedFn("NAVDOWN", event.key)) {
                     startMenuWheelTimeout();
                     highlightAllow = true
                     if(-1 != currentIndex || -1 == lastIndex) {
@@ -143,9 +161,9 @@ Rectangle {
                     else {
                         currentIndex = lastIndex
                     }
-                    lastIndex = currentIndex
+                    lastIndex = currentIndex // This may look peculiar, but its in order!
                 }
-                else if(MKeys.pressedFn("SELECT", event.key)) {
+                else if(MKeys.pressedFn("SELECT", event.key) || (!guiconfig.isWedge && MKeys.pressedFn("RIGHT", event.key))) {
                     stopMenuWheelTimeout();
                     highlightAllow = false
                     if(-1 != currentIndex)
@@ -153,7 +171,7 @@ Rectangle {
                         root.licenseTextSelected(licenseList.currentItem.itemModel.packageName)
                     }
                 }
-                else if(MKeys.pressedFn("ESCAPE", event.key)) {
+                else if(MKeys.pressedFn("ESCAPE", event.key) || (!guiconfig.isWedge && MKeys.pressedFn("LEFT", event.key))) {
                     stopMenuWheelTimeout();
                     highlightAllow = false
                     closeSubDialog();
@@ -161,11 +179,15 @@ Rectangle {
                 else
                     event.accepted = false
             }
+
         }
+        // Fading on top and bottom. Must be after listview, since it will be on top of it
         Rectangle {
             id: topGradient
+            // NOTE: We hide the top transparency gradient if we are navigating with keys and the selected item is the first visible (top) one.
             visible: licenseList.currentIndex === -1 || ((currentItemYValue > height) ||
                                                          (currentItemYValue < -itemHeight))
+
             anchors.top: licenseList.top
             anchors.left: licenseList.left
             anchors.right: licenseList.right
@@ -175,7 +197,9 @@ Rectangle {
                 GradientStop { position: 1.0; color: "transparent" }
             }
         }
+
         Rectangle {
+            // NOTE: We hide the bottom transparency gradient if we are navigating with keys and the selected item is the last visible (bottom) one.
             visible: licenseList.currentIndex === -1 || ((currentItemYValue > licenseList.height) ||
                                                          (currentItemYValue < (licenseList.height - itemHeight - height)))
             anchors.bottom: licenseList.bottom
@@ -187,6 +211,7 @@ Rectangle {
                 GradientStop { position: 1.0; color: "black" }
             }
         }
+
         Rectangle{
             color: "grey"
             anchors.right: licenseList.right
@@ -197,6 +222,8 @@ Rectangle {
             height: Math.max(20, licenseList.visibleArea.heightRatio * licenseList.height)
         }
     }
+
+
     Timer {
         id: listMenuTimer
         interval: constants.wheelTimeoutTimeMs
@@ -204,14 +231,18 @@ Rectangle {
         repeat: false
         onTriggered: licenseList.highlightAllow = false
     }
+
     function startMenuWheelTimeout()
     {
         listMenuTimer.restart();
     }
+
     function stopMenuWheelTimeout()
     {
         listMenuTimer.stop();
     }
+
+
     Loader{
         anchors.fill: parent
         id: licenseTextView
@@ -220,6 +251,7 @@ Rectangle {
         asynchronous: true
         focus: active
         onActiveChanged: {
+            // If active becomes false, a dialog was closed, and list must get focus
             if(!active)
             {
                 licenseList.forceActiveFocus()
@@ -230,4 +262,5 @@ Rectangle {
             licenseTextView.active = false
         }
     }
+
 }

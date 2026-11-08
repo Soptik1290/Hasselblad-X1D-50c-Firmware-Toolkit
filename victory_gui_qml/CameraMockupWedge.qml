@@ -1,5 +1,6 @@
 import QtQuick 2.0
 import com.hasselblad.mockup 1.0
+
 Item {
     Rectangle {
         color: "darkgray"
@@ -9,12 +10,14 @@ Item {
         anchors.top: parent.top
         anchors.leftMargin: parent.height / 20
         radius: width / 100
+
         Column {
             anchors.bottom: parent.bottom
             anchors.bottomMargin: 86
             anchors.right: parent.right
             anchors.rightMargin: parent.width / 40
             spacing: 22.4
+
             MockupButton {
                 button: "f5"
             }
@@ -38,6 +41,7 @@ Item {
         height: 480
         color: "black"
     }
+
     KeyInject {
         id: inject
     }

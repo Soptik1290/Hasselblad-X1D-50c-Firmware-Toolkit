@@ -3,13 +3,16 @@ import com.hasselblad.settings 1.0
 import com.hasselblad.cambody 1.0
 import com.hasselblad.config 1.0
 import com.hasselblad.bodysync 1.0
+
 import "qrc:///settings/scripts/MenuItemImporter.js" as MenuItems
 import "qrc:///scripts/Keys.js" as MKeys
+
 ListSelector {
     objectName: "FavoriteAddSelector_root"
     id: popAdd
     z: 100
     property int gridspacing: 10
+    // Model that should have new data inserted:
     property var targetModel
     property var favoriteModel
     isToLeft: false
@@ -24,19 +27,25 @@ ListSelector {
     setValueWhenOutsideClick: false
     preventAFMFPropagation: false
     preventPLAYPropagation: false
-    signal subMenuAboutToShow(var menuName)
-    finalBodyState: BodySync.MENU
+    signal subMenuAboutToShow(var menuName) // Just here to prevent error when MainMenu.qml believes that this signal exists in loaded item
+    finalBodyState: guiconfig.isWedge ? BodySync.MENU : BodySync.MAIN
+
     function populateModel(menuItemValues) {
         list_model.clear()
+
         populateModelSection("camera_menu", MenuItems.cameraMenuItems)
         populateModelSection("video_menu", MenuItems.videoMenuItems)
         populateModelSection("settings_menu", MenuItems.getSettingsMenuItems(prodinfo.wifiAvailable))
+
         open()
     }
+
+    // This function is called from "close" in parent:
     function postClose()
     {
         closeMenu()
     }
+
     function populateModelSection(sectionStateName, sectionItems)
     {
         sectionItems.forEach(function(v)
@@ -54,15 +63,24 @@ ListSelector {
         {
             close()
         }
+        // NOTE! ListSelector has a Keys.onPressed that is called prior to this. EVEN if event.accepted is set to true in that function, this function is called,
+        // therefore we CANNOT set event.accepted to false here
+//        else
+//            event.accepted = false
     }
+
     onVisibleChanged: {
         if (!visible)
         {
             return;
         }
+
         list.focus = true;
         list.currentIndex = 0
     }
+
+    // Called when the user clicked in the list, not necessarily on the selected item,
+    // then the clicked item will be set
     function itemSelected(index)
     {
         if(index >= 0)
@@ -72,6 +90,9 @@ ListSelector {
         }
         popAdd.close();
     }
+
+    // Called from parent to set selected value when the user clicked outside of the list,
+    // then the selected (highlighted) item will be set
     function setSelected()
     {
         if(list.currentIndex >= 0)
@@ -80,38 +101,47 @@ ListSelector {
             targetModel.addRow(setModel.settingsList, setModel.clicked_state, setModel.icon, setModel.untranslatedText, setModel.itemFile)
         }
     }
+
     Connections {
         target: configstore
         onExpModeChanged: {
             popAdd.close();
         }
     }
+
+
     content: list
     contentItem: list
+
     Item {
         id: listWrapper
         anchors.fill: parent
+
         ListView {
             objectName: "FavoriteAddSelector_list"
             id: list
             clip: true
             boundsBehavior: Flickable.StopAtBounds
+
             anchors {
                 top: parent.top
                 bottom: parent.bottom
                 left: parent.left
                 right: parent.right
             }
+
             orientation: ListView.Vertical
             highlightRangeMode: ListView.StrictlyEnforceRange
             preferredHighlightBegin: list.height / 2 - list.height / constants.numberOfItemsVisibleInList / 2
             preferredHighlightEnd: list.height / 2 + list.height / constants.numberOfItemsVisibleInList / 2
+
             function setSelectedClose()
             {
                 setSelected()
                 close()
                 closeMenu()
             }
+
             highlight: Rectangle{
                 color: constants.popupBackgroundColor
                 height: list.height / constants.numberOfItemsVisibleInList
@@ -121,6 +151,7 @@ ListSelector {
                 }
             }
             model: list_model
+
             delegate: Item {
                 id: theItem
                 height: list.height / constants.numberOfItemsVisibleInList
@@ -147,6 +178,7 @@ ListSelector {
                         scale: 1 + addSize
                     }
                 }
+
                 Text {
                     anchors {
                         verticalCenter: itemIcon.verticalCenter
@@ -163,6 +195,7 @@ ListSelector {
                     fontSizeMode: Text.HorizontalFit
                     verticalAlignment: Text.AlignVCenter
                 }
+
                 Keys.onReturnPressed: itemSelected(index)
                 MouseArea {
                     id: mouseArea
@@ -194,6 +227,7 @@ ListSelector {
                     GradientStop { position: 1.0; color: constants.popoverListViewShadingStartColor }
                 }
             }
+
         }
     }
     ListModel {

@@ -1,4 +1,6 @@
 import QtQuick 2.0
+
+// This object can be used as a debug-marker for invisible objects, such as FocusScope or MouseArea's.
 Item {
     id: root
     anchors.fill: parent

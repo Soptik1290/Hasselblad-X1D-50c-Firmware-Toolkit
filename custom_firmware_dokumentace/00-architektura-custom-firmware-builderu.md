@@ -127,7 +127,56 @@ Každé „tlačítko / přepínač“ v budoucí aplikaci bude definováno jako
 
 ---
 
-## 4. Přehled všech dokumentů v této složce
+## 4. Kritická technická pravidla z reálného ARMv7 běhu (Povinné pro Builder)
+
+Při ladění a ověřování custom firmwaru v reálném ARMv7 Linux emulátoru ([`run_arm_emulator.py`](file:///d:/Plocha/projekty/X1D_FirmwareDump/run_arm_emulator.py) s nativními binárkami `/usr/bin/victory-gui`, `/usr/bin/configstore` a `libappscommon.so.1.0.0`) jsme odhalili **4 zásadní nízkoúrovňové vlastnosti platformy Hasselblad Umbrella**, které musí budoucí aplikace **Custom Firmware Builder** (a všechny její moduly) striktně dodržovat. Všechna tato pravidla jsou zároveň automaticky hlídána v 1. fázi testu [`verify_firmware_safety.py`](file:///d:/Plocha/projekty/X1D_FirmwareDump/verify_firmware_safety.py).
+
+### 4.1 Pravidlo 1: Duální Wayland okna (`TouchWindow.qml` vs. `EVFWindow.qml`)
+- **Příčina:** Binárka `/usr/bin/victory-gui` vytváří po startu dvě samostatné Wayland `QQuickWindow` plochy:
+  1. `TouchWindow` (`title: "main"`, rozlišení `640×480` – zadní dotykový LCD displej).
+  2. `EVFWindow` (`title: "overlay"`, rozlišení `1024×768` – OLED hledáček / HDMI výstup), načítané asynchronně přes `Loader { id: evfWindow }` v [`main.qml`](file:///d:/Plocha/projekty/X1D_FirmwareDump/victory_gui_qml/main.qml) přibližně **2,7 sekundy po startu** (`onMainWindowReady` -> `evfWindow.active = true`).
+- **Past v továrním kódu:** V továrním [`liveview/EVFWindow.qml`](file:///d:/Plocha/projekty/X1D_FirmwareDump/victory_gui_qml/liveview/EVFWindow.qml) je nastaveno `visible: true` i ve chvíli, kdy `showContent == false` (tj. když se uživatel nedívá do EVF). V továrním [`main.qml`](file:///d:/Plocha/projekty/X1D_FirmwareDump/victory_gui_qml/main.qml) má navíc `Loader { id: evfWindow }` nastaveno `visible: active`. Na jednoobrazovkovém Wayland kompozitoru (nebo při přepnutí fokusované plochy) se tak po 2,7 s přes `640×480` dotykovou obrazovku vykreslí neviditelné `1024×768` okno `EVFWindow`, které zachytává veškeré události myši, dotyku a klávesnice (`Event filter installed for EVF`).
+- **Povinné řešení v každém buildu:**
+  1. V [`victory_gui_qml/liveview/EVFWindow.qml`](file:///d:/Plocha/projekty/X1D_FirmwareDump/victory_gui_qml/liveview/EVFWindow.qml) vždy nastavit:
+     ```qml
+     visible: showContent
+     visibility: showContent ? Window.FullScreen : Window.Hidden
+     ```
+  2. V [`victory_gui_qml/main.qml`](file:///d:/Plocha/projekty/X1D_FirmwareDump/victory_gui_qml/main.qml) nastavit u `Loader { id: evfWindow }` vlastnost `visible: false` a po dokončení inicializace (`if (allLoaded)`) zavolat `mainWindow.item.requestActivate()`.
+  3. Soubor `liveview/EVFWindow.qml` musí být zahrnut v každém samostatném modulu (včetně `MOD-FEAT-AFC`).
+
+### 4.2 Pravidlo 2: Qt 5.4 `QQmlConnectionsParser` a C++ signály s velkým počátečním písmenem
+- **Příčina:** V knihovně `/usr/lib/libappscommon.so.1.0.0` (kompilované proti Qt 5.4 QML parseru) mají některé `Q_PROPERTY` ve třídách `CameraProxy` a `ConfigStoreProxy` svůj `NOTIFY` signál pojmenovaný **s velkým počátečním písmenem**:
+  - `CameraProxy`: `FocusModeChanged`, `WBModeChanged`, `DriveModeChanged`, `LMModeChanged`, `SVChanged`, `EVADJChanged`, `FLASH_EVADJChanged`, `AEB_EVADJChanged`
+  - `ConfigStoreProxy`: `BracketingDelayTimeChanged`, `FocusBracketingStepSizeChanged`
+- **Past v Qt 5.4:** Prvek `Connections { target: Camera; onFocusModeChanged: ... }` v Qt 5.4 vyžaduje, aby první znak po prefixu `on` odpovídal signálu s malým počátečním písmenem. Pokud C++ signál začíná velkým písmenem (`FocusModeChanged`), `QQmlConnectionsParser` vyhodí fatální chybu při načítání `main.qml`:
+  `qrc:///main.qml: QML Connections: Cannot assign to non-existent property "onFocusModeChanged"`.
+- **Povinné řešení:** Nikdy nepoužívat `on<UppercaseSignal>:` uvnitř bloku `Connections {}`. Místo toho v QML komponentě vytvořit vlastnost s malým počátečním písmenem navázanou na C++ property a reagovat na její změnu (ta se připojuje přes `QMetaProperty::notifySignalIndex()` a funguje 100% spolehlivě):
+  ```qml
+  property int currentFocusMode: Camera.FocusMode
+  onCurrentFocusModeChanged: {
+      // Spolehlivě reaguje na změnu Camera.FocusMode!
+  }
+  ```
+
+### 4.3 Pravidlo 3: Tvrdé limity v `/usr/bin/configstore` vs. položky v `SettingsMiddleLayer`
+- **Příčina:** Disassembling binárky `/usr/bin/configstore` na adresách `0x13d68..0x13de0` ukázal, že démon při startu registruje u každé číselné vlastnosti trojici `(default, minval, maxval)`. U vlastnosti **`DebugAfSpeed`** jsou v binárce `/usr/bin/configstore` pevně zakódovány tyto hodnoty:
+  - `DebugAfSpeed` výchozí hodnota (`[r4, #0x590]`): **`5000`** (`0x1388`)
+  - `DebugAfSpeed_minval` (`[r4, #0x594]`): **`3000`** (`0x0bb8`)
+  - `DebugAfSpeed_maxval` (`[r4, #0x598]`): **`20000`** (`0x4e20`)
+- **Past v továrním GUI:** V `/usr/bin/victory-gui` (`SettingsMiddleLayer` na `0x82b90`) vývojáři v Göteborgu vypsali do textového dropdownu řadu `7000, 9000, 11000, 13000, 15000, 17000, 19000, 21000, 23000, 25000, 27000, 29000, 31000`. Jakoukoliv hodnotu **`> 20000`** však `/usr/bin/configstore` odmítne s varováním:
+  `"Property DebugAfSpeed could not be set to new value: 27000. Using current value 5000"`!
+- **Povinné řešení:** V QML kódu i v budoucí aplikaci Builder nabízet pro `DebugAfSpeed` výhradně hodnoty v intervalu **`3000` až `20000`**. Nejvyšší platná hodnota z továrního dropdownu je **`19000`** (případně přímý integer **`20000`**), což zrychlí krokový motor XCD objektivů **3,8× až 4,0×** oproti výchozím `5000`.
+
+### 4.4 Pravidlo 4: Přesné D-Bus signatury démonů `com.hasselblad.*`
+- Při emulaci nebo volání D-Bus metod z vlastních skriptů je nutné dodržet přesné signatury z `libappscommon.so.1.0.0`:
+  - `com.hasselblad.camera.setLiveViewState` má signaturu **`"bs"`** (`bool state, QString receiver`), nikoliv `"b"`.
+  - `com.hasselblad.camera.StartSession` má signaturu **`"bb"`** (`bool showLiveViewWhenFinished, bool forceFindFocus`).
+  - `com.hasselblad.cambody` exportuje kromě objektu `/cambody` také objekt `/spiritlevel` (rozhraní `com.hasselblad.spiritlevel`, metoda `do_spiritlevel(ib)`) a na `/cambody` metodu `do_hts_polling(b)`.
+
+---
+
+## 5. Přehled všech dokumentů v této složce
 
 1. **[`01-modul-odlehcena-verze-x1d-lite.md`](file:///d:/Plocha/projekty/X1D_FirmwareDump/custom_firmware_dokumentace/01-modul-odlehcena-verze-x1d-lite.md)**
    Detailní rozbor základního modulu **`MOD-CORE-LITE`** (odstranění komentářů a cizích modelů H6D/A6D/CFV) a realistické zhodnocení jeho přínosů.
@@ -137,3 +186,5 @@ Každé „tlačítko / přepínač“ v budoucí aplikaci bude definováno jako
    Katalog 5 modulů (**`MOD-BAT-01`** až **`MOD-BAT-05`**) pro reálné prodloužení výdrže baterie a snížení zahřívání těla X1D-50c (odpojení Wi-Fi čipu BCM4356 a démonů na pozadí, zkrácení timeoutu 50MP senzoru v LiveView, úsporné podsvícení a redukce framebufferů).
 4. **[`04-moduly-skryte-a-nove-funkce-ui.md`](file:///d:/Plocha/projekty/X1D_FirmwareDump/custom_firmware_dokumentace/04-moduly-skryte-a-nove-funkce-ui.md)**
    Katalog 6 modulů (**`MOD-FEAT-01`** až **`MOD-FEAT-06`**) pro odemknutí skrytých továrních funkcí (`Compressed 3FR`, `Noise Filter`, `JPG Size`, `Eye Sensor Distance`, `AF Debug/Speed`, `RAM-Only Demo Mode`, `DebugCam` RAW mapy FPGA, čtení teplot a vlastní barevná témata UI).
+5. **[`05-modul-continuous-autofocus-afc.md`](file:///d:/Plocha/projekty/X1D_FirmwareDump/custom_firmware_dokumentace/05-modul-continuous-autofocus-afc.md)**
+   Samostatný modul **`MOD-FEAT-AFC`** (**Continuous Autofocus `AF-C` + Touch-to-Track**), postavený přímo nad výchozím továrním firmwarem `1.25.0` ([`firmware/X1D_v1_25_0_afc.cim`](file:///d:/Plocha/projekty/X1D_FirmwareDump/firmware/X1D_v1_25_0_afc.cim)). Obsahuje rešerši X2D 100C toolkitů (*HRAP*), disassembling `WedgeStateMachine` v `/usr/bin/camera-daemon` a kompletní QML engine pro kontinuální CDAF přeostřování s akcelerací motoru XCD (`DebugAfSpeed = 19000`).

@@ -1,4 +1,5 @@
 import QtQuick 2.0
+
 import com.hasselblad.settings 1.0
 import com.hasselblad.systemmanager 1.0
 import com.hasselblad.upgrade 1.0
@@ -11,12 +12,14 @@ import com.hasselblad.cambody 1.0
 import com.hasselblad.lens 1.0
 import com.hasselblad.globalstateinfo 1.0
 import com.hasselblad.bodysync 1.0
+
 import "qrc:///"
 import "qrc:///components"
 import "qrc:///components/buttons"
 import "qrc:///settings/components"
 import "qrc:///settings/scripts/MenuItemImporter.js" as MenuItems
 import "qrc:///scripts/Keys.js" as MKeys
+
 Rectangle {
     objectName: "SettingsGeneric_root"
     id: root
@@ -24,7 +27,9 @@ Rectangle {
     property string upperMenuLabel
     property string menuLabel
     property int itemTextSize: constants.itemTextSize
+    // How much space between objects in view
     property int itemSpacing: 20
+    // How much text should be moved to the left. 0 means text and object are centered
     property int textOffsetToLeft: 100
     property int leftMarginForItems: constants.leftMarginForItems
     property int heightForItemList: listViewArea.height
@@ -33,6 +38,7 @@ Rectangle {
     property int headerVerticalOffset: constants.headerVerticalOffset
     property bool preventSwipe: subDialog.active || dropDownSelector.visible
     property var itemValues
+
     function populateModel(newItemValues)
     {
         listModel.clear();
@@ -50,8 +56,10 @@ Rectangle {
                 var isDemo = (typeof v.demo !== 'undefined') && (v.demo !== undefined) && v.demo;
                 var isValid = (typeof v.validCheck === 'undefined') || (v.validCheck === undefined) || (v.validCheck === "") || eval(v.validCheck)
                 var isEnabled = (v.editType !== MenuItems.SettingType.TEXT) || (typeof v.enableCond === 'undefined') || (v.enableCond === undefined) || (v.enableCond === "") || eval(v.enableCond)
+
                 if (isValid && isEnabled && (!isDemo || !guiconfig.hideDemoItems)) {
                     listModel.append({ "editType": v.editType, "name": v.name, "text1": v.text1, "text2": v.text2, "suppressUnitOn": v.suppressUnitOn, "enableCond": v.enableCond, "proxy": v.proxy, "demo": v.demo, "sectionName": sectionName, "validCheck": v.validCheck })
+                    //if we are in the "Power and Timeouts" mode and "Never" is selected, we should not show text2 which is seconds or minutes
                     if ((newItemValues === "generalSettingsPowerTimeouts") &&
                             ((configstore.GUI_idle_timeout === 0) && (v.text2 === qsTranslate("MENUS", "s")) ||
                              (configstore.SYS_standby_idle_timeout === 0) && (v.text2 === qsTranslate("MENUS", "m")))) {
@@ -82,6 +90,9 @@ Rectangle {
         anchors.top: parent.top
         width: constants.viewEndLineWidth
     }
+
+
+    // This marks entire area available for list view
     Item {
         id: listViewArea
         anchors {
@@ -90,10 +101,12 @@ Rectangle {
             right: root.right
             bottom: root.bottom
         }
+        // Dummy mouse area. Without it, sweep away does not work properly. QML Magic...
         MouseArea {
             anchors.fill: parent
         }
     }
+
     Timer {
         id: listTimer
         interval: constants.wheelTimeoutTimeMs
@@ -101,14 +114,17 @@ Rectangle {
         repeat: false
         onTriggered: list.highlightAllow = false
     }
+
     function startMenuWheelTimeout()
     {
         listTimer.restart();
     }
+
     function stopMenuWheelTimeout()
     {
         listTimer.stop();
     }
+
     function scrollToItem(itemName)
     {
         var index = 0
@@ -121,26 +137,38 @@ Rectangle {
         list.currentIndex = index
         list.positionViewAtIndex(index, ListView.Beginning)
     }
+
     ListView {
         objectName: "SettingsGeneric_list"
         id: list
         clip: true
+//        pressDelay: 300
         interactive: contentHeight > height
         boundsBehavior: guiconfig.isRunningSimulation() ? Flickable.StopAtBounds : (Flickable.DragOverBounds | Flickable.CustomBounds)
         BoundsEffectGradient {
             parent: list
             fadeColor: constants.hblOrange
         }
+
         height: root.heightForItemList
         anchors {
             verticalCenter: listViewArea.verticalCenter
             left: listViewArea.left
             right: listViewArea.right
         }
+        /*
+        anchors {
+            top: header.bottom
+            bottom: root.bottom
+            left: listViewArea.left
+            right: listViewArea.right
+        }
+        */
         focus: true
         model: listModel
         currentIndex: -1
         property int lastIndex: -1
+
         Keys.onPressed: {
             if(MKeys.pressedFnAcc("NAVUP", event) || (guiconfig.isWedge && MKeys.pressedFn("LEFT", event.key))) {
                 startMenuWheelTimeout()
@@ -149,7 +177,7 @@ Rectangle {
                     decrementCurrentIndex()
                 else
                     currentIndex = lastIndex
-                lastIndex = currentIndex
+                lastIndex = currentIndex // This may look peculiar, but its in order!
             } else if(MKeys.pressedFnAcc("NAVDOWN", event) || (guiconfig.isWedge && MKeys.pressedFn("RIGHT", event.key))) {
                 startMenuWheelTimeout();
                 list.highlightAllow = true
@@ -157,7 +185,7 @@ Rectangle {
                     incrementCurrentIndex()
                 else
                     currentIndex = lastIndex
-                lastIndex = currentIndex
+                lastIndex = currentIndex // This may look peculiar, but its in order!
             } else if(MKeys.pressedFnAcc("SELECT", event)) {
                 if(list.highlightAllow)
                 {
@@ -177,6 +205,8 @@ Rectangle {
                 event.accepted = false
             }
         }
+
+        // Section header
         section.delegate:
             Item {
             width: list.width
@@ -225,8 +255,11 @@ Rectangle {
                         list.currentIndex = index
                     }
                 }
+                // We must have this here to be able to drag:
             }
+
         }
+
         delegate: baseDelegate
         property bool highlightAllow: false
         highlightMoveDuration: constants.highlightMoveDuration
@@ -237,6 +270,9 @@ Rectangle {
                 anchors.fill: parent
             }
         }
+
+
+        // Delegate that loads different component based on type of setting
         Component {
             id: baseDelegate
             Item {
@@ -246,10 +282,13 @@ Rectangle {
                     anchors.fill: parent
                     showMarker: (typeof demo !== 'undefined') && (demo !== null) && (demo === true)
                 }
+
+
                 MouseArea {
                     anchors.fill: parent
                     onClicked: list.currentIndex = index
                 }
+
                 width: list.width
                 height: root.heightForItem
                 Loader {
@@ -261,6 +300,7 @@ Rectangle {
                         console.log("Return pressed in loader");
                         event.accepted = true
                     }
+                    // Since Loader specifies size, no size has to be given in the loaded delegates
                     anchors {
                         left: baseItem.left
                         right: baseItem.right
@@ -282,20 +322,28 @@ Rectangle {
                     }
                     onLoaded: item.focus = baseItem.ListView.isCurrentItem
                 }
+
                 Keys.onPressed: {
                     event.accepted = false
                     if(MKeys.pressedFn("SELECT", event.key)) {
                         if(list.highlightAllow)
                         {
                             specialItem.item.gotSelected();
+                            // not accepting event here, letting ListView do its post processing.
                         }
                     }
                 }
+
+
+                // Delegates for different edit rows
+                //------------------------------------------------------------------------------------------
+                // Drop down all selectable values
                 Component {
                     id: dropdDownDelegate
                     Item {
                         objectName: "dropDownItem"
                         id:dropdDownItem
+                        // vvv Note that "eval" can evaluate to other than true/false, hence the explicit check against false
                         property bool isEnabled: {
                             if((typeof enableCond !== 'undefined'))
                             {
@@ -306,12 +354,14 @@ Rectangle {
                                 return true
                             }
                         }
+
                         function gotSelected()
                         {
                             if (!isEnabled)
                                 return
                             dropDownSelector.open(list, proxy, name)
                         }
+
                         Text {
                             id: dropDownText
                             anchors {
@@ -355,6 +405,7 @@ Rectangle {
                                 width: dropDownText2.visible ? implicitWidth : dropdDownItem.width - (dropDownBox.x - dropdDownItem.x) - constants.subSettingDropDownSpacing
                                 fontSizeMode: dropDownText2.visible ? Text.FixedSize : Text.HorizontalFit
                             }
+
                             Text {
                                 id: dropDownText2
                                 anchors {
@@ -401,8 +452,11 @@ Rectangle {
                                 }
                             }
                         }
+
                     }
                 }
+                //------------------------------------------------------------------------------------------
+                // Checkbox
                 Component {
                     id: checkboxDelegate
                     Item {
@@ -417,6 +471,7 @@ Rectangle {
                                 return true
                             }
                         }
+
                         function gotSelected()
                         {
                             if (!isEnabled)
@@ -424,18 +479,21 @@ Rectangle {
                             switch(name) {
                             case "ram_only_mode":
                                 if(!proxy[name]) {
-                                    subDialog.setSource("qrc:///components/GenericConfirm.qml", { "largeHeaderText" : true, "headerText" : text1 + '?'  , "infoText" : text2, "rightText" : qsTr("Deactivate") })
+                                    subDialog.setSource("qrc:///components/GenericConfirm.qml", { "largeHeaderText" : true, "headerText" : text1 + '?' /*.toUpperCase()*/ , "infoText" : text2, "rightText" : qsTr("Deactivate") })
                                     subDialog.active = true
                                     subDialogMA.allowSubDialogSwipe = false
                                 }
                                 else
                                     proxy[name] = false
                                 break;
+
                             default:
                                 proxy[name] = !proxy[name];
                                 break;
                             }
+
                         }
+
                         SettingCheckBox {
                             width: parent.width
                             height: parent.height
@@ -448,6 +506,7 @@ Rectangle {
                             onCheckChange: parent.gotSelected()
                             isEnabled: parent.isEnabled
                         }
+
                         Connections {
                             target: subDialog.item
                             onLeftSelected: proxy[name] = false
@@ -455,12 +514,13 @@ Rectangle {
                         }
                     }
                 }
+                //------------------------------------------------------------------------------------------
                 Component {
                     id: buttonDelegate
                     Item {
                         objectName: "buttonDelegate"
                         id: delegate_item
-                        property string customProfile : ""
+                        property string customProfile : "" // The custom profile to save the current settings to
                         property bool fwRetryPressed : false
                         property bool isEnabled: {
                             if((typeof enableCond !== 'undefined'))
@@ -476,6 +536,7 @@ Rectangle {
                         {
                             if (!isEnabled)
                                 return
+                            // We should find a more generic way to do this
                             switch(name)
                             {
                             case "liveViewStart":
@@ -499,16 +560,18 @@ Rectangle {
                                     subDialogMA.allowSubDialogSwipe = true
                                 }
                                 break;
+
                             case "fwUpdateRetry":
                                 fwRetryPressed = true
                                 subDialog.setSource("qrc:///components/GenericConfirm.qml", { "largeHeaderText" : true, "headerText" : text1 + '?' , "rightText" : qsTr("Retry") })
                                 subDialog.active = true
                                 subDialogMA.allowSubDialogSwipe = false
                                 break;
+
                             case "cardFormatCard0":
                                 if(ContentModel.card0Status !== ContentModel.STORAGE_ABSENT)
                                 {
-                                    subDialog.setSource("qrc:///common/CardFormat.qml", {"cardToFormat": Config.Card0,  "subText": text2})
+                                    subDialog.setSource("qrc:///common/CardFormat.qml", {"cardToFormat": Config.Card0, /*"header": qsTr("FORMAT"),*//* "subHeader": text1,*/ "subText": text2})
                                     subDialog.active = true
                                 }
                                 else
@@ -518,10 +581,11 @@ Rectangle {
                                 }
                                 subDialogMA.allowSubDialogSwipe = false
                                 break;
+
                             case "cardFormatCard1":
                                 if(ContentModel.card1Status !== ContentModel.STORAGE_ABSENT)
                                 {
-                                    subDialog.setSource("qrc:///common/CardFormat.qml", {"cardToFormat": Config.Card1,  "subText": text2})
+                                    subDialog.setSource("qrc:///common/CardFormat.qml", {"cardToFormat": Config.Card1, /*"header": qsTr("FORMAT"),*//* "subHeader": text1,*/ "subText": text2})
                                     subDialog.active = true
                                 }
                                 else
@@ -531,23 +595,27 @@ Rectangle {
                                 }
                                 subDialogMA.allowSubDialogSwipe = false
                                 break;
+
                             case "checkForUpdate":
                                 subDialog.setSource("qrc:///components/popups/UpgradeCheck.qml")
                                 subDialog.active = true
                                 subDialogMA.allowSubDialogSwipe = false
                                 break;
+
                             case "defaultSettings":
                                 confirmDialog.setSource("qrc:///settings/ConfirmDefaultSettings.qml", { })
                                 confirmDialog.active = true
                                 break;
+
                             case "resetFileCounter":
                                 confirmDialog.setSource("qrc:///settings/ConfirmResetImageCounter.qml", { })
                                 confirmDialog.active = true
                                 break;
+
                             case "saveCustomMode1":
                             case "saveCustomMode2":
                             case "saveCustomMode3":
-                                customProfile = "c" + String(name).substring(String(name).length - 1)
+                                customProfile = "c" + String(name).substring(String(name).length - 1) // The last character of name shall indicate the custom profile to save to
                                 subDialog.setSource("qrc:///components/GenericConfirm.qml", { "largeHeaderText" : true, "headerText" : qsTr("Save to ") + customProfile.toUpperCase() + "?", "infoText" : qsTr("Previous settings will be overwritten!"), "rightText" : qsTr("Save") })
                                 subDialog.active = true
                                 subDialogMA.allowSubDialogSwipe = false
@@ -573,7 +641,9 @@ Rectangle {
                                 console.log("You Rang???")
                                 break;
                             }
+
                         }
+
                         MenuButton {
                             objectName: "buttonDelegate_menuButton"
                             anchors {
@@ -591,10 +661,11 @@ Rectangle {
                                 gotSelected()
                             }
                         }
+
                         Connections {
                             target: farm
                             onResetGlobalImageSequenceCounterSucceeded: {
-                                informDialog.timeVisible = 0
+                                informDialog.timeVisible = 0 // forever until clicking ok, give user time to see it.
                                 informDialog.title = qsTr("Image Sequence Reset")
                                 informDialog.info = qsTr("The image sequence number was reset.") +
                                         (newDir !== "" ? (qsTr("<br><br>New folder is:<br>") + newDir) : "")
@@ -602,6 +673,7 @@ Rectangle {
                                 informDialog.visible = true
                             }
                         }
+
                         Connections {
                             target: delegate_item.customProfile.length > 0 ? subDialog.item : null
                             onRightSelected: {
@@ -615,16 +687,21 @@ Rectangle {
                                 delegate_item.customProfile = ""
                             }
                         }
+
                         Connections {
                             target: delegate_item.fwRetryPressed ? subDialog.item : null
                             onRightSelected: Upgrader.upgradeNodes()
                         }
                     }
                 }
+                //------------------------------------------------------------------------------------------
+                // bool switch
                 Component {
                     id: boolDelegate
+
                     Item {
                         objectName: "boolDelegate"
+                        // vvv Note that "eval" can evaluate to other than true/false, hence the explicit check against false
                         property bool isEnabled: {
                             if((typeof enableCond !== 'undefined'))
                             {
@@ -635,10 +712,12 @@ Rectangle {
                                 return true
                             }
                         }
+
                         function gotSelected()
                         {
                             if (!isEnabled)
                                 return
+                            // Toggle
                             if(toggleControl.value)
                             {
                                 indicator.x = toggleControl.minXForIndicator
@@ -650,6 +729,7 @@ Rectangle {
                                 proxy[name] = true
                             }
                         }
+
                         Text {
                             id: boolText
                             anchors {
@@ -667,8 +747,11 @@ Rectangle {
                             color: constants.menuItemColor
                             fontSizeMode: Text.HorizontalFit
                         }
+
+                        // Toggle button
                         Rectangle {
                             id: toggleControl
+                            // The bool value itself:
                             property bool value: proxy[name]
                             property int maxXForIndicator: width - indicator.width - border.width
                             property int minXForIndicator: toggleControl.border.width
@@ -694,6 +777,8 @@ Rectangle {
                                 anchors.verticalCenter: parent.verticalCenter
                                 x: parent.value ? toggleControl.maxXForIndicator : toggleControl.minXForIndicator
                             }
+
+                            // Drag and drop functionality
                             MouseArea {
                                 anchors.fill: toggleControl
                                 drag {
@@ -703,6 +788,7 @@ Rectangle {
                                     maximumX: toggleControl.maxXForIndicator
                                     threshold: constants.dragThreshold
                                 }
+
                                 drag.onActiveChanged: {
                                     if (!drag.active) {
                                         if(indicator.x < (toggleControl.maxXForIndicator / 2))
@@ -734,6 +820,8 @@ Rectangle {
                         }
                     }
                 }
+                //------------------------------------------------------------------------------------------
+                // Slider to set value
                 Component {
                     id: sliderDelegate
                     Item {
@@ -742,6 +830,7 @@ Rectangle {
                         function gotSelected()
                         {
                         }
+
                         property bool isEnabled: {
                             if((typeof enableCond !== 'undefined'))
                             {
@@ -752,7 +841,9 @@ Rectangle {
                                 return true
                             }
                         }
+
                         anchors.fill: parent
+
                         Text {
                             anchors {
                                 verticalCenter: parent.verticalCenter
@@ -767,7 +858,9 @@ Rectangle {
                             font.pixelSize: itemTextSize
                             fontSizeMode: Text.HorizontalFit
                             color: sliderItem.isEnabled ? constants.menuItemColor : "grey"
+
                         }
+
                         SettingSlider {
                             anchors {
                                 top: parent.top
@@ -786,6 +879,9 @@ Rectangle {
                         }
                     }
                 }
+
+                //------------------------------------------------------------------------------------------
+                // Edit box to edit text
                 Component {
                     id: editTextDelegate
                     Row{
@@ -808,6 +904,7 @@ Rectangle {
                         }
                     }
                 }
+                //------------------------------------------------------------------------------------------
                 Component {
                     id: textDelegate
                     Item {
@@ -841,6 +938,8 @@ Rectangle {
                         }
                     }
                 }
+                //------------------------------------------------------------------------------------------
+                // Clickable text
                 Component {
                     id: textButtonDelegate
                     Item {
@@ -895,9 +994,12 @@ Rectangle {
                         }
                     }
                 }
+
             }
         }
+
     }
+
     Connections {
         target: guiconfig
         onShowSecretMenuItemsChanged: {
@@ -908,8 +1010,11 @@ Rectangle {
             }
         }
     }
+
+    // Fading on top and bottom. Must be after listview, since it will be on top of it
     Rectangle {
         id: topGradient
+        // NOTE: We hide the top transparency gradient if we are navigating with keys and the selected item is the first visible (top) one.
         visible: !list.highlightAllow || list.currentIndex === -1 || list.currentItem.mapToItem(null, 0, 0).y > 80
         anchors {
             top: parent.top
@@ -923,7 +1028,9 @@ Rectangle {
             GradientStop { position: 1.0; color: "transparent" }
         }
     }
+
     Rectangle {
+        // NOTE: We hide the bottom transparency gradient if we are navigating with keys and the selected item is the last visible (bottom) one.
         visible: !list.highlightAllow || list.currentIndex === -1 || list.currentItem.mapToItem(null, 0, 0).y < 340
         anchors {
             bottom: parent.bottom
@@ -936,6 +1043,8 @@ Rectangle {
             GradientStop { position: 1.0; color: "black" }
         }
     }
+
+    // Header text
     Text {
         id: header
         anchors {
@@ -954,6 +1063,8 @@ Rectangle {
         color: constants.menuHeaderColor
         font.capitalization: Font.AllUppercase
     }
+
+
     ListSelectorSettings {
         anchors.left: viewEndLine.right
         anchors.top: root.top
@@ -971,21 +1082,27 @@ Rectangle {
             if (!visible) {
                 list.highlightAllow = false
                 var oldCurrentIndex = list.currentIndex
-                var oldY = list.contentY - list.originY
+                // Some magic with positions in the list. We want the list to be back in the same position after list update
+                var oldY = list.contentY - list.originY //contentY value is relative originY which can be negative
                 list.contentY = list.originY
-                root.populateModel(itemValues)
+                root.populateModel(itemValues) // Repopulate/refresh the various choices in case there are changes to be made in the underlying menu
+                // Due to some strange QML bug the originY value sometimes changes when setting contentY so we need to iterate a few times until it settles.
                 for (var i = 0; i < 10; i++) {
                     if (list.contentY === list.originY + oldY) {
                         break;
                     }
                     list.contentY = list.originY + oldY
                 }
+                // When the repopulation above happens, the current index is also set to -1, so we restore it here
                 list.currentIndex = oldCurrentIndex
+                // Workaround: Overshoot indicator might be visible when list is closed (yet another bug). Move around the content to hide again
+                // This might be fixed in later versions of QT, if so just remove the following:
                 oldY = list.contentY
                 list.contentY--
                 list.contentY = oldY
                 list.contentY++
                 list.contentY = oldY
+
             }
         }
         Connections {
@@ -1001,7 +1118,9 @@ Rectangle {
                 root.populateModel(itemValues)
             }
         }
+
     }
+
     GenericInform {
         objectName: "informDialog"
         id: informDialog
@@ -1017,6 +1136,7 @@ Rectangle {
             }
         }
     }
+
     function activateSettingsSubMenu(settingsList, itemFile, label)
     {
         subDialog.itemValues = settingsList
@@ -1025,6 +1145,7 @@ Rectangle {
         subDialog.menuLabel = label
         subDialog.active = true
     }
+
     MouseArea {
         id: subDialogMA
         anchors {
@@ -1035,6 +1156,8 @@ Rectangle {
         }
         enabled: subDialog.active && allowSubDialogSwipe
         z: 1
+
+        // We must have this here to be able to drag:
         drag {
             target: subDialog
             axis: Drag.XAxis
@@ -1045,8 +1168,10 @@ Rectangle {
         }
         drag.onActiveChanged: {
             if (!drag.active) {
+                // Done dragging
                 if (drag.target.x > (root.x - root.width / constants.swipeLengthDividor))
                 {
+                    // Dragged enough to the right. Close the window
                     subDialog.closeSubDialog()
                     subDialog.x = root.x + root.width
                 }
@@ -1055,6 +1180,7 @@ Rectangle {
             }
         }
         property bool allowSubDialogSwipe: true
+
         Loader {
             id: subDialog
             objectName: "subDialogLoader"
@@ -1069,19 +1195,24 @@ Rectangle {
             asynchronous: true
             focus: active
             enabled: active
+
             property var itemValues
             property string upperMenuLabel: ""
             property string menuLabel: ""
             Behavior on x {
                 NumberAnimation { easing.type: Easing.InOutQuad; duration: constants.menuSwipeDuration }
             }
+
             onActiveChanged: {
+                // If active becomes false, a dialog was closed, and list must get focus
                 if(!active)
                 {
+                    // Make sure to break various bindings that could cause this to be active again
                     closeSubDialog()
                 }
                 else
                     x = root.x
+
             }
             function closeSubDialog()
             {
@@ -1091,6 +1222,7 @@ Rectangle {
                 list.forceActiveFocus()
                 subDialogMA.allowSubDialogSwipe = true
             }
+
             onLoaded: {
                 if(item.hasOwnProperty("populateModel") && typeof item.populateModel == 'function')
                     item.populateModel(itemValues);
@@ -1101,6 +1233,7 @@ Rectangle {
             }
         }
     }
+
     Loader {
         objectName: "confirmDialogLoader"
         anchors.fill: parent
@@ -1110,8 +1243,10 @@ Rectangle {
         asynchronous: true
         focus: active
         onActiveChanged: {
+            // If active becomes false, a dialog was closed, and list must get focus
             if(!active)
             {
+                // Make sure to break various bindings that could case this to be active again
                 confirmDialog.active = false
                 list.forceActiveFocus()
                 anchors.left = viewEndLine.right
@@ -1122,27 +1257,36 @@ Rectangle {
             confirmDialog.active = false
         }
     }
+
     ListModel {
         id: listModel
     }
+
+    // Special handling. If you find a better place for this to be, please feel free to move it there:
     Connections {
         target: configstore
+
+        // When focus size is changed, the focus point must be recalculated
         onFocusSizeChanged: {
+            // Recalculate focus point
             var currentSizeIndex = getSizeIndex()
             var xCount = constants.focusSizeXCount[currentSizeIndex]
             var yCount = constants.focusSizeYCount[currentSizeIndex]
             var afItemWidth = (1 - 2 * constants.focusGridXMarginPercent) / xCount
             var afItemHeight =  (1 - 2 * constants.focusGridYMarginPercent) / yCount
+
             var selectedXIndex = Math.floor((Camera.firstComponent(Camera.focus_point) - constants.focusGridXMarginPercent) / afItemWidth)
             var selectedYIndex = Math.floor((Camera.secondComponent(Camera.focus_point) - constants.focusGridYMarginPercent) / afItemHeight)
             if(selectedXIndex >= xCount) selectedXIndex = xCount - 1
             if(selectedYIndex >= yCount) selectedYIndex = yCount - 1
+
             GlobalStateInfo.afSselectedIndex =  selectedXIndex + selectedYIndex * xCount
             var xPoint = constants.focusGridXMarginPercent + (selectedXIndex + 0.5) * afItemWidth
             var yPoint = constants.focusGridYMarginPercent + (selectedYIndex + 0.5) * afItemHeight
             var focusPoint = Camera.combine(xPoint, yPoint)
             Camera.focus_point = focusPoint
         }
+
         function getSizeIndex() {
             for (var i = 0; i < constants.focusSize.length; i++)
             {
@@ -1153,5 +1297,7 @@ Rectangle {
             }
             return 0
         }
+
     }
-}
+
+} // Rectangle (root)

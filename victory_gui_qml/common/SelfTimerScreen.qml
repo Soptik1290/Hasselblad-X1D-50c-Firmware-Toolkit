@@ -1,10 +1,14 @@
 import QtQuick 2.2
+
 import com.hasselblad.camera 1.0
 import com.hasselblad.config 1.0
 import com.hasselblad.globalstateinfo 1.0
+
 import "qrc:/components"
+
 import "qrc:///scripts/commonfunc.js" as Cmn
 import "qrc:///scripts/Keys.js" as MKeys
+
 Item {
     objectName: "SelfTimerScreen_root"
     id: root
@@ -17,6 +21,7 @@ Item {
     property bool sideOriented: guiconfig.isWedge
     property bool isSelfTimer: Camera.selfTimerCountDown > 0
     property bool isLongExposure: Camera.exposureTimerCount > 0
+
     Keys.onPressed: {
         if(buttons.firstAvailable && MKeys.pressedFnAcc("ABORT", event)) {
             if (Camera.selfTimerCountDown > 0) {
@@ -26,29 +31,36 @@ Item {
             else if ((Camera.exposureTimerCount > 0) && !cambody.isBMode)
                 Camera.finishExposure()
         } else if(buttons.firstAvailable && MKeys.pressedFn("EXPOSURE", event.key)) {
+            // EXPOSURE press is allowed to stop, but only if exposure has started (ongoing) (if TMode just let through the press, daemon knows its business).
             if(0 === Camera.selfTimerCountDown && Camera.exposureTimerCount > 0) {
+
                 if(!cambody.isTMode)
                 {
                     Camera.finishExposure()
                     event.accepted = true
                 }
+                //  note: TMode passes on event, need to handle the stopping of ongoing T.
             }
-            else
+            else // any other case
                 event.accepted = true
         } else {
+            // don't let anything through.
             event.accepted = true
         }
     }
+
     MouseArea {
         anchors.fill: parent
         onClicked: {}
         z: 200
     }
+
     Rectangle {
         id: bg
         color: "black"
         anchors.fill: parent
     }
+
     Row {
         id: statusRow
         layoutDirection: Qt.RightToLeft
@@ -60,6 +72,7 @@ Item {
         }
         height: constants.cameraViewLineTopBottomMargin - constants.cameraViewMargin
         spacing: constants.cameraViewMargin + 20
+
         BatteryIndicatorScaled {
             id: batteryIndicator
             visible: guiconfig.isWedge && (isLongExposure || cambody.isBMode || cambody.isTMode)
@@ -69,6 +82,7 @@ Item {
             height: 59
         }
     }
+
     Text {
         id: header_text
         anchors {
@@ -84,6 +98,7 @@ Item {
                             isLongExposure ? qsTr("Exposing") + (cambody.isBMode ? " B-Mode" : cambody.isTMode ? " T-Mode" : "") : ""
         font.capitalization: Font.AllUppercase
     }
+
     Row {
         anchors {
             verticalCenter: bg.verticalCenter
@@ -96,6 +111,7 @@ Item {
             source: "qrc:///icons/Selftimer_Running.png"
             scale: 0.8
         }
+
         Text {
             function counterText()
             {
@@ -113,6 +129,7 @@ Item {
                 }
                 return ""
             }
+
             id: selfTimer
             visible: true
             text: counterText()
@@ -124,6 +141,7 @@ Item {
             anchors.verticalCenterOffset: isSelfTimer ? (implicitHeight - baselineOffset) * 0.5 : 0
         }
     }
+
     ConfirmationButtons {
         id: buttons
         visible: (guiconfig.isWedge || configstore.CameraType !== Config.CameraTypeHsystem) && (Camera.selfTimerCountDown > 0 || cambody.exposure_abortable) && !cambody.isBMode
@@ -132,4 +150,4 @@ Item {
         middleAvailable: false
         firstText: isSelfTimer ? qsTr("Exit") : qsTr("Finish Exposure")
     }
-}
+} // root Item
