@@ -1,31 +1,23 @@
 import QtQuick 2.0
 import com.hasselblad.config 1.0
-
 import "qrc:///components/buttons"
 import "qrc:///settings/components"
 import "qrc:///scripts/Keys.js" as MKeys
-
 Popover {
     id: popFilterImages
-
     heading: qsTr("FILTER IMAGES") + guiconfig.emptyString
     contentItem: list
     onFocusChanged: if (focus) list.forceActiveFocus()
     updateBodySyncState: false
-
     onVisibleChanged: {
-        //Save filter when closing
         if (!visible && list.filter !== configstore.imageRateFilter) {
             configstore.imageRateFilter = list.filter
         }
     }
-
     function openProcessing() {}
-
     content: Item {
         anchors.fill: parent
         anchors.topMargin: 20
-
         Column {
             id: list
             focus: true
@@ -36,7 +28,6 @@ Popover {
             readonly property var masks: [Config.MaskRating1, Config.MaskRating2, Config.MaskRating3, Config.MaskRating4, Config.MaskRating5, Config.MaskUnrated]
             readonly property var clearMasks: [Config.MaskRatingAll ^ Config.MaskRating1, Config.MaskRatingAll ^ Config.MaskRating2, Config.MaskRatingAll ^ Config.MaskRating3,
                                                Config.MaskRatingAll ^ Config.MaskRating4, Config.MaskRatingAll ^ Config.MaskRating5, Config.MaskRatingAll ^ Config.MaskUnrated]
-
             anchors {
                 fill: parent
                 topMargin: 10
@@ -44,17 +35,15 @@ Popover {
                 rightMargin: constants.popupSideMargins
                 bottomMargin: 10
             }
-
             function setSelected()
             {
                 if (currentIndex >= 0 && currentIndex < 6) {
                     toggleItem()
-                } else if (currentIndex === 6) { //Button
+                } else if (currentIndex === 6) {
                     filter = Config.MaskRatingAll
                 }
                 stopWheelTimeout()
             }
-
             function toggleItem() {
                 if ((filter & masks[currentIndex]) > 0) {
                     filter = filter & clearMasks[currentIndex]
@@ -62,7 +51,6 @@ Popover {
                     filter = filter | masks[currentIndex]
                 }
             }
-
             function moveCurrentIndexLeft() {
                 if (currentIndex < 0) {
                     currentIndex = (lastIndex >= 0) ? lastIndex : 0
@@ -85,7 +73,6 @@ Popover {
             function moveCurrentIndexDown() {
                 moveCurrentIndexRight()
             }
-
             Row {
                 id: starRow
                 anchors.horizontalCenter: parent.horizontalCenter
@@ -99,7 +86,6 @@ Popover {
                         border.color: image.highlighted ? constants.buttonBorderColor : "transparent"
                         width: image.width+10
                         height: image.height+10
-
                         Image {
                             id: image
                             property bool selected: (list.filter & list.masks[index]) > 0
@@ -125,13 +111,11 @@ Popover {
                 anchors.rightMargin: -constants.popupSideMargins+constants.popupBorderWidth+1
                 width: popFilterImages.width
                 height: checkBox.boxSize * 2
-
                 SettingCheckBox {
                     id: checkBox
                     width: list.width
                     height: constants.buttonHeight
                     boxSize: constants.checkBoxSize
-                    //Want to align checkbox with reset button but the 'V' in the checkbox goes outside of the box so we need manual padding
                     checkBoxTextRightMargin: -resetButton.width/2 - constants.subSettingDropDownSpacing - 6
                     checkboxText: qsTr("Show unrated") + guiconfig.emptyString
                     itemSpacing: 20
@@ -142,7 +126,6 @@ Popover {
                     }
                 }
             }
-
             MenuButton {
                 id: resetButton
                 maxWidth: list.width
@@ -159,19 +142,16 @@ Popover {
             }
         }
     }
-
     function startWheelTimeout()
     {
         wheelTimer.restart();
     }
-
     function stopWheelTimeout()
     {
         wheelTimer.stop();
         list.lastIndex = list.currentIndex
         list.currentIndex = -1
     }
-
     Timer {
         id: wheelTimer
         interval: constants.wheelTimeoutTimeMs

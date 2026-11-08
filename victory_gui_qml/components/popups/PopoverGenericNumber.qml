@@ -1,7 +1,5 @@
 import QtQuick 2.0
-
 import "qrc:///components/controls"
-
 ListSelector {
     objectName: "PopoverGenericNumber"
     id: popNumber
@@ -9,69 +7,47 @@ ListSelector {
     property alias model: list.model
     property int selectedValue: -1
     property int numberWidth: 0
-
     signal selected(int number)
-
     onSelectedValueChanged: updateHighlight()
     onModelChanged: updateHighlight()
-
     function updateHighlight() {
         if (selectedValue < 0 || !model)
             return
-        // Set focus on currently selected value.
-        // We do not want it to slowly "roll" to position, so we set duration
-        // temporarily to 0
         var oldHighlightMoveDuration = list.highlightMoveDuration;
         list.highlightMoveDuration = 0;
-
         for (var i = 0 ; i < model.count ; i++) {
             if (model.get(i).number === selectedValue) {
                 list.currentIndex = i;
-                //console.log("DEBUG: found value to select at index:" + i)
                 break;
             }
         }
-
         list.highlightMoveDuration = oldHighlightMoveDuration;
         list.focus = true;
     }
-
-    // Called when the user clicked in the list, not necessarily on the selected item,
-    // then the clicked item will be set
     function itemSelected(index)
     {
         if(index >= 0)
         {
-            //console.log("DEBUG: item selected index:" + index + ", value:" + model.get(index).number)
             popNumber.selected(model.get(index).number)
         }
         popNumber.close();
     }
-
-    // Called from ListSelector when clicked outside of list.
     function setSelected() {
         popNumber.selected(model.get(list.currentIndex).number)
     }
-
     content: list
     contentItem: list
-
-
     ListView {
         id: list
         clip: true
         boundsBehavior: Flickable.StopAtBounds
-
         anchors.fill: parent
         model: null
-
         function setSelectedClose()
         {
             popNumber.setSelected()
             popNumber.close();
         }
-
-
         delegate: Item {
             id: theItem
             height: list.height / constants.numberOfItemsVisibleInList
@@ -95,13 +71,10 @@ ListSelector {
                 onClicked: popNumber.itemSelected(index)
             }
         }
-
         orientation: ListView.Vertical
         highlightRangeMode: ListView.StrictlyEnforceRange
         preferredHighlightBegin: list.height / 2 - list.height / constants.numberOfItemsVisibleInList / 2
         preferredHighlightEnd: list.height / 2 + list.height / constants.numberOfItemsVisibleInList / 2
-
-
         highlight: Rectangle {
             color: constants.popupBackgroundColor
             height: list.height / constants.numberOfItemsVisibleInList
@@ -110,7 +83,6 @@ ListSelector {
                 anchors.fill: parent
             }
         }
-
         Rectangle {
             anchors.left: list.left
             anchors.right: list.right

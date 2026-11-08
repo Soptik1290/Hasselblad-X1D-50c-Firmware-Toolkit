@@ -1,5 +1,4 @@
 import QtQuick 2.2
-
 import com.hasselblad.config 1.0
 import com.hasselblad.cambody 1.0
 import com.hasselblad.video 1.0
@@ -15,21 +14,12 @@ import com.hasselblad.globalstateinfo 1.0
 import com.hasselblad.settings 1.0
 import com.hasselblad.lens 1.0
 import com.hasselblad.sound 1.0
-
 import "qrc:///common"
 import "qrc:///scripts/Keys.js" as MKeys
-
 Item {
     objectName: "mainRoot"
     id: mainRoot
-
-    // Special handling for wedge in sleeping state.
-    // Use properties if possible and avoid direct handling.
-    // But in this case the bodystate must be changed for wedge.
-    // and not for H-systems. Restoring values does not work for
-    // H-systems here but must be done for wedge.
     property int wegde_bodystate: -1
-
     GlobalConstants {
         id: constants
     }
@@ -37,7 +27,6 @@ Item {
                                              constants.liveViewImageMaxTimeoutSU : configstore.GUI_idle_timeout
     property bool isSleeping: false
     signal nextOverlay()
-
     Loader {
         objectName: "TouchWindow_loader"
         id: mainWindow
@@ -52,7 +41,6 @@ Item {
             target: mainWindow.item
             onIsReadyChanged: mainWindow.isReady = mainWindow.item.isReady
         }
-
         Binding {
             target: mainWindow.item
             property: "haveHalfPress"
@@ -60,7 +48,6 @@ Item {
             when: mainWindow.item !== null
         }
     }
-
     Loader {
         objectName: "EVFWindow_Loader"
         id: evfWindow
@@ -70,7 +57,6 @@ Item {
         active: mainWindow.isReady
         onLoaded: console.log("EvfWindow loaded")
     }
-
     property bool allLoaded: (mainWindow.status === Loader.Ready) && (evfWindow.status === Loader.Ready)
     onAllLoadedChanged: {
         if(allLoaded)
@@ -78,26 +64,18 @@ Item {
             evfWindow.item.setToBrowse.connect(mainWindow.item.setToBrowse)
             evfWindow.item.setToMain.connect(mainWindow.item.setToMain)
             evfWindow.item.setToControl.connect(mainWindow.item.setToControl)
-
-            // Start loading of live view overlays
-            // Used to not get delayed overlays in EVF
             var cmv = System.camera_mode === System.CameraModeVideo
             evfWindow.item.subloader_lv_active = !cmv
             evfWindow.item.subloader_video_active = cmv
             mainWindow.item.subloader_dialmode_active = guiconfig.isWedge
         }
     }
-
     Item {
-        // This is an object to keep track of transitions between EVF/MAIN/HDMI
-        // so far focus has been on EVF<->MAIN
         id: control
         objectName: "mainControl"
         property bool evfWasActive: false
         property bool sessionStopped: false
         property int contentAddedDuringEvfActive: 0
-
-
         Connections {
             id: content_conn
             property alias theTarget: content_conn.target
@@ -106,7 +84,7 @@ Item {
                 if (GlobalStateInfo.evfActive) {
                     control.contentAddedDuringEvfActive++
                     if (configstore.EVFPreviewTimeout !== 0) {
-                        evfWindow.item.openPreView(true, configstore.EVFPreviewTimeout > 0)//showLastItem, startTimer
+                        evfWindow.item.openPreView(true, configstore.EVFPreviewTimeout > 0)
                     }
                 }
                 mainWindow.item.photosAddedInSession++
@@ -114,7 +92,6 @@ Item {
                 ContentModel.setLastExposureFocusPoint(Camera.firstComponent(Camera.focus_point), Camera.secondComponent(Camera.focus_point))
             }
         }
-
         Connections {
             id: camera_conn
             target: Camera
@@ -125,13 +102,11 @@ Item {
                 GlobalStateInfo.photosAddedCount = 0
             }
         }
-
         Connections {
             id: mainSleepingConn
             ignoreUnknownSignals: true
             property alias theTarget: mainSleepingConn.target
             onSleepingChanged: updatePowerClient(target.sleeping)
-
             function updatePowerClient(sleeping) {
                 console.log("Power client will change state, sleeping:", sleeping)
                 if (sleeping)
@@ -142,7 +117,6 @@ Item {
                 }
             }
         }
-
         Connections {
             target: VideoControl
             onVideoModeChanged: {
@@ -150,19 +124,13 @@ Item {
                 {
                     evfWindow.item.requestActivate()
                 }
-                // In case Live View is abruptly shut down, the afSelectionActive does not get properly set
-                // So we do it here
                 if(VideoControl.videoMode !== VideoControl.View)
                 {
                     GlobalStateInfo.afSelectionActive = false
-                    // Make sure we always restore possibility to zoom. This might be missed if switching between back LCD/EVF just when Live View stops:
-                    // Since setting VideoControl.prohibitZoom = false here would lead to that dbus is not updated, we must set this using a timer.
-                    // Since we are in the middle of a change of VideoControl.videoMode a flag is set in VideoControl not to send over bus...
                     prohibitZoomTimer.start()
                 }
             }
         }
-
         Timer {
             id: prohibitZoomTimer
             interval: 0
@@ -170,7 +138,6 @@ Item {
                 VideoControl.prohibitZoom = false
             }
         }
-
         Timer {
             objectName: "mainActivateTimer"
             id: mainActivateTimer
@@ -180,9 +147,6 @@ Item {
                 mainWindow.item.requestActivate()
             }
         }
-
-        //Workaround for error "Binding loop detected for property" which is triggered when
-        //using mainWindow.item.sleeping directly in 'when' statement for state "sleeping"
         Timer {
             id: sleepStateTimer
             interval: 0
@@ -190,12 +154,10 @@ Item {
                 isSleeping = mainWindow.item.sleeping
             }
         }
-
         Connections {
             target: mainWindow.item
             onSleepingChanged: sleepStateTimer.start()
         }
-
         onStateChanged: {
             console.log("Control state:", state)
             if (state !== "evf") {
@@ -211,12 +173,8 @@ Item {
                 PropertyChanges { target: BodySync; focusSurface: mainWindow.item.title }
                 StateChangeScript {
                     script: {
-                        // On wedge we dont have a intelligent cam body so tell it to back off while we sleep
                         mainWindow.item.requestActivate()
-
                         if (guiconfig.isWedge) {
-                            // H6 goes to this state during exposure but no change in bodysync
-                            // state is wanted. Changing bodystate, even to same state, can break histogram in cambody display.
                             wegde_bodystate = BodySync.currentState
                             BodySync.currentState = BodySync.DISABLE_WHEELS
                         }
@@ -233,23 +191,13 @@ Item {
                 PropertyChanges { target: control; evfWasActive: true; restoreEntryValues: false }
                 PropertyChanges { target: VideoControl; liveViewImageTimeout: constants.liveViewImageTimeoutDefault; restoreEntryValues: false }
                 PropertyChanges { target: BodySync; focusSurface: evfWindow.item.title }
-                // QUICK HACK
-                // Note that the following property binding (BodySync.currentState) has a corresponding property binding in EVFWindow due to a QUICK HACK.
-                // (In function openPreView)
-                // Please update both simultaneously (if updating)
                 PropertyChanges { target: BodySync; currentState: cambody.exposing ? BodySync.DISABLE_WHEELS : GlobalStateInfo.afSelectionActive ? BodySync.MENU : (evfWindow.item.showPreview ? BodySync.PLAY : BodySync.MAIN); restoreEntryValues: false }
-                // END OF QUICK HACK
                 PropertyChanges { target: mainWindow.item; formatLoaderActive: false; restoreEntryValues: false }
-
             },
             State {
                 name: "evf_exit_stopping_session"
                 when: evfWindow.status === Loader.Ready && control.evfWasActive && BodySync.proximityDetectNear === 0 &&
-                      // Either we are not doing an exposure
                       ((!Camera.exposing && Camera.selfTimerCountDown === 0 && Camera.intervalTimerCountDown === 0)
-                       // Or we are in the phase where live view is to be shut off
-                       // on our side but the other side is exposing, we better wait
-                       // until video is off here too
                        || (Camera.exposing && VideoControl.videoMode !== VideoControl.Off)) &&
                       Camera.inSession &&
                       control.sessionStopped &&
@@ -259,7 +207,7 @@ Item {
                 name: "hdmi"
                 extend: "main"
                 when: evfWindow.status === Loader.Ready && mainWindow.isReady && BodySync.hdmiCableConnected && System.system_state !== System.StateUpgrade && System.tethered_mode !== System.TetheredModeUSBLiveView
-                PropertyChanges { target: VideoControl; liveViewImageTimeout: guiconfig.isA6D ? constants.liveViewImageTimeoutA6D : constants.liveViewImageTimeoutDefault; restoreEntryValues: false }
+                PropertyChanges { target: VideoControl; liveViewImageTimeout: constants.liveViewImageTimeoutDefault; restoreEntryValues: false }
                 PropertyChanges { target: mainWindow.item; isInHDMI: true }
                 PropertyChanges { target: evfWindow.item; isInHDMI: true }
                 PropertyChanges { target: BodySync; focusSurface: (VideoControl.videoMode !== VideoControl.Off) ? evfWindow.item.title : mainWindow.item.title }
@@ -269,11 +217,10 @@ Item {
                 name: "main"
                 when: mainWindow.isReady
                 PropertyChanges { target: mainSleepingConn; theTarget: mainWindow.item }
-                PropertyChanges { target: VideoControl; liveViewImageTimeout: guiconfig.isWedge ? liveViewImageTimeoutSU : constants.liveViewImageTimeoutDefault; restoreEntryValues: false }
+                PropertyChanges { target: VideoControl; liveViewImageTimeout: liveViewImageTimeoutSU; restoreEntryValues: false }
                 PropertyChanges { target: BodySync; focusSurface: mainWindow.item.title }
                 StateChangeScript {
                     script: {
-                        //If popup was opened in EVF/HDMI then transfer ownership to main window
                         if (GlobalStateInfo.errorPopupOwner === "overlay") {
                             GlobalStateInfo.errorPopupOwner = "main"
                         }
@@ -281,7 +228,6 @@ Item {
                 }
             }
         ]
-
         transitions: [
             Transition {
                 to: "evf"
@@ -289,7 +235,6 @@ Item {
                     script: {
                         if(VideoControl.videoMode === VideoControl.Playback)
                         {
-                            // Stop preventing idle
                             mainWindow.item.preventIdle(false)
                         }
                         if((ErrorControl.code === Errors.ErrorNone) || ErrorControl.isAckable)
@@ -299,40 +244,30 @@ Item {
                             mainWindow.item.showContent = false
                             GlobalStateInfo.evfActive = true
                             GlobalStateInfo.evfLiveViewWasAutostarted = false
-
                             console.log("Starting transition to EVF")
-
-                            // If we were in instant preview in the back LCD, EVF should show preview, otherwise it should show liveview
                             if(wasInInstantPreview)
                             {
-                                evfWindow.item.openPreView(false, false)//showLastItem, startTimer
+                                evfWindow.item.openPreView(false, false)
                             }
                             else
                             {
-                                // Autostart if we just were in the evf, or the main screen was active
                                 if ((!mainWindow.item.sleeping || GlobalStateInfo.evfLiveViewWasAutostarted)
                                         && (VideoControl.videoMode === VideoControl.Off)
                                         && (configstore.ExpMode !== Config.ExpMode_ManualQuick)
                                         && !(Camera.inSession && Camera.showLiveViewWhenFinished))
                                 {
-
                                     evfWindow.item.closePreView()
-
-                                    // start liveview automatically if the main screen is not sleeping
                                     Camera.setLiveViewState(true)
                                     GlobalStateInfo.evfLiveViewWasAutostarted = true
                                 }
                             }
                             Camera.setShowLiveViewWhenFinished((configstore.EVFPreviewTimeout == 0), true)
-
                             mainWindow.item.deactivate()
-
                             if (evfWindow.item !== null)
                             {
                                 evfWindow.item.requestActivate()
                             }
                             PowerClient.setState(PowerClient.PowerStateActive)
-
                             if((VideoControl.videoMode === VideoControl.View))
                             {
                                 VideoControl.restartLiveViewImageTimeout();
@@ -348,8 +283,6 @@ Item {
                         }
                     }
                 }
-
-                // Show the content when the video is hopefully there..
                 SequentialAnimation {
                     PauseAnimation { duration: 50 }
                     ScriptAction {
@@ -364,11 +297,9 @@ Item {
                 to: "hdmi"
                 ScriptAction {
                     script: {
-                        // TODO: revise, the whole usecase needs to be clarified
                         mainWindow.item.activate(false, false)
                         mainSleepingConn.updatePowerClient(mainWindow.item.sleeping)
                         mainWindow.item.showContent = true
-
                         if ((evfWindow.item !== null) && (VideoControl.videoMode !== VideoControl.Off))
                         {
                             evfWindow.item.requestActivate()
@@ -379,19 +310,14 @@ Item {
                             mainWindow.item.requestActivate()
                             mainActivateTimer.start()
                         }
-
                         mainSleepingConn.updatePowerClient(mainWindow.item.sleeping)
-
                         evfWindow.item.closePreView()
-
                         if((VideoControl.videoMode === VideoControl.View))
                         {
                             VideoControl.restartLiveViewImageTimeout();
                         }
-
                     }
                 }
-                // Show the content when the video is hopefully there..
                 SequentialAnimation {
                     PauseAnimation { duration: (GlobalStateInfo.testMode ? 10 : 50) }
                     ScriptAction {
@@ -401,7 +327,6 @@ Item {
                         }
                     }
                 }
-
             },
             Transition {
                 from: "main"
@@ -418,7 +343,6 @@ Item {
                 ScriptAction {
                     script: {
                         console.log("running transition from evf to sleeping")
-                        // See comments under transition from evf to main, most rules apply the same.
                         evfWindow.item.showContent = false
                         evfWindow.item.showPreview = false
                         if (GlobalStateInfo.evfLiveViewWasAutostarted && VideoControl.videoMode !== VideoControl.Record)
@@ -426,13 +350,10 @@ Item {
                             Camera.setLiveViewState(false)
                         }
                         Camera.setShowLiveViewWhenFinished(false, true)
-
-                        // Main is in disabled state when we're in EVF, so stop video has to be done here.
                         if(VideoControl.videoMode === VideoControl.Record) {
                             Camera.setLiveViewState(false)
                             VideoControl.setVideoRecordState(false)
                         }
-
                         GlobalStateInfo.evfLiveViewWasAutostarted = false
                         control.evfWasActive = false
                         control.contentAddedDuringEvfActive = 0
@@ -470,7 +391,6 @@ Item {
                         evfWindow.item.showContent = false
                         evfWindow.item.showPreview = false
                         mainWindow.item.startEvfTimer()
-
                         console.log("Exiting EVF,",
                                     "pictures taken:", control.contentAddedDuringEvfActive,
                                     "exposing state:", Camera.exposing,
@@ -479,58 +399,33 @@ Item {
                                     "Session stopped requested:", control.sessionStopped,
                                     "added during session:", mainWindow.item.photosAddedInSession,
                                     "video stream:", VideoControl.videoMode)
-
-                        // When returning from EVF during this error, we don't want the dialog remaining afterwards,
-                        // even if it will timeout.
                         if(ErrorControl.code === Errors.ErrorExposureModePreventsLiveview)
                             ErrorControl.ack()
-
-                        // if we autostarted liveview, turn it off again when we return.
                         if (GlobalStateInfo.evfLiveViewWasAutostarted && VideoControl.videoMode !== VideoControl.Record)
                         {
                             Camera.setLiveViewState(false)
                         }
-
-
-                        // Just in case this happened during an ongoing exposure sequence
-                        // (specially likely when high-quality jpeg enabled for longer exposure sequence time)
-                        // make sure liveview doesn't get started when exposure sequence is finally done.
                         Camera.setShowLiveViewWhenFinished(false, !mainWindow.item.wasExposingInEvf)
-
-                        // Special case: We leave EVF shortly after exposure and expect a preview being displayed on
-                        // back screen. There is a race condition whether video mode should be set to off or live
-                        // resulting in a change to state "liveview" in TouchWindow. To prevent this we order VideoProxy
-                        // to report video mode off for a short time.
                         if (configstore.CustomOption_ShowPreview && mainWindow.item.wasExposingInEvf) {
                             console.log("starting override of video mode")
                             VideoControl.overrideVideoMode(0, 1000)
                         }
-
-                        // If we are in a session, an half press is not released:
-                        //  * do not force the window to any state
-                        //  * We only do this if no pictures is take so far
-                        //    otherwise there is a risk that the last picture has been taken
-                        //    already and we are just exiting the session.
                         if (Camera.inSession && GlobalStateInfo.haveHalfPress) {
                             mainWindow.item.activate(false, false)
                         } else {
-
                             var showPreview = ((mainWindow.item.wasExposingInEvf && configstore.CustomOption_ShowPreview) || evfWindow.item.isInPreview) &&
                                               !mainWindow.item.shouldShowSelfTimer() && !mainWindow.item.shouldShowIntervalTimer()
                             var showControl = ((GlobalStateInfo.evfLiveViewWasAutostarted && VideoControl.videoMode !== VideoControl.Record) || (VideoControl.videoMode === VideoControl.Off)) &&
                                     !mainWindow.item.shouldShowSelfTimer() && !mainWindow.item.shouldShowIntervalTimer()
                             mainWindow.item.activate(showPreview, showControl)
                         }
-
                         control.evfWasActive = false
                         control.contentAddedDuringEvfActive = 0
                         mainSleepingConn.updatePowerClient(mainWindow.item.sleeping)
-
                         if((VideoControl.videoMode === VideoControl.View))
                         {
                             VideoControl.restartLiveViewImageTimeout();
                         }
-
                     }
                 }
                 SequentialAnimation {
@@ -544,7 +439,6 @@ Item {
                 }
             },
             Transition {
-                // Empty transition to avoid activating the touch window and preparing the liveview state...
                 to: "evf_exit_stopping_session"
                 ScriptAction {
                     script: {
@@ -555,16 +449,12 @@ Item {
                                     "Autostart of liveview:", GlobalStateInfo.evfLiveViewWasAutostarted,
                                     "Session stopped requested:", control.sessionStoped,
                                     "added during session:", mainWindow.item.photosAddedInSession)
-
                         if (GlobalStateInfo.evfLiveViewWasAutostarted && !GlobalStateInfo.haveHalfPress &&
                             VideoControl.videoMode !== VideoControl.Record)
                         {
                             Camera.setLiveViewState(false)
                         }
                         else if (!GlobalStateInfo.haveHalfPress)
-                            // first, just in case this happened during an ongoing exposure sequence
-                            // (specially likely when high-quality jpeg enabled for longer exposure sequence time)
-                            // make sure liveview doesn't get started when exposure sequence is finally done.
                             Camera.setShowLiveViewWhenFinished(false, !mainWindow.item.wasExposingInEvf)
                     }
                 }
@@ -580,7 +470,6 @@ Item {
                         }
                         mainSleepingConn.updatePowerClient(mainWindow.item.sleeping)
                         mainWindow.item.showContent = true
-
                         if (wegde_bodystate !== -1) {
                             BodySync.currentState = wegde_bodystate
                             wegde_bodystate = -1
@@ -590,12 +479,10 @@ Item {
             }
         ]
     }
-
     Keys.onPressed: {
         event.accepted = false
         console.log("Unhandled key reached main:", event.key)
     }
-
     Timer {
         id: delayed_liveview
         interval: 200
@@ -607,12 +494,10 @@ Item {
                 Camera.setLiveViewState(true)
         }
     }
-
     function stopDelayedLiveView()
     {
         delayed_liveview.stop()
     }
-
     function commonKeyHandleReleased(event)
     {
         if (System.tethered_mode !== System.TetheredModeUSBLiveView) {
@@ -625,7 +510,6 @@ Item {
             else if (MKeys.pressedFnAcc("EXPOSURE", event)) {
                 console.log("Got full release")
                 Camera.stopExposing()
-                // if we were preventing idle while exposure was being pressed, we now allow idling again.
                 if(mainWindow.item && (!configstore.selfTimerActive && !configstore.intervalActive && !configstore.bracketingActive && !configstore.focusBracketingActive))
                 {
                     mainWindow.item.preventIdle(false)
@@ -640,7 +524,6 @@ Item {
                 if(cropModeLongPressTimer.running)
                 {
                     cropModeLongPressTimer.stop()
-                    // Short press of CROPMODENEXT (or PREV). We better handle that...
                     cycleCropMode(MKeys.pressedFnAcc("CROPMODENEXT", event))
                 }
             }
@@ -653,17 +536,13 @@ Item {
         {
             cambody.doStopDown(false)
         }
-
     }
-
-
     function commonKeyHandle(event)
     {
         console.log("common key")
         cropModeLongPressTimer.stop()
-
         if(control.state === "sleeping" || mainWindow.item.sleeping) {
-            if(MKeys.pressedFnAcc("WAKEUP", event)) { // any valid wakeup-key (Note: Only handling wakeup from evf window)
+            if(MKeys.pressedFnAcc("WAKEUP", event)) {
                 console.log("wakeup power reached main, waking...")
                 mainWindow.item.idleWakeupOrForceOff(true)
             }
@@ -673,7 +552,7 @@ Item {
             }
             return true
         }
-        else if(MKeys.pressedFnAcc("TOGGLESLEEP", event)) { // main or EVF
+        else if(MKeys.pressedFnAcc("TOGGLESLEEP", event)) {
              if(!(ContentModel.isFormatting || Upgrader.isProcessing)) {
                 mainWindow.item.idleWakeupOrForceOff(false)
             }
@@ -693,10 +572,8 @@ Item {
                 {
                     if(configstore.ExpMode === Config.ExpMode_ManualQuick)
                     {
-                        // Special treatment for MQ
                         if(!Camera.inSession)
                         {
-                            // Start session here
                             Camera.startSession(false)
                             control.sessionStopped = false
                         }
@@ -708,7 +585,6 @@ Item {
                 }
                 else if (System.camera_mode === System.CameraModeVideo)
                 {
-                    // skipping AF in video mode, waiting for "FULLPRESS" where we'll start recording.
                 }
                 else if (!Camera.inSession)
                 {
@@ -717,7 +593,6 @@ Item {
                     control.sessionStopped = false
                 }
             }
-
             return true
         }
         else if(MKeys.pressedFnAcc("AF_D", event))
@@ -739,7 +614,6 @@ Item {
             console.log("Got full press")
             delayed_liveview.stop()
             GlobalStateInfo.haveHalfPress = false
-
             if (System.camera_mode === System.CameraModeVideo)
             {
                 var start = (VideoControl.videoMode !== VideoControl.Record);
@@ -751,23 +625,17 @@ Item {
                                       ((configstore.ExpMode === Config.ExpMode_ShutterSpeed && cambody.AV_out_of_range) ||
                                        (configstore.ExpMode === Config.ExpMode_Aperture && cambody.TV_out_of_range) ||
                                        (configstore.ExpMode === Config.ExpMode_Program && (cambody.TV_out_of_range || cambody.AV_out_of_range)))
-
                 if (preventExposure) {
                     SoundControl.play(SoundControl.SndOutOfRangeMulti)
                 } else {
-
-                    // Return to live if we're not supposed to show previews.
                     var liveviewAfterExposure = ((control.state === "evf" && configstore.EVFPreviewTimeout === 0) ||
                                                  (control.state !== "evf" && !configstore.CustomOption_ShowPreview)) &&
                                                  configstore.ExpMode !== Config.ExpMode_ManualQuick &&
                                                  !configstore.intervalActive && !configstore.selfTimerActive && !configstore.bracketingActive && !configstore.focusBracketingActive
-                    // In case we don't already have an ongoing camera session, we need one now!
                     if (!Camera.inSession)
                     {
                         Camera.startSession(liveviewAfterExposure)
                     }
-
-
                     Camera.startExposing(liveviewAfterExposure)
                     if (!Camera.exposing) {
                         GlobalStateInfo.waitingForExpose = true
@@ -777,15 +645,11 @@ Item {
                         mainWindow.item.wasExposingInEvf = true
                     }
                 }
-
-                // Starting an exposure cannot be interrupted by power down as long as we hold down.
-                // however, the self timer controls the idle handling by itself.
                 if(mainWindow.item && (!configstore.selfTimerActive && !configstore.intervalActive && !configstore.bracketingActive && !configstore.focusBracketingActive))
                     mainWindow.item.preventIdle(true)
             }
             if((ErrorControl.code !== Errors.ErrorNone) && ErrorControl.isAckable)
             {
-                // Close dialog
                 ErrorControl.ack()
             }
             return true
@@ -841,7 +705,6 @@ Item {
         else if (MKeys.pressedFnAcc("CROPMODENEXT", event) || MKeys.pressedFnAcc("CROPMODEPREV", event))
         {
             if (!System.isTethered) {
-                // We do not know yet if this is a short or long press, we start a timer to find out
                 cropModeLongPressTimer.restart()
             }
             return true
@@ -850,7 +713,7 @@ Item {
         {
             if (!System.isTethered) {
                 if (GlobalStateInfo.evfActive) {
-                    evfWindow.item.openPreView(true, false)//showLastItem, startTimer
+                    evfWindow.item.openPreView(true, false)
                 } else {
                     mainWindow.item.setToBrowse()
                 }
@@ -869,8 +732,6 @@ Item {
         }
         else if (MKeys.pressedFnAcc("AFPCYCLE", event))
         {
-            //Reset index to get correct position when opening the AFPointSelection the next time
-            //Important that index is reset before cycleAFPointSize
             GlobalStateInfo.afSselectedIndex = -1
             configstore.cycleAfPointSize()
             return true
@@ -897,22 +758,14 @@ Item {
             }
             else if(configstore.ExpMode !== Config.ExpMode_ManualQuick)
             {
-                if(guiconfig.isWedge)
+                if (VideoControl.videoMode === VideoControl.Off || VideoControl.videoMode === VideoControl.Playback)
                 {
-                    // In X1D, key toggles live view
-                    if (VideoControl.videoMode === VideoControl.Off || VideoControl.videoMode === VideoControl.Playback)
-                    {
-                        delayed_liveview.start()
-                    }
-                    else
-                    {
-                        stopDelayedLiveView()
-                        Camera.setLiveViewState(false)
-                    }
+                    delayed_liveview.start()
                 }
                 else
                 {
-                    delayed_liveview.start()
+                    stopDelayedLiveView()
+                    Camera.setLiveViewState(false)
                 }
             }
             return true
@@ -929,15 +782,9 @@ Item {
         }
         else if (MKeys.pressedFnAcc("CYCLEFOCUSSCANRANGE", event))
         {
-            // Cycle:
-            // "Full" == 0
-            // "Near" == 1
-            // "Far"  == 2
             configstore.FocusScanRange = (configstore.FocusScanRange + 1) % 3
-
             GlobalStateInfo.overlayText = Settings.getDisplayValue("FocusScanRange", configstore.FocusScanRange)
             GlobalStateInfo.overlayHeader = qsTr("Autofocus Scan Range")
-            //Popups start on change to valid mode. Cannot clear in popups since they will interfere with each other then
             GlobalStateInfo.overlayMode = ""
             GlobalStateInfo.overlayMode = "show_global_note"
             return true
@@ -947,7 +794,6 @@ Item {
             return false
         }
     }
-
     function customRecordVideo()
     {
         if (guiconfig.isWedge)
@@ -963,22 +809,17 @@ Item {
                 startVideoTimer.start()
             }
         }
-
         var start = (VideoControl.videoMode !== VideoControl.Record);
         VideoControl.setVideoRecordState(start)
     }
-
     function controlScreen()
     {
             mainWindow.item.idleWakeupOrForceOff(true)
             mainWindow.item.setToControl()
     }
-
     function startExposure()
     {
-        // Same as startExposure on qml component ExposureButton
         stopDelayedLiveView()
-
         if (System.camera_mode === System.CameraModeVideo) {
             var start = (VideoControl.videoMode !== VideoControl.Record);
             VideoControl.setVideoRecordState(start)
@@ -986,15 +827,12 @@ Item {
         else
         {
             VideoControl.setZoomState(false)
-
             if (!Camera.exposing)
             {
                 Camera.startSession(configstore.ExpMode !== Config.ExpMode_ManualQuick)
                 control.sessionStopped = false
             }
-
             Camera.startExposing((control.state === "evf" || !configstore.CustomOption_ShowPreview) && (configstore.ExpMode !== Config.ExpMode_ManualQuick))
-
             if (!Camera.exposing) {
                 GlobalStateInfo.waitingForExpose = true
             }
@@ -1002,35 +840,24 @@ Item {
             if (GlobalStateInfo.evfActive) {
                 mainWindow.item.wasExposingInEvf = true
             }
-            // Starting an exposure cannot be interrupted by power down as long as we hold down.
-            // however, the self timer controls the idle handling by itself.
             if(mainWindow.item && (!configstore.selfTimerActive && !configstore.intervalActive && !configstore.bracketingActive && !configstore.focusBracketingActive))
                 mainWindow.item.preventIdle(true)
         }
         if((ErrorControl.code !== Errors.ErrorNone) && ErrorControl.isAckable)
         {
-            // Close dialog
             ErrorControl.ack()
         }
     }
-
     function stopExposure()
     {
         Camera.stopExposing()
         Camera.stopSession()
         control.sessionStopped = true
-
         cambody.forceFinishExposure()
-        // if we were preventing idle while exposure was being pressed, we now allow idling again.
         if (!configstore.selfTimerActive && !configstore.intervalActive && !configstore.bracketingActive && !configstore.focusBracketingActive)
             preventIdle(false)
     }
-
     Timer {
-        /* If video recording is started outside of video mode
-         * there is a slight delay before recording can start.
-         * This delay is handled by this timer.
-         */
         id: startVideoTimer
         interval: 5
         onTriggered: {
@@ -1045,7 +872,6 @@ Item {
             }
         }
     }
-
     function cycleCropMode(forward) {
         GlobalStateInfo.overlayHeader = qsTr("CROP MODE")
         if (System.camera_mode === System.CameraModeImage) {
@@ -1054,7 +880,7 @@ Item {
                 cropMode = (cropMode === Config.RatioNoCrop) ? Config.Ratio1to1 :
                            (cropMode === Config.Ratio65to24) ? Config.RatioNoCrop :
                            (cropMode === Config.Ratio11to8p5) ? Config.Ratio297to210 : cropMode+1
-            } else { //Backwards
+            } else {
                 cropMode = (cropMode === Config.Ratio1to1) ? Config.RatioNoCrop :
                            (cropMode === Config.RatioNoCrop) ? Config.Ratio65to24 :
                            (cropMode === Config.Ratio297to210) ? Config.Ratio11to8p5 : cropMode-1
@@ -1069,35 +895,26 @@ Item {
         } else {
             GlobalStateInfo.overlayText = qsTr("Crop Modes not available<br\>in Video Mode")
         }
-
-        //Popups start on change to valid mode. Cannot clear in popups since they will interfere with each other then
         GlobalStateInfo.overlayMode = ""
         GlobalStateInfo.overlayMode = (System.camera_mode === System.CameraModeImage) ? "crop_mode" : "no_crop_in_video"
     }
-
     Timer {
         id: cropModeLongPressTimer
         running: false
         interval: 350
         repeat: false
         onTriggered: {
-            // Timer timed out, thus this is a long press
-            // Set "No crop" mode
             if (System.camera_mode === System.CameraModeImage) {
                 configstore.aspectRatio = Config.RatioNoCrop
                 GlobalStateInfo.overlayText = Settings.getDisplayValue("aspectRatio", Config.RatioNoCrop)
-
             } else {
                 GlobalStateInfo.overlayText = qsTr("Crop Modes not available<br\>in Video Mode")
             }
-
             GlobalStateInfo.overlayHeader = qsTr("CROP MODE")
-            //Popups start on change to valid mode. Cannot clear in popups since they will interfere with each other then
             GlobalStateInfo.overlayMode = ""
             GlobalStateInfo.overlayMode = (System.camera_mode === System.CameraModeImage) ? "crop_mode" : "no_crop_in_video"
         }
     }
-
     function lensToNear()
     {
         lens.scanLens(Lens.ScanDirNear)

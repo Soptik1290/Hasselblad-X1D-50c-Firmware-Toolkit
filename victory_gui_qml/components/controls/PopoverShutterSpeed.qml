@@ -1,17 +1,11 @@
 import QtQuick 2.0
-
 import com.hasselblad.settings 1.0
-
 import "qrc:///scripts/Keys.js" as MKeys
-
 ListSelector {
     id: popShutterSpeed
     isToLeft: false
-
     property int gridspacing: 10
-
     onFocusChanged: if (focus) list.focus = true
-
     function itemSelected(index)
     {
         if(index >= 0)
@@ -27,16 +21,12 @@ ListSelector {
             cambody.shutterSpeed = list.model[list.currentIndex]
         }
     }
-
     contentItem: list
-
     content: Item {
         anchors.fill: parent
-
         ListView {
             id: list
             model: Settings.shutterspeedValues
-
             anchors.top: parent.top
             anchors.bottom: parent.bottom
             anchors.left: parent.left
@@ -44,7 +34,6 @@ ListSelector {
             clip: true
             boundsBehavior: Flickable.StopAtBounds
             highlightMoveVelocity: 800
-
             orientation: ListView.Vertical
             highlightRangeMode: ListView.StrictlyEnforceRange
             preferredHighlightBegin: list.height / 2 - list.height / constants.numberOfItemsVisibleInList / 2
@@ -56,14 +45,12 @@ ListSelector {
             }
             onCountChanged: updateHighlight()
             Component.onCompleted: updateHighlight()
-
             function updateHighlight() {
                 var oldHighlightMoveDuration = highlightMoveDuration;
                 highlightMoveDuration = 0;
                 currentIndex = model.indexOf(cambody.shutterSpeed);
                 highlightMoveDuration = oldHighlightMoveDuration;
             }
-
             highlight: Rectangle{
                 color: constants.popupBackgroundColor
                 height: list.height / constants.numberOfItemsVisibleInList
@@ -73,7 +60,6 @@ ListSelector {
                 }
             }
             property real itemFontSizeBase: 50 * 5 / constants.numberOfItemsVisibleInList
-
             delegate: Item {
                 id: theItem
                 height: list.height / constants.numberOfItemsVisibleInList
@@ -81,7 +67,6 @@ ListSelector {
                 property real addSize : (Math.max(height - Math.abs(theItem.y - list.contentY - list.preferredHighlightBegin), 0) / height) * constants.listViewSizeIncreaseFactor
                 Text {
                     anchors {
-//                      horizontalCenter: theItem.horizontalCenter
                         verticalCenter: theItem.verticalCenter
                         verticalCenterOffset: (height - baselineOffset) / 2
                         left: parent.left
@@ -138,5 +123,4 @@ ListSelector {
             }
         }
     }
-
 }

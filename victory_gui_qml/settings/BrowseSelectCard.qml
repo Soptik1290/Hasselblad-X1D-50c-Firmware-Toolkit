@@ -1,29 +1,17 @@
 import QtQuick 2.0
 import "qrc:///scripts/Keys.js" as MKeys
 import com.hasselblad.guiconfig 1.0
-
-
 Rectangle {
     objectName: "BrowseSelectCard_root"
     anchors.fill: parent
     id: root
     color: "black"
-
-//    function directoryUpSelected()
-//    {
-//        card_list.currentIndex = -1
-//        card_list.lastIndex = -1
-//    }
-
-
-
     function setFocus()
     {
         card_list.forceActiveFocus()
         card_list.currentIndex = -1
         card_list.lastIndex = -1
     }
-
     property alias model: card_list.model
     property alias currentIndex: card_list.currentIndex
     signal directorySelected(string dir)
@@ -31,19 +19,14 @@ Rectangle {
     onCardListFocusChanged: console.log("cardListFocus: ", cardListFocus)
     property bool allowDimming: true
     property int oldActiveCard: -1
-
-
     property int itemWidth: 258
     property int buttonWidth: 210
     property int borderThickness: 3
-
     Keys.onPressed: {
-        // Prevent F3 from being used somewhere else
         MKeys.pressedFnAcc("STAR", event);
         MKeys.pressedFnAcc("BROWSE", event);
         MKeys.pressedFnAcc("ZOOM_IN", event);
     }
-
     Text {
         id: header
         text: "<font color=\"" + constants.menuHighlightColor + "\">" + qsTr("BROWSE") + ":</font> " + qsTr("MEMORY CARDS") + guiconfig.emptyString
@@ -54,7 +37,6 @@ Rectangle {
         color: "white"
         font.capitalization: Font.AllUppercase
     }
-
     Text {
         id: centerText
         text: qsTr("Select Card to Browse") + guiconfig.emptyString
@@ -69,15 +51,12 @@ Rectangle {
         horizontalAlignment: Text.AlignHCenter
         color: "white"
     }
-
-    // Reset index when entering this
     onVisibleChanged: {
         if(visible)
         {
             card_list.currentIndex = -1
         }
     }
-
     Timer {
         id: listTimer
         interval: constants.wheelTimeoutTimeMs
@@ -85,18 +64,14 @@ Rectangle {
         repeat: false
         onTriggered: card_list.highlightAllow = false
     }
-
     function startMenuWheelTimeout()
     {
         listTimer.restart();
     }
-
     function stopMenuWheelTimeout()
     {
         listTimer.stop();
     }
-
-
     ListView {
         objectName: "BrowseSelectCard_card_list"
         id: card_list
@@ -111,9 +86,8 @@ Rectangle {
         onActiveFocusChanged: console.log("active cardListFocus: ", activeFocus)
         interactive: false
         property bool highlightAllow: false
-
         orientation: ListView.Horizontal
-        highlightMoveVelocity: -1 // TODO: make optional animation possible (highlightMoveVelocity: root.width * 5)
+        highlightMoveVelocity: -1
         highlight: Item {
             height: card_list.height
             width: root.itemWidth
@@ -128,7 +102,6 @@ Rectangle {
                 border.width: (oldActiveCard === card_list.currentIndex ? 2 : 1) * root.borderThickness
             }
         }
-
         delegate: Item {
             height: card_list.height
             width: root.itemWidth
@@ -145,7 +118,7 @@ Rectangle {
             Text {
                 anchors.centerIn: parent
                 anchors.verticalCenterOffset: 9
-                text: beautyPrint(model.display) // It would be nice here to have the actual UNIT number as a role and convert into the specific card name.
+                text: beautyPrint(model.display)
                 color: buttonMouseArea.containsPress ? "black" : "white"
                 font.pixelSize: 60
             }
@@ -169,7 +142,6 @@ Rectangle {
                 }
             }
         }
-
         property int lastIndex: -1
         Keys.onPressed: {
             event.accepted = true
@@ -180,7 +152,7 @@ Rectangle {
                     decrementCurrentIndex()
                 else
                     currentIndex = lastIndex
-                lastIndex = currentIndex // This may look peculiar, but its in order!
+                lastIndex = currentIndex
             }
             else if(MKeys.pressedFn("NAVRIGHT", event.key) || MKeys.pressedFn("DOWN", event.key)) {
                 startMenuWheelTimeout();
@@ -189,33 +161,18 @@ Rectangle {
                     incrementCurrentIndex()
                 else
                     currentIndex = lastIndex
-                lastIndex = currentIndex // This may look peculiar, but its in order!
+                lastIndex = currentIndex
             }
             else
                 event.accepted = false
         }
-
     }
-
-    // Turn off backlight when screen is black (when there are no items to show)
-    /*
-    states: [
-        State {
-            name: "NoItems"
-            when: (card_list.count == 0) && (ErrorControl.code === Errors.ErrorNone) && root.allowDimming
-            PropertyChanges { target: backlight; brightness: constants.blackScreenBrightness }
-        }
-    ]
-    */
-
     function beautyPrint(cardName)
     {
         if((typeof cardName === 'undefined') || (cardName === undefined))
         {
             return ""
         }
-
-        // TODO: Do something better here. We get a card name as input but should get a slot number.
         switch(cardName.toUpperCase())
         {
         case "SD0":
@@ -223,13 +180,11 @@ Rectangle {
                 return "SD1";
             }
             return "SD"
-
         case "SD1":
             if(GuiConfig.SlDualSD === guiconfig.storageSlots) {
                 return "SD2";
             }
             return "SD"
-
         case "SDCARD":
             if(GuiConfig.SlDualSD === guiconfig.storageSlots) {
                 return "SD2";
@@ -245,9 +200,7 @@ Rectangle {
             return cardName
         }
     }
-
     Component.onDestruction: {
         allowDimming = false
     }
-
 }

@@ -1,5 +1,4 @@
 import QtQuick 2.0
-
 Rectangle {
     id: root
     color: "black"
@@ -7,7 +6,6 @@ Rectangle {
     property int buttonWidth: 40
     property string headingText
     property bool patternValue: false
-
     Text {
         id: heading
         anchors.top: parent.top
@@ -17,7 +15,6 @@ Rectangle {
         text: qsTr(headingText) + guiconfig.emptyString
         font.capitalization: Font.AllUppercase
     }
-
     ListView {
         anchors.top: heading.bottom
         anchors.bottom: parent.bottom
@@ -53,46 +50,36 @@ Rectangle {
             }
         }
     }
-
     ListModel {
         id: items
-
         ListElement {
             display: "Normal"
             value: 0
         }
-
         ListElement {
             display: "Uncalibrated"
             value: 1
         }
-
         ListElement {
             display: "GC Map"
             value: 2
         }
-
         ListElement {
             display: "Offset Map"
             value: 3
         }
-
         ListElement {
             display: "ETC Map"
             value: 4
         }
-
         ListElement {
             display: "Gain Map"
             value: 5
         }
-
         ListElement {
             display: "Blemish Map"
             value: 6
         }
     }
-
     onSelectedChanged: farm.rawprocessing_mode = selected
 }
-

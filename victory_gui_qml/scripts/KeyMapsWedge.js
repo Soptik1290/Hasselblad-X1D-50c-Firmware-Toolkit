@@ -1,11 +1,3 @@
-// Wedge specific key mappings.
-
-// This is the mapping of keys to specific camera functions. It is possible to specify the same physical key several
-// times in this array, because it can be assigned to different meanings depending on the currently displayed context.
-// For instance, F2 on MainScreen means go to CameraMenu, while on most confirmation dialogs it means "Exit" instead.
-// Note that the functions logKeyItem(), camFnFromKey(), pressedKeyFn() and pressedKeyLabel() are available as helpers in Keys.js.
-// However, the best way to "compare" whether a key has been pressed is by directly indexing the direct key-property, e.g.:
-// if(event.key === CAMKEYS[EXIT].key) {...}
 var CAMKEYS = {
     MENU:        { name: "Menu",         key: [ Qt.Key_F1 ] },
     CROSS:       { name: "Cross",        key: [ Qt.Key_F2 ] },
@@ -28,21 +20,15 @@ var CAMKEYS = {
     AF_MF:       { name: "AF-MF",        key: [ Qt.Key_F ] },
     ISO_WB:      { name: "ISO-WB",       key: [ Qt.Key_I ] },
     TOGGLESLEEP: { name: "ToggleSleep",key: [ Qt.Key_F9 ] },
-    // The following is for keys reaching EVF window only during sleep mode.
     WAKEUP:      { name: "Wakeup",        key: [ Qt.Key_F9, Qt.Key_F1, Qt.Key_F2, Qt.Key_F3, Qt.Key_F4, Qt.Key_F5, Qt.Key_A, Qt.Key_E ] },
-    // The 'NAV' mappings are for navigation in menus and popovers, but not only for the scroll wheel (cursor keys), but
-    // also for any other keys that might be suitable for the direction.
     NAVRIGHT:    { name: "NavRight",     key: [ Qt.Key_F2, Qt.Key_Right ] },
     NAVLEFT:     { name: "NavLeft",      key: [ Qt.Key_F4, Qt.Key_Left ] },
-    NAVDOWN:     { name: "NavDown",      key: [ Qt.Key_F2, Qt.Key_Down ] }, // NOTE: NAV UP/DOWN are NOT used in the same context as LEFT/RIGHT
+    NAVDOWN:     { name: "NavDown",      key: [ Qt.Key_F2, Qt.Key_Down ] },
     NAVUP:       { name: "NavUp",        key: [ Qt.Key_F4, Qt.Key_Up ] },
-    // Navigating in popups
     POPLEFT:     { name: "PopLeft",      key: [ Qt.Key_F4, Qt.Key_Up, Qt.Key_Left ] },
     POPRIGHT:    { name: "PopRight",     key: [ Qt.Key_F2, Qt.Key_Down, Qt.Key_Right ] },
-    // Navigating in lists
     LISTUP:      { name: "ListUp",       key: [ Qt.Key_F4, Qt.Key_Up, Qt.Key_Left ] },
     LISTDOWN:    { name: "ListDown",     key: [ Qt.Key_F2, Qt.Key_Down, Qt.Key_Right ] },
-    // These are the exact wheel mappings for navigation, without any additional special keys.
     HORZ:        { name: "Horz",         key: [ Qt.Key_Left, Qt.Key_Right ] },
     VERT:        { name: "Vert",         key: [ Qt.Key_Up, Qt.Key_Down ] },
     RIGHT:       { name: "Right",        key: [ Qt.Key_Right ] },
@@ -50,7 +36,6 @@ var CAMKEYS = {
     DOWN:        { name: "Down",         key: [ Qt.Key_Down ] },
     UP:          { name: "Up",           key: [ Qt.Key_Up ] },
     POPACCEPT:   { name: "PopAccept",    key: [ Qt.Key_F3, Qt.Key_A, Qt.Key_D ] },
-    // ModeWheel (DialMode)
     MANUALQ:     { name: "ManualQuick",  key: [ Qt.Key_0 ] },
     MANUAL:      { name: "ManualQuick",  key: [ Qt.Key_1 ] },
     AUTO:        { name: "Auto",         key: [ Qt.Key_2 ] },
@@ -84,7 +69,7 @@ var CAMKEYS = {
     EXP_CUSTOM:{ name: "Exposure",     key: [Qt.Key_X] },
     CROPMODENEXT:  { name: "CropModeNext",     key: [ Qt.Key_CapsLock ] },
     CROPMODEPREV:  { name: "CropModePrevious",     key: [ Qt.Key_Print ] },
-    TPDOUBLECLICK: { name: "Touchpad double-click",key: [ Qt.Key_ScrollLock ] }, //Used by BrowseTouchpad.qml to simulate a keypress
+    TPDOUBLECLICK: { name: "Touchpad double-click",key: [ Qt.Key_ScrollLock ] },
     INTERVAL:      { name: "Interval",    key: [ Qt.Key_Minus ] },
     BRACKETING:    { name: "Bracketing",  key: [ Qt.Key_Equal ] },
     GREYBALANCE:   { name: "GreyBalance", key: [ Qt.Key_Pause ] },

@@ -1,15 +1,11 @@
 import QtQuick 2.0
-
 Item {
-
     property int borderWidth: 1
     property int lineWidth: 1
     property bool leftBracket: true
-
     Canvas {
         width: parent.width
         height: parent.height
-
         onPaint: {
             var ctx = getContext('2d')
             ctx.save()
@@ -21,7 +17,6 @@ Item {
             ctx.strokeStyle = styleBlack
             ctx.fillStyle = styleWhite
             ctx.moveTo(borderWidth, borderWidth)
-
             if (leftBracket) {
                 ctx.lineTo(borderWidth, height - borderWidth)
                 ctx.lineTo(width - borderWidth, height - borderWidth)
@@ -40,7 +35,6 @@ Item {
                 ctx.lineTo(width - lineWidth, lineWidth)
                 ctx.lineTo(borderWidth, lineWidth)
             }
-
             ctx.closePath()
             ctx.stroke()
             ctx.fill()

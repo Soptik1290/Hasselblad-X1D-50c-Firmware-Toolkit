@@ -1,8 +1,6 @@
 import QtQuick 2.0
 import com.hasselblad.upgrade 1.0
-
 import "qrc:///components"
-
 Rectangle {
     anchors.fill: parent
     id: root
@@ -20,9 +18,7 @@ Rectangle {
     property real animDelay: 0
     property alias statusText: status.text
     property alias showStatusRow: statusRow.visible
-
     color: "black"
-
     StatusRow {
         id: statusRow
         visible: false
@@ -35,9 +31,7 @@ Rectangle {
         color: "white"
         font.pixelSize: constants.popupHeaderTextSize
         font.capitalization: Font.AllUppercase
-
     }
-
     Text {
         id: status
         visible: text != ""
@@ -50,14 +44,12 @@ Rectangle {
         font.pixelSize: constants.popupHeaderTextSize
         color: "white"
     }
-
     Column {
         id: busySymbol
         anchors.centerIn: parent
         anchors.verticalCenterOffset: -10 - (status.visible ? 0 : statusTopMargin)
         width: 245
         spacing: 10
-
         Item {
             width: parent.width
             height: width
@@ -65,7 +57,6 @@ Rectangle {
                 id: busyMarker
                 width: parent.width
                 height: width
-
                 onPaint: {
                     var xCenter = width / 2
                     var yCenter = height / 2
@@ -79,27 +70,7 @@ Rectangle {
                     context.strokeStyle = gradient;
                     context.arc(xCenter, yCenter, outerRadius - lineWidth, 0, Math.PI * 2, true);
                     context.stroke();
-
-                    //                if(root.showPercentage) {
-                    //                    if(0 !== percentage) {
-                    //                        context.beginPath();
-                    //                        context.fillStyle = constants.hblOrange;
-                    //                        context.moveTo(xCenter, yCenter);
-                    //                        context.arc(xCenter, yCenter, outerRadius / 2, 0, Math.PI * 2 * root.percentage / 100, false);
-                    //                        context.lineTo(xCenter, yCenter);
-                    //                        context.fill();
-                    //                    }
-                    //                    if(100 !== percentage) {
-                    //                        context.beginPath();
-                    //                        context.fillStyle = "dimgray";
-                    //                        context.moveTo(xCenter, yCenter);
-                    //                        context.arc(xCenter, yCenter, outerRadius / 2, Math.PI * 2 * root.percentage / 100, Math.PI * 2, false);
-                    //                        context.lineTo(xCenter, yCenter);
-                    //                        context.fill();
-                    //                    }
-                    //                }
                 }
-
                 transform: Rotation { id: rotation; origin.x: busyMarker.width / 2; origin.y: busyMarker.height / 2}
                 PropertyAnimation {
                     target: rotation
@@ -112,22 +83,10 @@ Rectangle {
                 }
                 onVisibleChanged: if(visible) requestPaint()
             }
-
-            /*
-            // Use rectangle below to find text size
-            Rectangle{
-                color: "red"
-                opacity: 0.5
-                width: 180
-                height: 110
-                anchors.centerIn: busyMarker
-            }
-            */
             Text {
                 id: center
                 width: 180
                 height: 110
-                //            width: busyMarker.width - root.lineWidth * 2
                 anchors.centerIn: busyMarker
                 color: "white"
                 font.pixelSize: constants.dialogLargeTextSize
@@ -138,8 +97,6 @@ Rectangle {
             }
         }
     }
-
-
     Item {
         width: busyIcon.width + footerText.anchors.leftMargin * 2 + footerText.contentWidth
         anchors {
@@ -147,11 +104,9 @@ Rectangle {
             topMargin: footerMargin
             horizontalCenter: busySymbol.horizontalCenter
         }
-
         Image {
             id: busyIcon
         }
-
         Text {
             id: footerText
             width: root.width - busyIcon.width - anchors.leftMargin * 2
@@ -166,7 +121,6 @@ Rectangle {
             fontSizeMode: Text.HorizontalFit
             font.pixelSize: constants.dialogLargeTextSize
         }
-
         ProgressBar {
             id: progress
             width: parent.width
@@ -179,11 +133,8 @@ Rectangle {
             }
             visible: root.showPercentage
             progressPercent: root.percentage / 100
-
         }
     }
-
-    // Prevent closing when clicking outside of popup
     MouseArea {
         z: -1
         anchors.fill: parent

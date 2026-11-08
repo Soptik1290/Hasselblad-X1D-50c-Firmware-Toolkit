@@ -1,13 +1,11 @@
 import QtQuick 2.0
 import com.hasselblad.farm 1.0
-
 Item {
     id: demoIndicator
     property int fontSize: 24
     visible: farm.ram_only_mode === Farm.RamModeRamOnly
     width: childrenRect.width
     height: childrenRect.height
-
     Rectangle {
         id: demoLabelRect
         width: 130
@@ -25,7 +23,6 @@ Item {
             leftMargin: 5
             rightMargin: 5
         }
-        //anchors.horizontalCenter: demoLabelRect.horizontalCenter
         fontSizeMode: Text.HorizontalFit
         horizontalAlignment: Text.AlignHCenter
         color: "white"
@@ -33,7 +30,6 @@ Item {
         font.pixelSize: demoLbText2.font.pixelSize
         font.bold: true
     }
-
     Text {
         id: demoLbText2
         anchors {
@@ -44,7 +40,6 @@ Item {
             leftMargin: 5
             rightMargin: 5
         }
-        //anchors.horizontalCenter: demoLabelRect.horizontalCenter
         color: "white"
         text: qsTr("STORAGE") + guiconfig.emptyString
         horizontalAlignment: Text.AlignHCenter

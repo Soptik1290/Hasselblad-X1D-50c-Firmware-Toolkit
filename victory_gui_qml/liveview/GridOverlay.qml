@@ -1,5 +1,4 @@
 import QtQuick 2.0
-
 Item {
     id: grid
     property int gridSizeHorizontal : width / constants.liveViewGridCount
@@ -8,7 +7,6 @@ Item {
     property int gridCountHorizontal: constants.liveViewGridCount
     property int internalBottomMargin: 0
     property bool fadeTopBottom: false
-
     Gradient {
         id: topBottomGradientBlack
         GradientStop { position: 0.0; color : "transparent" }
@@ -23,7 +21,6 @@ Item {
         GradientStop { position: 0.7; color: constants.liveViewGridColor }
         GradientStop { position: 1.0; color: "transparent" }
     }
-
     property string verticalLine: "import QtQuick 2.0;
             Rectangle {
             width: constants.liveViewGridLineWidth
@@ -103,4 +100,3 @@ Item {
         }
     }
 }
-

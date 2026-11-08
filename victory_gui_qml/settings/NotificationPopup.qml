@@ -1,5 +1,4 @@
 import QtQuick 2.0
-
 Rectangle {
     objectName: "NotificationPopup"
     anchors.fill: parent
@@ -7,21 +6,18 @@ Rectangle {
     id: root
     property alias text: infoText.text
     property alias subText: subTextItem.text
-
     property real sizeFactor: Math.min(width / 640.0, height / 480.0)
-    property bool openPopup: false //Set this property instead of 'visible' when using closeOnInput
+    property bool openPopup: false
     property bool closeOnInput: false
     property bool openInternal: false
     visible: openInternal
     signal close()
-
     onOpenPopupChanged: {
         if (openPopup) {
             openPopup = false
             openInternal = true
         }
     }
-
     color: "black"
     Rectangle {
         id: noImagesFrame
@@ -63,11 +59,9 @@ Rectangle {
         horizontalAlignment: Text.AlignHCenter
         color: "white"
     }
-
     Text {
         id: subTextItem
         anchors {
-            //horizontalCenter: parent.horizontalCenter
             top: infoText.bottom
             topMargin: 10
             left: noImagesFrame.left
@@ -85,21 +79,17 @@ Rectangle {
         verticalAlignment: Text.AlignVCenter
         wrapMode: Text.WordWrap
     }
-
     function doClose() {
         if (closeOnInput) {
             root.openInternal = false
             close()
         }
     }
-
-    // Prevent mouse interaction with underlying areeas
     MouseArea {
         anchors.fill: parent
         onClicked: doClose()
         onDoubleClicked: doClose()
     }
-
     Keys.onPressed: {
         if (closeOnInput) {
             event.accepted = true

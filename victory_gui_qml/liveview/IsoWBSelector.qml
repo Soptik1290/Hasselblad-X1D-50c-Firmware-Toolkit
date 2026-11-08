@@ -1,20 +1,13 @@
 import QtQuick 2.0
-
 import com.hasselblad.settings 1.0
 import com.hasselblad.systemmanager 1.0
 import com.hasselblad.camera 1.0
-
 import "qrc:///scripts/Keys.js" as MKeys
-
 Item {
     property alias showIsoList: isoList.visible
     property alias showWbList: wbList.visible
     enabled: isoList.visible || wbList.visible
     id: root
-
-    // Show either nothing, ISO selector, or WB selector
-
-    // Arrows indicating if it is possible to use left/right keys
     Image {
         id: leftArrow
         source: "qrc:///icons/EVF_ArrowLeft.png"
@@ -35,8 +28,6 @@ Item {
         width: implicitWidth * sizeFactor
         height: implicitHeight * sizeFactor
     }
-
-    // ISO selector
     ListView {
         id: isoList
         visible: false
@@ -49,25 +40,18 @@ Item {
         interactive: false
         model: Settings.isoValues
         highlightMoveVelocity: 800
-
         function updateFocus()
         {
             if (visible) {
                 isoList.focus = true;
-
-                // Set focus on currently selected iso value in configstore
-                // We do not want it to slowly "roll" to position, so we set duration
-                // temporarily to 0
                 var oldHighlightMoveDuration = isoList.highlightMoveDuration;
                 isoList.highlightMoveDuration = 0;
                 isoList.currentIndex = isoList.model.indexOf(guiconfig.fromIsoVal(Camera.iso));
                 isoList.highlightMoveDuration = oldHighlightMoveDuration;
             }
         }
-
         onVisibleChanged: updateFocus()
         onCountChanged: updateFocus()
-
         highlightRangeMode: ListView.StrictlyEnforceRange
         preferredHighlightBegin: isoList.width / 3
         preferredHighlightEnd: isoList.width * 2 / 3
@@ -80,7 +64,6 @@ Item {
                 anchors.horizontalCenter: parent.horizontalCenter
             }
         }
-
         delegate: Item {
             width: isoList.width / 3
             height: isoList.height
@@ -95,14 +78,12 @@ Item {
                 font.family: constants.cameraControlTextFontName
             }
         }
-
         Connections {
             target: isoList.visible ? Camera : null
             onIsoChanged: {
                 isoList.currentIndex = isoList.model.indexOf(guiconfig.fromIsoVal(Camera.iso))
             }
         }
-
         Keys.onPressed: {
             if(isoList.visible)
             {
@@ -124,10 +105,7 @@ Item {
                 }
             }
         }
-
     }
-
-    // WB Selector
     ListView {
         id: wbList
         visible: false
@@ -143,7 +121,6 @@ Item {
                 isSettingModel = false
             }
         }
-
         function setNewIndex()
         {
             var oldHighlightMoveDuration = wbList.highlightMoveDuration;
@@ -151,7 +128,6 @@ Item {
             wbList.currentIndex = getCurrentModelIndex()
             wbList.highlightMoveDuration = oldHighlightMoveDuration;
         }
-
         function getCurrentModelIndex()
         {
             for (var iModel = 0; iModel < wbList.count; iModel++)
@@ -163,14 +139,12 @@ Item {
             }
             return -1
         }
-
         onCurrentIndexChanged: {
             if((currentIndex >= 0) && !isSettingModel && wbList.visible)
             {
                 Camera.WBMode = wbList.model.get(wbList.currentIndex).whitemode;
             }
         }
-
         Connections {
             target: wbList.visible ? Camera : null
             onWbModeChanged: {
@@ -179,7 +153,6 @@ Item {
                 wbList.isSettingModel = false
             }
         }
-
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         anchors.left: leftArrow.right
@@ -198,11 +171,9 @@ Item {
                 anchors.horizontalCenter: parent.horizontalCenter
             }
         }
-
         delegate: Item {
             width: wbList.width / 3
             height: wbList.height
-            // Workaround since QML does not let us easily access model data roles outside a delegate:
             property var itemModel: model
             Image {
                 anchors.centerIn: parent
@@ -211,7 +182,6 @@ Item {
                 height: implicitHeight * sizeFactor
             }
         }
-
         Keys.onPressed: {
             if(wbList.visible)
             {
@@ -229,12 +199,9 @@ Item {
                 }
             }
         }
-
         model: wbModel
-
         ListModel {
             id: wbModel
-
             ListElement {
                 icon: "qrc:///icons/EVF_WB_Auto.png"
                 text: QT_TR_NOOP("Auto")
@@ -284,7 +251,6 @@ Item {
                 isManual: true
             }
         }
-
     }
     ListView {
         id: manualWbList
@@ -294,11 +260,9 @@ Item {
         anchors.right: root.right
         anchors.left: root.left
         interactive: false
-
         height: 58 *sizeFactor
         property int itemWidth: 100 * sizeFactor
         property int highlightWidth: 114 * sizeFactor
-
         orientation: ListView.Horizontal
         highlightRangeMode: ListView.StrictlyEnforceRange
         preferredHighlightBegin: width / 2 - itemWidth / 2
@@ -306,7 +270,6 @@ Item {
         boundsBehavior: Flickable.StopAtBounds
         property bool isSettingModel: false
         highlightMoveVelocity: 800
-
         onVisibleChanged: {
             console.log("manual list visible:", visible)
             if(visible)
@@ -314,16 +277,11 @@ Item {
                 isSettingModel = true
                 manualWbList.forceActiveFocus();
                 fillModel()
-
-                // Set focus on currently selected value
-                // We do not want it to slowly "roll" to position, so we set duration
-                // temporarily to 0
                 var oldHighlightMoveDuration = manualWbList.highlightMoveDuration;
                 manualWbList.highlightMoveDuration = 0;
                 manualWbList.currentIndex = findCurrentIndex()
                 manualWbList.highlightMoveDuration = oldHighlightMoveDuration;
                 isSettingModel = false
-
             }
             if(!visible)
             {
@@ -331,20 +289,16 @@ Item {
                 wbList.forceActiveFocus();
             }
         }
-
         onCurrentIndexChanged: {
             if((currentIndex >= 0) && !isSettingModel && manualWbList.visible)
             {
                 var newVal = manualWbList.model.get(manualWbList.currentIndex).modelData
                 if (configstore.WBManualTemp !== newVal && configstore.WBManualTemp % 100 !== 0) {
-                    //When leaving white balance tool we should round manual WB and clear tint
                     configstore.WBManualTint = 0
                 }
                 configstore.WBManualTemp = manualWbList.model.get(manualWbList.currentIndex).modelData;
             }
         }
-
-
         model: wbManualListModel
         highlight: Item {
             Rectangle {
@@ -364,7 +318,6 @@ Item {
                 anchors.verticalCenter: wbManualItem.verticalCenter
                 anchors.verticalCenterOffset: 6 * sizeFactor
                 text: modelData
-//                font.weight: Font.Normal
                 color: wbManualItem.ListView.isCurrentItem ? constants.highlightItemColor: constants.itemColor
                 font.pixelSize: 33 * sizeFactor
                 style: Text.Outline
@@ -372,7 +325,6 @@ Item {
                 font.family: constants.cameraControlTextFontName
             }
         }
-
         Keys.onPressed: {
             if(visible)
             {
@@ -402,10 +354,6 @@ Item {
                 event.accepted = false
             }
         }
-
-
-
-
         ListModel {
             id: wbManualListModel
         }
@@ -417,11 +365,9 @@ Item {
                 var step = 100;
                 var whiteBalanceMin = 2000;
                 var whiteBalanceMax = 10000;
-                // Add values
                 for (var whiteBalance = whiteBalanceMin; whiteBalance <= whiteBalanceMax; whiteBalance += step)
                 {
                     wbManualListModel.append({"modelData": whiteBalance});
-                    //If the manual value was set by White Balance Tool it will not follow even step size
                     if (manualTemp > whiteBalance && manualTemp < whiteBalance+step) {
                         wbManualListModel.append({"modelData": manualTemp});
                     }
@@ -441,8 +387,5 @@ Item {
             }
             return 0
         }
-
     }
-
 }
-

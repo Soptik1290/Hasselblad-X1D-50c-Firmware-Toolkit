@@ -1,11 +1,8 @@
 import QtQuick 2.0
-
 Item {
     width: childrenRect.width
     height: childrenRect.height
-
     property bool superspeed: true
-
     Rectangle {
         id: usbLabelRect
         width: 130
@@ -13,7 +10,6 @@ Item {
         color: "transparent"
         border.width: constants.cardStatusIconBorderSize
         border.color: constants.cardStatusNotActiveBorderColor
-
         Text {
             id: usbLabelText
             anchors {
@@ -32,15 +28,12 @@ Item {
             font.family: constants.cameraControlTextFontName
         }
     }
-
     function startBlink()
     {
         blinkLoop.start();
     }
-
     SequentialAnimation {
         id: blinkLoop
-
         loops: constants.animationBlinkLoops
         NumberAnimation {
             targets: [usbLabelRect, usbLabelText]

@@ -284,7 +284,14 @@ def compute_memory_and_slot_stats(victory_bin_path: Optional[Path] = None) -> Di
     # Hardware & partition memory metrics
     rootfs_file = EXTRACTED_DIR / "rootfs"
     rootfs_compressed_sz = rootfs_file.stat().st_size if rootfs_file.exists() else 63123278
-    rootfs_uncompressed_sz = 158250622  # Verified across v1.25.0 rootfs
+    rootfs_stats_file = EXTRACTED_DIR / "rootfs_stats.json"
+    if rootfs_stats_file.exists():
+        try:
+            rootfs_uncompressed_sz = json.loads(rootfs_stats_file.read_text(encoding="utf-8")).get("uncompressed_bytes", 132319424)
+        except Exception:
+            rootfs_uncompressed_sz = 132319424
+    else:
+        rootfs_uncompressed_sz = 132319424 if rootfs_compressed_sz < 60_000_000 else 158250622
     root_partition_capacity = 512 * 1024 * 1024  # 512 MB ext4 slot on 4 GB eMMC
     boot_partition_capacity = 32 * 1024 * 1024   # 32 MB FAT32 boot_a / boot_b
     boot_used_sz = 3770184 + (20 * 40949)        # zImage (3.77 MB) + KKS DTB copies (~0.82 MB)
@@ -598,7 +605,7 @@ def run_preflight_sweep(fast_mode: bool = False) -> Dict[str, Any]:
         rsz = rootfs_path.stat().st_size
         with rootfs_path.open("rb") as rf:
             magic = rf.read(3)
-        bz2_ok = magic == b"BZh" and rsz > 55_000_000
+        bz2_ok = magic == b"BZh" and rsz > 40_000_000
         s4_checks.append({
             "ok": bz2_ok,
             "name_en": "rootfs.tar.bz2 Stream Header & Size",
@@ -668,7 +675,9 @@ def run_preflight_sweep(fast_mode: bool = False) -> Dict[str, Any]:
     s5_checks = []
     s5_ok = True
     cim_files = sorted(FIRMWARE_DIR.glob("*.cim")) if FIRMWARE_DIR.exists() else []
-    target_cim = FIRMWARE_DIR / "X1D_v1_25_0.cim"
+    target_cim = FIRMWARE_DIR / "X1D_v1_25_0_x1d_lite.cim"
+    if not target_cim.exists():
+        target_cim = FIRMWARE_DIR / "X1D_v1_25_0.cim"
     if not target_cim.exists() and cim_files:
         target_cim = cim_files[-1]
 

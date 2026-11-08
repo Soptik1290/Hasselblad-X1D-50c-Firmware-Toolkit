@@ -9,29 +9,22 @@ import com.hasselblad.globalstateinfo 1.0
 import com.hasselblad.cambody 1.0
 import com.hasselblad.lens 1.0
 import com.hasselblad.settings 1.0
-
 import "qrc:///components"
 import "qrc:///components/controls"
 import "qrc:///components/buttons"
 import "qrc:///scripts/Keys.js" as MKeys
 import "qrc:/components/popups"
-
-// To be able to swipe the menu to the right to get rid of it
 FocusScope {
     objectName: "LiveViewVideo_root"
     id: root
     focus: true
     property real sizeFactor: Math.min(width / 1024.0, height / 728.0)
-
-    // TODO: mute should reflect if mute icon should be visible
     property bool mute: false
     signal recordStopped()
     property real screenRatio: width / height
     property int textSize: constants.evfTextSize * sizeFactor
     property bool isInHDMI: false
-    property bool isInHDMIonA6D: isInHDMI && guiconfig.isA6D
     property bool iconsVisible: false
-
     function resetOverlay()
     {
         liveViewOverlayState.resetOverlay()
@@ -40,12 +33,10 @@ FocusScope {
     {
         liveViewOverlayState.setNextOverlay()
     }
-
     function setPrevOverlay()
     {
         liveViewOverlayState.setPrevOverlay()
     }
-
     function liveViewSwitch(mouse)
     {
         console.log("liveViewSwitch", lvArea.enabled)
@@ -64,7 +55,6 @@ FocusScope {
             }
         }
     }
-
     Loader {
         id: popup
         objectName: "LiveViewVideo_popupLoader"
@@ -73,7 +63,6 @@ FocusScope {
         onLoaded: popup.item.forceActiveFocus()
         active: false
         z:10
-
         Connections {
             target: popup.item
             onVisibleChanged: {
@@ -86,9 +75,6 @@ FocusScope {
             }
         }
     }
-
-
-
     MouseArea {
         id: lvArea
         onPressAndHold: liveViewSwitch(mouse)
@@ -101,9 +87,6 @@ FocusScope {
         onReleased: zoomIndicator.startZoomTimer()
         enabled: true
     }
-
-    // Top and bottom rectangles should only be visible for screen ratio 4:3
-    // Top rectangle
     Rectangle {
         id: topRect
         anchors.top: parent.top
@@ -113,8 +96,6 @@ FocusScope {
         color: "black"
         visible: (VideoControl.videoMode !== VideoControl.Zoom) && (screenRatio < 1.4)
     }
-
-    // Bottom rectangle
     Rectangle {
         id: bottomRect
         anchors.bottom: parent.bottom
@@ -124,11 +105,9 @@ FocusScope {
         color: "black"
         visible: (VideoControl.videoMode !== VideoControl.Zoom) && (screenRatio < 1.4)
     }
-
-    // AE-L Lock indicator
     RoundedTextIndicator {
         id: aeLock
-        visible: cambody.AEL && !isInHDMIonA6D
+        visible: cambody.AEL
         text: "AE-L"
         width: 93 * sizeFactor
         sizeFactor: root.sizeFactor
@@ -139,11 +118,9 @@ FocusScope {
             topMargin: sizeFactor * 22
         }
     }
-
-
     BracketedCameraControl {
         id: wb_image_hdmi
-        visible: Camera.canShow & Camera.PropWBMode && isInHDMI && !isInHDMIonA6D
+        visible: Camera.canShow & Camera.PropWBMode && isInHDMI
         allowHighligtBracket: false
         symbol: Camera.WBMode === 1  ? "qrc:///icons/WBal_Auto.png"
                   : Camera.WBMode === 2  ? "qrc:///icons/WBal_Daylight.png"
@@ -154,26 +131,22 @@ FocusScope {
                   : Camera.WBMode === 4  ? "qrc:///icons/WBal_Fluor.png"
                   : Camera.WBMode === 6  ? "qrc:///icons/WBal_Empty.png"
                   : "qrc:///icons/WBal_Unknown.png";
-
         showBracket: Camera.canChange & Camera.PropWBMode
-
         anchors {
             left: parent.left
             leftMargin: 34 * sizeFactor
             verticalCenter: topRect.verticalCenter
         }
-
         Text{
-            visible: (Camera.WBMode === 6) && !isInHDMIonA6D
+            visible: (Camera.WBMode === 6)
             anchors.centerIn: parent
             anchors.verticalCenterOffset: 16
             color: constants.popupTextColor
-            text: configstore.WBManualTemp// + (configstore.WBManualTemp < 10000 ? " " : "") + "K"
+            text: configstore.WBManualTemp
             font.pixelSize: 32
             font.bold: false
         }
     }
-
     Rectangle {
         id: wb_background
         visible: false
@@ -181,13 +154,11 @@ FocusScope {
         z: 1
         anchors.fill: wb_image
     }
-
     SequentialAnimation {
         id: wb_animation
         PauseAnimation { duration: 100 }
         PropertyAction { target: wb_background; property: "visible"; value: false }
     }
-
     Image {
         id: wb_image
         scale: root.width / 640
@@ -203,13 +174,11 @@ FocusScope {
                   : Camera.WBMode === 4  ? "qrc:///icons/WB_fluor_video.png"
                   : Camera.WBMode === 6  ? "qrc:///icons/WB_empty_video.png"
                   : "qrc:///icons/WB_unknown_video.png"
-
         anchors {
             left: parent.left
             leftMargin: 5 * sizeFactor + (wb_image.scale - 1) * wb_image.width / 2
             verticalCenter: topRect.verticalCenter
         }
-
         Text{
             visible: parent.show_text
             anchors.centerIn: parent
@@ -219,7 +188,6 @@ FocusScope {
             font.pixelSize: 22
             font.bold: false
         }
-
         MouseArea {
             id: wb_mousearea
             enabled: parent.visible
@@ -231,10 +199,6 @@ FocusScope {
             }
             width: parent.width * 2
             height: parent.height * 2
-
-            //Use onClicked since touch detection is really bad for containsPress. The downside
-            //with onClicked is that the orange background isn't shown when pressed so we use a
-            //animation to show the background for a short while instead.
             onClicked: {
                 wb_background.visible = true
                 wb_animation.start()
@@ -244,7 +208,6 @@ FocusScope {
             }
         }
     }
-
     RecordingIndicator {
         id: recordInd
         anchors {
@@ -253,18 +216,15 @@ FocusScope {
             leftMargin: 21 * sizeFactor
         }
     }
-
     Text {
         objectName: "LiveViewVideo_iso"
-        visible: !isInHDMIonA6D
+        visible: true
         text: "ISO " + guiconfig.fromIsoVal(Camera.iso)
         anchors.verticalCenter: recordInd.verticalCenter
         anchors.verticalCenterOffset: (height - baselineOffset) / 2
         anchors.right: battery.left
         anchors.rightMargin: 35 * sizeFactor
-        // Until we find out how this can work with all layers of MouseArea, just let the color be white:
         color: "white"
-//        color: isoMouseArea.pressed && isoMouseArea.containsMouse ? constants.highlightColor : "white"
         font.pixelSize: 64 * sizeFactor
         font.family: constants.cameraControlTextFontName
         style: Text.Outline
@@ -281,7 +241,6 @@ FocusScope {
             preventStealing: true
         }
     }
-
     Component {
         id: popupISO
         PopupListSelector {
@@ -290,16 +249,14 @@ FocusScope {
             isToLeft: false
             model: Settings.isoValues
             currentlySelectedValue: guiconfig.fromIsoVal(Camera.iso)
-
             onSelectedValueChanged: {
                 Camera.iso = guiconfig.toIsoVal(value)
             }
         }
     }
-
     BatteryIndicatorScaled {
         id: battery
-        visible: !isInHDMIonA6D
+        visible: true
         anchors {
             verticalCenter: recordInd.verticalCenter
             right: parent.right
@@ -311,7 +268,6 @@ FocusScope {
         height: 67 * sizeFactor
         sizeFactor: root.sizeFactor
     }
-
     RecordingButton {
         id: recordingIcon
         visible: iconsVisible && !no_storage.visible && (VideoControl.videoMode !== VideoControl.Zoom)
@@ -321,7 +277,6 @@ FocusScope {
             verticalCenter: bottomRect.verticalCenter
         }
     }
-
     Connections {
         target: configstore
         onExpModeChanged: {
@@ -331,7 +286,6 @@ FocusScope {
             }
         }
     }
-
     function mediaMissing() {
         if (configstore.Video_Quality === Config.RawVideo)
             return ContentModel.card0Status !== ContentModel.STORAGE_ACTIVE
@@ -340,11 +294,9 @@ FocusScope {
         else
             return (ContentModel.card0Status === ContentModel.STORAGE_ABSENT) || (ContentModel.card1Status === ContentModel.STORAGE_ABSENT)
     }
-
     function mediaFull() {
         return (!mediaMissing() && ContentModel.exposuresLeft === 0)
     }
-
     Text {
         id: no_storage
         visible: mediaMissing() || mediaFull()
@@ -357,9 +309,8 @@ FocusScope {
         style: Text.Outline
         styleColor: "black"
     }
-
     Text {
-        visible: !no_storage.visible && ((cambody.capabilities & Cambody.CapabilityGetAV) !== 0 || (cambody.capabilities & Cambody.CapabilityGetTV) !== 0) && !isInHDMIonA6D
+        visible: !no_storage.visible && ((cambody.capabilities & Cambody.CapabilityGetAV) !== 0 || (cambody.capabilities & Cambody.CapabilityGetTV) !== 0)
         id: apertureShutterSpeedText
         text: ((cambody.capabilities & Cambody.CapabilityGetAV) !== 0 ?
             ("f/" + (cambody.AV_out_of_range ? "--" : cambody.aperture)) : "")  +
@@ -376,20 +327,14 @@ FocusScope {
         style: Text.Outline
         styleColor: "black"
     }
-
     RecordingTime {
-        visible: /*recordInd.visible && */ !no_storage.visible
+        visible: !no_storage.visible
         anchors {
-            verticalCenter: isInHDMIonA6D ? undefined : apertureShutterSpeedText.verticalCenter
-            left: isInHDMIonA6D ? recordInd.right : undefined
-            leftMargin: isInHDMIonA6D ? 29 * sizeFactor : 0
-            top: isInHDMIonA6D ? recordInd.bottom : undefined
-            topMargin: isInHDMIonA6D ? 29 * sizeFactor : 0
-            right: isInHDMIonA6D ? undefined : parent.right
-            rightMargin: isInHDMIonA6D ? 0 : 29 * sizeFactor
+            verticalCenter: apertureShutterSpeedText.verticalCenter
+            right: parent.right
+            rightMargin: 29 * sizeFactor
         }
     }
-
     Image {
         id: muteImage
         source: "qrc:///icons/Mute.png"
@@ -401,7 +346,6 @@ FocusScope {
         }
         visible: mute
     }
-
     IsoWBSelector {
         id: iso_wb_selector
         anchors {
@@ -412,11 +356,6 @@ FocusScope {
         width: 492 * sizeFactor
         height: 91 * sizeFactor
     }
-
-
-    // Zoom indicator
-
-    // yOffset in percent
     readonly property real yOffset: 0.125
     Item{
         id: zoomIndicator
@@ -443,7 +382,6 @@ FocusScope {
                 duration: constants.fadeOutDuration
             }
         }
-
         function startZoomTimer()
         {
             VideoControl.restartLiveViewImageTimeout()
@@ -453,19 +391,15 @@ FocusScope {
                 zoomTimer.start()
             }
         }
-
-
         function stopZoomTimer()
         {
             zoomTimer.stop()
         }
-
         Timer {
             id: zoomTimer
             interval: constants.zoomIndicatorTimeout
             onTriggered: if(!lvArea.pressed && !GlobalStateInfo.touchpadZoomActive) zoomIndicator.opacity = 0
         }
-
         Connections {
             target: GlobalStateInfo
             onTouchpadZoomActiveChanged: {
@@ -474,20 +408,17 @@ FocusScope {
                 }
             }
         }
-
         Rectangle {
             anchors.fill: zoomIndicator
             color: "black"
             opacity: 0.4
         }
-
         Rectangle {
             anchors.fill: zoomIndicator
             border.color: "white"
             border.width: 2
             color: "transparent"
         }
-
         Rectangle {
             id: zoomedImageIndicator
             color: "white"
@@ -498,39 +429,33 @@ FocusScope {
             width:(configstore.ZoomLevel === Config.LiveViewZoomLevelHalf ? 2 : 1) * zoomIndicatorFraction * zoomIndicator.width
         }
     }
-
     Connections {
         target: configstore
         onExpModeChanged: {
             isoWbState.closeIsoWb()
         }
     }
-
     Connections {
         target: System
         onTethered_modeChanged: {
             isoWbState.updateStateNames()
         }
     }
-
     Connections {
         target: BodySync
         onProximityDetectNearChanged: {
             isoWbState.closeIsoWb()
         }
     }
-
     Item {
         id: isoWbState
         property var stateNames: updateStateNames();
         property int currentState: 0
         property bool initialized: false
         state: stateNames[currentState]
-
         function updateStateNames() {
             stateNames = System.isTethered ? [ "none", "iso" ] : [ "none", "iso", "wb" ]
         }
-
         function nextIsoWbState()
         {
             var newState = currentState + 1
@@ -549,17 +474,14 @@ FocusScope {
         {
             return (state === "iso") || (state === "wb")
         }
-
         states: [
             State {
                 name: "none"
                 StateChangeScript {
                     script: {
-                        //Do not set bodySync state when creating component. (Start state is "none")
                         if (!isoWbState.initialized) {
                             isoWbState.initialized = true
                         } else {
-                            // It worked very bad to set BodySync.currentState in PropertyChanges, so we set it in this script instead
                             BodySync.currentState = BodySync.MAIN
                         }
                     }
@@ -570,7 +492,6 @@ FocusScope {
                 PropertyChanges { target: iso_wb_selector; showIsoList: true }
                 StateChangeScript {
                     script: {
-                        // It worked very bad to set BodySync.currentState in PropertyChanges, so we set it in this script instead
                         BodySync.currentState = BodySync.MENU
                     }
                 }
@@ -580,28 +501,17 @@ FocusScope {
                 PropertyChanges { target: iso_wb_selector; showWbList: true }
                 StateChangeScript {
                     script: {
-                        // It worked very bad to set BodySync.currentState in PropertyChanges, so we set it in this script instead
                         BodySync.currentState = BodySync.MENU
                     }
                 }
             }
         ]
     }
-
     ZoomCalc {
         id: zoomCalc
     }
-
-    // No effect to change VideoControl.zoomPoint when LiveView already running.
-    // Let this be here until it works, then uncomment
-
     Flickable{
         id: zoomFlick
-
-        // NOTE: The following enabler makes it possible to test without obstructing for a normal user.
-        // Press 5 times on "Firmware version" in about menu to activate
-
-
         visible: zoomIndicator.visible
         anchors.fill: parent
         contentWidth: flickItem.width
@@ -614,14 +524,12 @@ FocusScope {
                 updateContentFromZoomPoint()
             }
         }
-
         function updateContentFromZoomPoint() {
             updateAllowed = false
             contentY = VideoControl.zoomPoint.y * (contentHeight - zoomFlick.height)
             contentX = VideoControl.zoomPoint.x * (contentWidth - zoomFlick.width)
             updateAllowed = true
         }
-
         onContentXChanged: {
             if(updateAllowed && !GlobalStateInfo.touchpadZoomActive)
             {
@@ -631,7 +539,6 @@ FocusScope {
                 zoomIndicator.startZoomTimer()
             }
         }
-
         onContentYChanged: {
             if(updateAllowed && !GlobalStateInfo.touchpadZoomActive)
             {
@@ -646,18 +553,13 @@ FocusScope {
             width: guiconfig.maxImageXSize
             height: width * 9 / 16
         }
-
         MouseArea {
             id: flickClickArea
             onPressAndHold: liveViewSwitch(mouse)
             onDoubleClicked: liveViewSwitch(mouse)
             anchors.fill: parent
         }
-
     }
-
-    // End zoom indicator
-
     Text {
         visible: guiconfig.isWedge && (VideoControl.videoMode === VideoControl.Off) && !Camera.inSession
         anchors.centerIn: parent
@@ -671,24 +573,12 @@ FocusScope {
         horizontalAlignment: Text.AlignHCenter
         font.pixelSize: textSize
     }
-
-    ConfirmationButtons {
-        visible: !guiconfig.isWedge && !no_storage.visible && !isInHDMI && (configstore.CameraType !== Config.CameraTypeHsystem)
-        transparentBackground: true
-        lastText: "+"
-        firstText: "-"
-        sideOriented: false
-        firstTextBold: true
-        lastTextBold: true
-    }
-
     GridOverlay {
         anchors.fill: isInHDMI ? parent : lvArea
         id: grid
         visible: false
         fadeTopBottom: isInHDMI
     }
-
     Keys.onPressed: {
         if (event.isAutoRepeat)
         {
@@ -725,52 +615,22 @@ FocusScope {
             }
             else if (isoWbState.isoWbActive() && MKeys.pressedFnAcc("AF_MF", event))
             {
-                // Prevent key to progress further down the line
-            }
-            else if((configstore.CameraType !== Config.CameraTypeHsystem) && !guiconfig.isWedge && MKeys.pressedFnAcc("CROSS", event))
-            {
-                // Next valid iso value
-                var tvup = cambody.TV
-                tvup = tvup + configstore.CustomOption_StepsInc
-                if(tvup > Lens.TV_max)
-                {
-                    tvup = Lens.TV_max
-                }
-                cambody.TV = tvup
-            }
-            else if((configstore.CameraType !== Config.CameraTypeHsystem) && !guiconfig.isWedge && MKeys.pressedFnAcc("SQUARE", event))
-            {
-                // Previous valid iso value
-                var tvdown = cambody.TV
-                tvdown = tvdown - configstore.CustomOption_StepsInc
-                var tvmin = Math.max(suc.TV_min, 60)
-                if(tvdown < tvmin)
-                {
-                    tvdown = tvmin
-                }
-                cambody.TV = tvdown
             }
             else if((VideoControl.videoMode !== VideoControl.Zoom) && MKeys.pressedFnAcc("SQUARE", event))
             {
-                // Next overlay
                 setNextOverlay()
             }
         }
     }
-
     Item {
-
         id: liveViewOverlayState
-        property var stateNames: [ "Natural", "Grid" /*, "Info", "Histogram" */];
+        property var stateNames: [ "Natural", "Grid" ];
         property int startIndex: 0
         state: stateNames[configstore.LiveVideoOverlayIndex]
-
-
         function resetOverlay()
         {
             configstore.LiveVideoOverlayIndex = startIndex
         }
-
         function setNextOverlay()
         {
             var nextIndex = configstore.LiveVideoOverlayIndex
@@ -784,7 +644,6 @@ FocusScope {
             }
             configstore.LiveVideoOverlayIndex = nextIndex
         }
-
         function setPrevOverlay()
         {
             var nextIndex = configstore.LiveVideoOverlayIndex
@@ -798,7 +657,6 @@ FocusScope {
             }
             configstore.LiveVideoOverlayIndex = nextIndex
         }
-
         states: [
             State {
                 name: "Natural"
@@ -814,6 +672,5 @@ FocusScope {
                 name: "Histogram"
             }
         ]
-
     }
 }

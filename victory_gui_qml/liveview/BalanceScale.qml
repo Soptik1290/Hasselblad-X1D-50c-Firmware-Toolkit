@@ -1,5 +1,4 @@
 import QtQuick 2.0
-
 Item {
     id: root
     property real sizeFactor: 1
@@ -9,12 +8,9 @@ Item {
     property real lineThickness: 5
     property real dist: 54 * sizeFactor
     width: dist * 4 + (5 * sizeFactor + 1 * sizeFactor * 2) + 1
-    property real evValueLimitThreshold: 11 / 3 // This is '3 2/3'
+    property real evValueLimitThreshold: 11 / 3
     property bool validScale: cambody.BalanceScale !== cambody.invalidBalanceScaleCode
-
     Component.onCompleted: canvas.requestPaint()
-
-    // Arrow in the middle
     Text {
         id: evadjText
         text: (evValue > 0 ? "+" : "") + evValue.toFixed(1)
@@ -53,7 +49,6 @@ Item {
         style: Text.Outline
         styleColor: "black"
     }
-
     Canvas {
         id: evadjArrow
         anchors.horizontalCenter: evadjText.horizontalCenter
@@ -62,11 +57,8 @@ Item {
         visible: Math.abs(evValue) < evValueLimitThreshold.toFixed(1)
         height: 26 * sizeFactor
         width: 34 * sizeFactor
-//        height: 13 * sizeFactor
-//        width: 17 * sizeFactor
         antialiasing: true
         onVisibleChanged: if(visible) requestPaint()
-
         onPaint:{
             var ctx = getContext('2d')
             ctx.save()
@@ -86,18 +78,7 @@ Item {
             ctx.fill()
             ctx.restore()
         }
-
     }
-    /*
-    Image {
-        id: evadjArrow
-        source: "qrc:///icons/EVF_EVAdjArrow.png"
-        anchors.horizontalCenter: evadjText.horizontalCenter
-        anchors.bottom: canvas.top
-        anchors.bottomMargin: 1 * sizeFactor
-        visible: Math.abs(evValue) < evValueLimitThreshold.toFixed(1)
-    }
-*/
     Canvas {
         id: evadjArrowLeft
         anchors.verticalCenter: evadjText.verticalCenter
@@ -109,7 +90,6 @@ Item {
         width: evadjArrow.height
         antialiasing: true
         onVisibleChanged: if(visible) requestPaint()
-
         onPaint:{
             var ctx = getContext('2d')
             ctx.save()
@@ -129,20 +109,7 @@ Item {
             ctx.fill()
             ctx.restore()
         }
-
     }
-
-/*
-    Image {
-        id: evadjArrowLeft_org
-        source: "qrc:///icons/EVF_EVAdjArrowLeft.png"
-        anchors.verticalCenter: evadjText.verticalCenter
-        anchors.right: evadjText.left
-        anchors.rightMargin: 10 * sizeFactor -30
-        visible: evValue < -evValueLimitThreshold.toFixed(1)
-    }
-*/
-
     Canvas {
         id: evadjArrowRight
         anchors.verticalCenter: evadjText.verticalCenter
@@ -154,7 +121,6 @@ Item {
         width: evadjArrowLeft.width
         antialiasing: true
         onVisibleChanged: if(visible) requestPaint()
-
         onPaint:{
             var ctx = getContext('2d')
             ctx.save()
@@ -174,35 +140,18 @@ Item {
             ctx.fill()
             ctx.restore()
         }
-
     }
-/*
-    Image {
-        id: evadjArrowRight_org
-        source: "qrc:///icons/EVF_EVAdjArrowRight.png"
-        anchors.verticalCenter: evadjText.verticalCenter
-        anchors.left: evadjText.right
-        anchors.leftMargin: evadjArrowLeft.anchors.rightMargin + 30
-        visible: evValue > evValueLimitThreshold.toFixed(1)
-    }
-    */
-
     Connections{
         target: evadjText
         onTextChanged: canvas.requestPaint()
-
     }
-
     Canvas {
         id:canvas
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
         height: 36 * sizeFactor
-//        antialiasing: false
-//        antialiasing: true
         onVisibleChanged: if(visible) requestPaint()
-
         onPaint:{
             var ctx = canvas.getContext('2d')
             ctx.save()
@@ -231,10 +180,9 @@ Item {
             var majorTickWidth = 5 * sizeFactor
             var minorTickWidth = 3 * sizeFactor
             var tickYOffset = 5 * sizeFactor
-
             for (iTick = -5; iTick <= 5; iTick++)
             {
-                var xPosReal = iTick * dist + origin /* - ctx.lineWidth*/ - majorTickWidth / 2
+                var xPosReal = iTick * dist + origin  - majorTickWidth / 2
                 var xPos = Math.round(xPosReal)
                 if(iTick == 0)
                 {
@@ -252,7 +200,4 @@ Item {
             ctx.restore()
         }
     }
-
-
 }
-

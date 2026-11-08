@@ -1,35 +1,28 @@
 import QtQuick 2.0
 import com.hasselblad.config 1.0
-
 import "qrc:///components/buttons"
 import "qrc:///scripts/Keys.js" as MKeys
-
 Rectangle {
     id: root
     color: "black"
     property int gridSideMargin: 50
     property int gridTopMargin: 100
     property bool preventSwipe: popup.active
-
     MouseArea{
         anchors.fill: parent
-        onClicked: {} //Prevent clicks from propagating to underlying mouseareas
+        onClicked: {}
     }
-
     function startWheelTimeout()
     {
         wheelTimer.restart();
     }
-
     function stopWheelTimeout()
     {
         wheelTimer.stop();
     }
-
     ListModel {
         id: profileModel
     }
-
     Timer {
         id: wheelTimer
         interval: constants.wheelTimeoutTimeMs
@@ -41,7 +34,6 @@ Rectangle {
             root.focus = true
         }
     }
-
     Rectangle {
         id: viewEndLine
         color: constants.cameraViewLineColor
@@ -50,7 +42,6 @@ Rectangle {
         anchors.top: parent.top
         width: constants.viewEndLineWidth
     }
-
     Text {
         id: header
         anchors {
@@ -69,7 +60,6 @@ Rectangle {
         color: constants.menuHeaderColor
         font.capitalization: Font.AllUppercase
     }
-
     GridView {
         objectName: "Profile_grid"
         id: grid
@@ -86,10 +76,8 @@ Rectangle {
         keyNavigationWraps: true
         highlightFollowsCurrentItem: false
         currentIndex: -1
-
         property int lastIndex: -1
         property bool preventFrame: false
-
         onFocusChanged: {
             if (!focus) {
                 lastIndex = currentIndex
@@ -97,10 +85,8 @@ Rectangle {
             }
             else {
                 startWheelTimeout()
-                // If we get focus due to a mouse press, we just keep the index,
-                // but if we get focus by key navigation we restore the last index.
                 if (currentIndex < 0 || currentIndex >= count) {
-                    if (-1 === lastIndex) { // first time.
+                    if (-1 === lastIndex) {
                         lastIndex = 0
                     }
                     currentIndex = lastIndex
@@ -110,17 +96,14 @@ Rectangle {
                 }
             }
         }
-
         delegate: Item {
             objectName: "profile_delegate_item"
             id: delegateRoot
             width: grid.cellWidth-15
             height: grid.cellHeight
-
             FramedImage {
                 objectName: "profile_framed_image"
                 id: frameImage
-
                 text: qsTranslate("MENUS", name) + guiconfig.emptyString
                 textColor: constants.popupTextColor
                 anchors.top: parent.top
@@ -133,11 +116,10 @@ Rectangle {
                 showInvertedFocus: (index === configstore.activeProfile)
                 borderHighlightColor: (index === configstore.activeProfile && index === grid.currentIndex) ? "white" : constants.highlightColor
                 selectable: true
-
                 Text {
                     visible: index > 0
                     anchors.horizontalCenter: parent.horizontalCenter
-                    anchors.horizontalCenterOffset: 1 //Source image is not centered, but adjust here instead
+                    anchors.horizontalCenterOffset: 1
                     anchors.bottom: parent.bottom
                     anchors.bottomMargin: 17
                     color: "white"
@@ -155,7 +137,6 @@ Rectangle {
                     font.pixelSize: 40
                     font.bold: true
                 }
-
                 onPressed: {
                     grid.preventFrame = true
                     grid.focus = true
@@ -166,7 +147,6 @@ Rectangle {
             }
         }
     }
-
     function gotClick()
     {
         if (grid.currentIndex >= 0 && grid.currentIndex < grid.count) {
@@ -176,7 +156,6 @@ Rectangle {
         }
         grid.preventFrame = false
     }
-
     Keys.onPressed: {
         event.accepted = true;
         if(MKeys.pressedFn("RIGHT", event.key) || MKeys.pressedFn("SQUARE", event.key)) {
@@ -192,7 +171,6 @@ Rectangle {
                 grid.moveCurrentIndexLeft()
             }
         } else if(MKeys.pressedFn("UP", event.key)) {
-
             if(-1 == grid.currentIndex && -1 != grid.lastIndex) {
                 grid.currentIndex = grid.lastIndex
             } else if (grid.currentIndex >= 4) {
@@ -212,7 +190,6 @@ Rectangle {
             startWheelTimeout()
         }
     }
-
     function fillModel() {
         profileModel.clear()
         var nameStr = configstore.profileNames
@@ -221,7 +198,6 @@ Rectangle {
             profileModel.append({"name": names[i], "iconSrc": (i == 0 ? "qrc:///icons/SpiritNormalMode.png" : "qrc:///icons/SpiritUserMode.png")})
         }
     }
-
     Loader {
         id: popup
         objectName: "Profiles_popupLoader"
@@ -236,7 +212,6 @@ Rectangle {
                 source = ""
             }
         }
-
         Connections {
             target: popup.item
             onVisibleChanged: {
@@ -247,11 +222,8 @@ Rectangle {
             }
         }
     }
-
     Component.onCompleted: {
         fillModel()
         forceActiveFocus()
     }
-
 }
-

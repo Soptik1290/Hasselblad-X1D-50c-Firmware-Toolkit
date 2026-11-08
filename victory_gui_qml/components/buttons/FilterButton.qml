@@ -1,7 +1,5 @@
 import QtQuick 2.5
-
 import "qrc:///common"
-
 Rectangle {
     id: root
     signal clicked()
@@ -15,7 +13,6 @@ Rectangle {
         margins: 20
     }
     color: (ma.containsPress || highlight) ? constants.hblOrange : "transparent"
-
     Image {
         id: image
         anchors.centerIn: root
@@ -27,7 +24,6 @@ Rectangle {
             onClicked: {
                 root.clicked()
             }
-            //Needed for mousearea to work correctly
             Item { anchors.fill: ma }
         }
     }

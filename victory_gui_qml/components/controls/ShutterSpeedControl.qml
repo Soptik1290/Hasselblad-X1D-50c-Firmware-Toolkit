@@ -1,5 +1,4 @@
 import QtQuick 2.5
-
 Item {
     id: root
     property alias allowHighlightBracket: shutterSpeedSetting.allowHighlightBracket
@@ -11,7 +10,6 @@ Item {
     width: shutterSpeedSetting.width
     height: shutterSpeedSetting.height
     property bool showIcon: false
-
     TextCameraControl {
         id: shutterSpeedSetting
         objectName: "ShutterSpeedControlSetting"
@@ -26,9 +24,6 @@ Item {
         anchors.right: parent.right
         icon: showIcon ? "qrc:/icons/ControlScreen_EShutter.png" : ""
     }
-
-    // Somewhat lengthy function to set shutter speed
-    // Problem is that the text is splitted to several different items
     function setShutterSpeedValue()
     {
         var speedParts = shutterSpeedValue.split(/[m|h|s]/);
@@ -36,8 +31,6 @@ Item {
         shutterSpeedSetting.label = "";
         if(speedParts.length === 1)
         {
-            // Either a number or either "B Mode", "T Mode"
-            // If large enough, replace last three zeros witk "k"
             if(shutterSpeedSetting.value > 9999)
             {
                 shutterSpeedSetting.value = shutterSpeedSetting.value / 1000 + "k"
@@ -52,11 +45,9 @@ Item {
         }
         else
         {
-            // We have either "<hour>h<min>m" or "<min>m<sec>s" os "<num>s" or "<num>m"
             var lastLetter = shutterSpeedValue.slice(-1);
             if(speedParts.length === 2)
             {
-                // No label // '<number>s' or '<number>m'
                 shutterSpeedSetting.unit1 = lastLetter;
                 shutterSpeedSetting.unit2 = "";
                 shutterSpeedSetting.value2 = "";
@@ -69,8 +60,6 @@ Item {
             }
         }
     }
-
     onShutterSpeedValueChanged: setShutterSpeedValue()
     Component.onCompleted: setShutterSpeedValue()
 }
-

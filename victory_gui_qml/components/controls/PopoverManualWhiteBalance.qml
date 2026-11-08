@@ -1,39 +1,29 @@
 import "qrc:///scripts/Keys.js" as MKeys
 import QtQuick 2.0
 import com.hasselblad.settings 1.0
-
 MouseArea {
     id: popupContainer
-
     property alias popupAnchor: popup.anchors
     property int contentWidth: 540
     property int contentHeight: 340
-    // This is the item that shall have focus when popup is closed
     property Item returnToItem: null
     property alias popupY: popup.y
     enabled: false
     visible: false
-
-    // returnItem is the calling item that shall receive focus when closed
     function open(returnItem) {
         returnToItem = returnItem;
-
         list.forceActiveFocus();
-
         visible = true
     }
-
     function close() {
         visible = false
     }
-
     function popupHeight() {
         return contentHeight;
     }
     function popupWidth() {
         return contentWidth;
     }
-
     function fillModel()
     {
         if(listModel.count === 0)
@@ -42,18 +32,15 @@ MouseArea {
             var step = 100;
             var whiteBalanceMin = 2000;
             var whiteBalanceMax = 10000;
-            // Add values
             for (var whiteBalance = whiteBalanceMin; whiteBalance <= whiteBalanceMax; whiteBalance += step)
             {
                 listModel.append({"modelData": whiteBalance});
-                //If the manual value was set by White Balance Tool it will not follow even step size
                 if (manualTemp > whiteBalance && manualTemp < whiteBalance+step) {
                     listModel.append({"modelData": manualTemp});
                 }
             }
         }
     }
-
     function findCurrentIndex()
     {
         var manualTemp = configstore.WBManualTemp
@@ -67,12 +54,8 @@ MouseArea {
         }
         return 0
     }
-
-    // Called when the user clicked in the list, not necessarily on the selected item,
-    // then the clicked item will be set
     function itemSelected(dataValue)
     {
-        //When leaving white balance tool we should round manual WB and clear tint
         if (configstore.WBManualTemp !== dataValue && configstore.WBManualTemp % 100 !== 0) {
             configstore.WBManualTint = 0
             listModel.clear()
@@ -80,42 +63,21 @@ MouseArea {
         configstore.WBManualTemp = dataValue
         close();
     }
-
-    // Called from parent to set selected value when the user clicked outside of the list,
-    // then the selected (highlighted) item will be set
     function setSelected()
     {
         configstore.WBManualTemp = list.model.get(list.currentIndex).modelData
     }
-
-//    Keys.onPressed: {
-//        event.accepted = true
-//        if(MKeys.pressedFn("POPACCEPT", event.key))
-//        {
-//            setSelected()
-//            close()
-//        }
-//        else
-//        {
-//            event.accepted = false
-//        }
-//    }
-
     z: 100
-
     onClicked: {
         setSelected();
         close()
     }
-
     Rectangle {
-        // opacity is inherited to all children, so we avoid it on the popupContainer-parent by creating this rectangle instead.
         id: fadeOutParentRect
         color: constants.popupFadeoutColor
         anchors.fill: parent
         opacity: constants.fadeOutOpacity
     }
-
     Rectangle {
         id: popup
         color: constants.popupBackgroundColor
@@ -127,7 +89,6 @@ MouseArea {
         anchors.leftMargin: -30
         anchors.rightMargin: 90
         anchors.bottomMargin: 30
-
         Item {
             id: childContent
             anchors.top: parent.top
@@ -135,14 +96,12 @@ MouseArea {
             anchors.right: parent.right
             anchors.bottom: parent.bottom
             property int gridspacing: 10
-
             Item {
                 id: listWrapper
                 anchors.top: parent.top
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
-
                 ListView {
                     id: list
                     clip: true
@@ -156,7 +115,6 @@ MouseArea {
                     preferredHighlightEnd: list.height / 2 + list.height / constants.numberOfItemsVisibleInList / 2
                     boundsBehavior: Flickable.StopAtBounds
                     highlightMoveVelocity: 800
-
                     model: listModel
                     highlight: Rectangle{
                         color: constants.popupBackgroundColor
@@ -174,7 +132,7 @@ MouseArea {
                         Text {
                             anchors.horizontalCenter: theItem.horizontalCenter
                             anchors.verticalCenter: theItem.verticalCenter
-                            anchors.verticalCenterOffset: 10 // TO-DO: Find a better solution for centering the text inside the highlight rectangle
+                            anchors.verticalCenterOffset: 10
                             text: modelData
                             color: theItem.ListView.isCurrentItem ? constants.highlightItemColor : constants.itemColor
                             font.pixelSize: (parent.height * 0.6) * (1 + addSize)
@@ -186,14 +144,12 @@ MouseArea {
                                 itemSelected(modelData)
                             }
                         }
-
                         MouseArea {
                             id: mouseArea
                             anchors.fill: parent
                             onClicked: itemSelected(modelData)
                         }
                     }
-
                     Keys.onPressed: {
                         event.accepted = false
                         if(MKeys.pressedFnAcc("NAVDOWN", event))
@@ -237,27 +193,19 @@ MouseArea {
                 }
             }
         }
-
-        // Border
         Rectangle{
             color: "transparent"
             anchors.fill: childContent
             radius: constants.outerBoxRadius
             border.width: 2
             border.color: constants.popupBorderColor
-
         }
-
         MouseArea {
-            // This mouse-area is to prevent closing the dialog when clicking on it. We only want close outside the popup.
             anchors.fill: parent
             z: -1
-
             onClicked: { }
         }
-
     }
-
     states: [
         State {
             name: "NOTSHOWING"
@@ -267,7 +215,6 @@ MouseArea {
                 script: {
                     list.focus = false;
                     popupContainer.focus = false;
-                    // Set focus to caller
                     if(popupContainer.returnToItem !== null)
                         popupContainer.returnToItem.focus = true;
                 }
@@ -281,10 +228,6 @@ MouseArea {
             StateChangeScript {
                 script: {
                     popupContainer.fillModel()
-
-                    // Set focus on currently selected value
-                    // We do not want it to slowly "roll" to position, so we set duration
-                    // temporarily to 0
                     var oldHighlightMoveDuration = list.highlightMoveDuration;
                     list.highlightMoveDuration = 0;
                     list.currentIndex = findCurrentIndex()
@@ -293,7 +236,6 @@ MouseArea {
             }
         }
     ]
-
     transitions: [
         Transition {
             PropertyAnimation {
@@ -304,7 +246,6 @@ MouseArea {
             }
         }
     ]
-
     ListModel {
         id: listModel
     }

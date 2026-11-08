@@ -1,11 +1,9 @@
 import QtQuick 2.0
 import com.hasselblad.config 1.0
-
 Rectangle {
     id: root
     color: "black"
     property real sizeFactor: Math.min(width / 1024.0, height / 728.0)
-
     Text {
         id: subTextItem
         anchors.centerIn: parent
@@ -14,4 +12,3 @@ Rectangle {
         text: guiconfig.emptyString + ((configstore.ExpMode === Config.ExpMode_ManualQuick) ? qsTr("") : qsTr("Exposing"))
     }
 }
-

@@ -3,13 +3,10 @@ import com.hasselblad.settings 1.0
 import com.hasselblad.config 1.0
 import com.hasselblad.camera 1.0
 import com.hasselblad.globalstateinfo 1.0
-
 import "qrc:/components"
-
 Item {
     width: childrenRect.width;
     height: childrenRect.height;
-
         Image {
             id: timerIndicatorIcon
             asynchronous: true
@@ -19,7 +16,6 @@ Item {
                     configstore.bracketingActive ? "qrc:/icons/ControlScreen_Bracketing.png" :
                     configstore.focusBracketingActive ? "qrc:/icons/ControlScreen_FocusBracketing.png" : ""
         }
-
         Text {
             id: lblSeconds
             anchors {
@@ -49,13 +45,11 @@ Item {
             font.pixelSize: constants.cameraViewSettingEVTextSize
             font.family: constants.cameraControlTextFontName
         }
-
         Row {
             anchors.verticalCenter: parent.verticalCenter
             anchors.left: (configstore.bracketingActive || configstore.focusBracketingActive) ? timerIndicatorIcon.right : lblSeconds.right
             anchors.leftMargin: 15
             spacing: 5
-
             Bracket {
                 id: frame_left_bracket
                 visible: configstore.intervalActive
@@ -66,7 +60,6 @@ Item {
                 lineWidth: 4
                 anchors.verticalCenter: parent.verticalCenter
             }
-
             Text {
                 id: lblFrames
                 anchors {
@@ -78,7 +71,7 @@ Item {
                     {
                         if(255 === configstore.IntervalNumberOfShots)
                         {
-                            return '\u221e' // unlimited, show infinity character
+                            return '\u221e'
                         }
                         else
                         {

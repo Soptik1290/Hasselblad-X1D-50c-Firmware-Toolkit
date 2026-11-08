@@ -6,15 +6,13 @@ import com.hasselblad.settings 1.0
 import com.hasselblad.config 1.0
 import com.hasselblad.camera 1.0
 import com.hasselblad.globalstateinfo 1.0
-
 import "qrc:///components"
 import "qrc:///components/popups"
-import "qrc:///settings"            // For Photo
-import "qrc:///settings/components" // For BoundsEffectGradient
+import "qrc:///settings"
+import "qrc:///settings/components"
 import "qrc:///components/buttons"
-import "qrc:///common" // For constants
+import "qrc:///common"
 import "qrc:///scripts/Keys.js" as MKeys
-
 Rectangle {
     objectName: "GreyBalanceTool_root"
     color: "black"
@@ -31,7 +29,7 @@ Rectangle {
     property string progressStr: ""
     property int workingCounter: -1
     property bool isQueued: false
-    property bool discardRequest: false //Discard data from ongoing req and send a new req
+    property bool discardRequest: false
     property string nextPath: ""
     property int nextPoint: 0
     property int nextSize: 0
@@ -42,11 +40,8 @@ Rectangle {
     property bool dataInitialized: false
     property bool delegateCompleted: false
     signal showControl()
-
     readonly property int exit_BUTTON_INDEX: 0
     readonly property int set_BUTTON_INDEX: 1
-
-    //Want to keep old value of setButtonEnabled if displayTimer is running. Gives binding loop if binding
     onCurrentTempChanged: updateSetButtonEnabled()
     onCurrentTintChanged: updateSetButtonEnabled()
     Connections {
@@ -58,7 +53,6 @@ Rectangle {
             setButtonEnabled = (currentTemp != 0xffff && currentTint != 0xffff)
         }
     }
-
     Keys.onPressed: {
         highlightTimer.restart()
         event.accepted = true
@@ -80,7 +74,7 @@ Rectangle {
         } else if (MKeys.pressedFn("AF_D", event.key) && setButtonEnabled) {
             setManualWB()
             closeTool(true)
-        } else if (MKeys.pressedFn("NAVUP", event.key) || MKeys.pressedFn("NAVDOWN", event.key)) { //Rear wheel left/right
+        } else if (MKeys.pressedFn("NAVUP", event.key) || MKeys.pressedFn("NAVDOWN", event.key)) {
             var selectedIndex = exit_BUTTON_INDEX
             if (!setButtonEnabled || setButtonHighlighted) {
                 selectedIndex = exit_BUTTON_INDEX
@@ -90,17 +84,15 @@ Rectangle {
             exitButtonHighlighted = (selectedIndex === exit_BUTTON_INDEX)
             setButtonHighlighted = (selectedIndex === set_BUTTON_INDEX)
         } else if (MKeys.pressedFnAcc("INTERVAL", event) || MKeys.pressedFnAcc("BRACKETING", event)) {
-            event.accepted = true //Prevent toggle interval/bracketing in this view
+            event.accepted = true
         } else {
             event.accepted = false
         }
     }
-
     function clearHighlight() {
         exitButtonHighlighted = false
         setButtonHighlighted = false
     }
-
     function closeTool(showCtrl) {
         if (startedFromMenu) {
             if (showCtrl) {
@@ -108,12 +100,10 @@ Rectangle {
             } else {
                 closeMenu()
             }
-        } else { //Started with custom button
-            //Always show control screen when started from custom button
+        } else {
             showControl()
         }
     }
-
     Timer {
         id: highlightTimer
         interval: constants.wheelTimeoutTimeMs
@@ -121,7 +111,6 @@ Rectangle {
             clearHighlight()
         }
     }
-
     ListView {
         id: media_list
         model: (ContentModel.isBrowsing || waitForBrowseFinished) ? null : SortedContentModel
@@ -136,11 +125,9 @@ Rectangle {
         layoutDirection: Qt.LeftToRight
         spacing: 20
         boundsBehavior: Flickable.DragOverBounds | Flickable.CustomBounds
-
         BoundsEffectGradient {
             parent: media_list
         }
-
         delegate: Component {
             FocusScope {
                 width: media_list.width
@@ -156,7 +143,6 @@ Rectangle {
                         right: list_img.left
                     }
                 }
-
                 Photo {
                     id: list_img
                     anchors.fill: parent
@@ -172,11 +158,9 @@ Rectangle {
                             }
                         }
                     }
-
                     GreyBalanceOverlay {
                         id: overlay
                         anchors.fill: parent
-
                         Binding on metaImgName {
                             when: display !== undefined
                             value: display
@@ -193,7 +177,6 @@ Rectangle {
                             var minY = eyeDropper.topOverlayHeight + eyeDropper.crossHeight/2
                             var limitY = list_img.height - eyeDropper.bottomOverlayHeight
                             var maxY = limitY - eyeDropper.crossHeight/2
-
                             var minX = eyeDropper.crossWidth/2
                             var maxX = list_img.width - eyeDropper.crossWidth/2
                             var xPos = mouse.x < minX ? minX + eyeDropper.crossBorderWidth :
@@ -205,31 +188,20 @@ Rectangle {
                             if (mouse.y > limitY) {
                                 return
                             }
-
                             eyeDropper.x = xPos - eyeDropper.width/2
                             eyeDropper.y = yPos - eyeDropper.height/2
-
-                            //Update temp and tint
                             list_img.delegateUpdateCustomWB()
                         }
                         onPressedChanged: {
-                            /* Workaround for special case where we move eyeDropper to top of screen, continue dragging outside of screen (but still on glass) and then
-                               start dragging down again. We expect eyeDropper to move down, but the control screen swipe down is detected instead. We therefore
-                               disable control screen swipe when eyeDropper is at top position. This mousearea is then used to detect swipe from top outside of
-                               eyeDropper and enables control screen swipe again by moving the eyeDropper down 1 pixel. Unfortunately the swipe has already started
-                               when enabling control screen swipe so to the user it appears that the swipe failed and when the user tries again the control screen swipe works.
-                            */
                             if (eyeDropper.crossY === eyeDropper.topOverlayHeight + eyeDropper.crossHeight/2) {
                                 eyeDropper.y = eyeDropper.y+1
                             }
                         }
                     }
-
                     EyeDropper {
                         id: eyeDropper
                         x: parent.width/2 - width/2
                         y: parent.height/2 - height/2
-
                         function reset() {
                             eyeDropper.x = parent.width/2 - eyeDropper.width/2
                             eyeDropper.y = parent.height/2 - eyeDropper.height/2
@@ -245,14 +217,12 @@ Rectangle {
                             GlobalStateInfo.preventTopSwipe = dragAtTop
                         }
                     }
-
                     function delegateUpdateCustomWB() {
                         nextPath = ContentModel.path + "/" + display
                         nextPoint = farm.combine((1.0*eyeDropper.crossX)/width, (1.0*eyeDropper.crossY)/height)
                         nextSize = farm.combine((1.0*eyeDropper.crossWidth)/width, (1.0*eyeDropper.crossHeight)/height)
                         updateCustomWB()
                     }
-
                     Rectangle {
                         id: buttonRect
                         color: "black"
@@ -262,8 +232,6 @@ Rectangle {
                             right: parent.right
                         }
                         height: exitButton.height + 2*exitButton.anchors.bottomMargin
-
-                        // Exit Button
                         MenuButton {
                             id: exitButton
                             anchors {
@@ -280,8 +248,6 @@ Rectangle {
                             onClicked: closeTool(false)
                             text: qsTr("Exit") + guiconfig.emptyString
                         }
-
-                        // Set button
                         MenuButton{
                             id: setButton
                             anchors {
@@ -304,12 +270,10 @@ Rectangle {
                         }
                     }
                 }
-
                 Connections {
                     target: media_list
                     onCurrentIndexChanged: {
                         if (media_list.currentIndex === index) {
-                            //Discard undesired data to prevent displayed values from flickering
                             if (workingTimer.running) {
                                 discardRequest = true
                             }
@@ -323,22 +287,17 @@ Rectangle {
                 Component.onCompleted: {
                     delegateCompleted = true
                     if (loadLastImage) {
-                        // load last image in delegate onCompleted (QTBUG-41571). This does unfortunately not solve all cases so
-                        // sometimes we still load the next to last image even though currentIndex points to the last one.
                         loadLastImageFunc()
                     }
                 }
-            } //FocusScope
-        } //Delegate
+            }
+        }
     }
-
     onNoCardAvailableChanged: {
-        //If we go from "no cards" then wait for browsing to finish before selecting last image
         if (!noCardAvailable) {
             waitForBrowseFinished = true
         }
     }
-
     property bool noCardAvailable: (ContentModel.card0Status === ContentModel.STORAGE_ABSENT) && (ContentModel.card1Status === ContentModel.STORAGE_ABSENT)
     property bool isInImageFolder: ContentModel.path.search(/HASBL/) > 0 && !noCardAvailable
     NotificationPopup {
@@ -348,7 +307,6 @@ Rectangle {
         text:  guiconfig.emptyString + ((!System.isTethered && noCardAvailable) ? qsTr("No Card") : qsTr("No images"))
         subText: guiconfig.emptyString + ((!System.isTethered && noCardAvailable) ? "" : qsTr("At least one image is<br>required to use the tool."))
     }
-
     Connections {
         target: ContentModel
         onIsBrowsingChanged: {
@@ -356,7 +314,6 @@ Rectangle {
                 waitForBrowseFinished = false
                 loadLastImageFunc()
                 if (media_list.count === 1) {
-                    //Workaround for strange bug resulting in listview not displaying the image
                     media_list.contentX = 50
                 }
             }
@@ -368,7 +325,6 @@ Rectangle {
             root.closeTool(true)
         }
     }
-
     BatteryIndicatorScaled {
         id: battIcon
         showOnWarningOnly: true
@@ -383,7 +339,6 @@ Rectangle {
         }
         z:1
     }
-
     Connections {
         target: configstore
         onExpModeChanged: {
@@ -392,38 +347,32 @@ Rectangle {
             }
         }
     }
-
     Connections {
         target: farm
         onCustomWBDataChanged: {
             if (discardRequest) {
-                //Replace current request with a new one and discard the data
                 discardRequest = false
                 workingCounter = 0
                 isQueued = false
                 farm.updateCustomWB(nextPath, nextPoint, nextSize)
                 return
             }
-
             workingTimer.stop()
             displayTimer.stop()
             workingCounter = -1
             if (isQueued) {
                 isQueued = false
-                //Send new req with current position
                 root.updateCustomWB()
             } else {
                 if (farm.customWBStatus) {
                     root.currentTemp = farm.customWBTemp
                     root.currentTint = farm.customWBTint
                 }
-                //Must update display values even if status is false
                 root.displayedTemp = root.currentTemp
                 root.displayedTint = root.currentTint
             }
         }
     }
-
     Timer {
         id: workingTimer
         interval: 500
@@ -434,16 +383,13 @@ Rectangle {
             }
         }
     }
-
     onWorkingCounterChanged: {
         if (workingCounter > 10) {
-            //Abort
             workingTimer.stop()
             workingCounter = -1
             progressStr = ""
             return
         }
-
         if (workingCounter >= 0) {
             var ix = workingCounter % 3
             progressStr = ((ix === 0) ? " .  " :
@@ -453,8 +399,6 @@ Rectangle {
             progressStr = ""
         }
     }
-
-    //Delay showing "--"K when calculating new values to avoid blinking if the update is fast
     Timer {
         id: displayTimer
         interval: 100
@@ -463,33 +407,29 @@ Rectangle {
             displayedTint = currentTint
         }
     }
-
     function setManualWB() {
         if (currentTemp !== 0xffff) {
-            Camera.WBMode = 6 // Manual mode
+            Camera.WBMode = 6
             configstore.WBManualTemp = currentTemp
         }
         if (currentTint !== 0xffff) {
             configstore.WBManualTint = currentTint
         }
     }
-
     function updateCustomWB() {
         dataInitialized = true
-        displayTimer.restart() //Must restart before temp/tint is updated to avoid flickering
+        displayTimer.restart()
         var ongoing = workingCounter >= 0
         workingCounter = 0
         currentTemp = 0xffff
         currentTint = 0xffff
         workingTimer.restart()
-
         if (ongoing) {
             isQueued = true
         } else {
             farm.updateCustomWB(nextPath, nextPoint, nextSize)
         }
     }
-
     function loadLastImageFunc() {
         if (media_list.count > 0 && isInImageFolder) {
             loadLastImage = false
@@ -497,18 +437,15 @@ Rectangle {
             media_list.positionViewAtIndex(media_list.count -1, ListView.End)
         }
     }
-
     Component.onCompleted: {
         if(configstore.ExpMode === Config.ExpMode_FullAuto) {
             closeTool(false)
             return
         }
         SortedContentModel.showOnlyImages(true)
-
         if (noCardAvailable) {
             return
         }
-        // Cannot check for ContentModel.PATH_TYPE_FILES since empty folders will return PATH_TYPE_DIRECTORIES
         if (!isInImageFolder) {
             ContentModel.changeToActiveDir()
             waitForBrowseFinished = true
@@ -517,7 +454,6 @@ Rectangle {
             media_list.currentIndex = proxyIndex
             media_list.positionViewAtIndex(proxyIndex, ListView.Center)
         } else {
-            //Sometimes delegates are completed before root
             if (!delegateCompleted) {
                 loadLastImage = true
             } else {
@@ -525,7 +461,6 @@ Rectangle {
                 media_list.positionViewAtIndex(media_list.count -1, ListView.End)
             }
         }
-
         if(typeof hideStatusIcons !== "undefined")
         {
             hideStatusIcons = true

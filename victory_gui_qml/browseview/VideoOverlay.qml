@@ -2,11 +2,8 @@ import QtQuick 2.0
 import com.hasselblad.video 1.0
 import com.hasselblad.farm 1.0
 import com.hasselblad.systemmanager 1.0
-
 import "qrc:///components"
-import "qrc:///settings"   // TODO: For Photo, maybe that component shall be moved to components on the top level?
-
-
+import "qrc:///settings"
 Item {
     id: video_overlay
     visible: true
@@ -20,7 +17,6 @@ Item {
     property string metaImgName
     property bool ramOnly: farm.ram_only_mode === Farm.RamModeRamOnly
     property bool isTethered: System.isTethered
-
     Rectangle {
         id: videoTop
         anchors {
@@ -30,7 +26,6 @@ Item {
         }
         height: constants.botMetaHeightSimple
         color: "black"
-
         Rectangle {
             id: volumeBack
             color: ramOnly ? "red" : "transparent"
@@ -47,7 +42,6 @@ Item {
                 bottomMargin: 4
             }
         }
-
         Text {
             id: cardSymbol
             color: "white"
@@ -57,7 +51,6 @@ Item {
                 leftMargin: 2
                 rightMargin: 2
             }
-            // TODO: Here fix the CARD type & slot preferably with an image instead of text.
             text: ramOnly ? qsTr("DEMO - NO STORAGE").toUpperCase() + guiconfig.emptyString : volumeSymbol(metaVolumeType)
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
@@ -66,7 +59,6 @@ Item {
             font.bold: ramOnly && !guiconfig.usingUnicodeLanguage
             font.family: ramOnly && guiconfig.usingUnicodeLanguage ? "DroidSansFallback" : constants.dialogTextFontName
         }
-
         Text {
             id: imgName
             color: "white"
@@ -82,10 +74,8 @@ Item {
                 rightMargin: constants.metaDataMargins
             }
             elide: Text.ElideRight
-            // TODO: Here fix the CARD type+ slot preferably with an image instead of text.
-            text: metaImgName.replace(/\.[^/.]+$/, "") // This regex cuts off the file extension from the picture name!
+            text: metaImgName.replace(/\.[^/.]+$/, "")
         }
-
         Text {
             id: imgDate
             color: "white"
@@ -97,11 +87,10 @@ Item {
                 verticalCenter: videoTop.verticalCenter
                 verticalCenterOffset: constants.metaDataVertOffset
                 leftMargin: constants.metaDataMargins
-                rightMargin: 65 /*constants.metaDataMargins*/
+                rightMargin: 65
             }
-            text: metaDateTime.length ? metaDateTime.split('T')[0].slice(2) : "" // Cutting off the thousands in the year!
+            text: metaDateTime.length ? metaDateTime.split('T')[0].slice(2) : ""
         }
-
         Text {
             id: imgTime
             color: "white"
@@ -116,8 +105,6 @@ Item {
             text: metaDateTime.length ? metaDateTime.split('T')[1] : ""
         }
     }
-
-
     Rectangle {
         id: videoBottom
         anchors {
@@ -127,7 +114,6 @@ Item {
         }
         height: constants.botMetaHeightSimple
         color: "black"
-
         Text {
             text: ((VideoControl.position / 60) < 10 ? "0" : "") + Math.floor((VideoControl.position / 60)) + ":" +
                   ((VideoControl.position % 60) < 10 ? "0" : "") + Math.round((VideoControl.position % 60))
@@ -142,7 +128,6 @@ Item {
             horizontalAlignment: Text.AlignLeft
         }
         Text {
-            // TODO: Set total time of video here
             text: ((VideoControl.duration / 60) < 10 ? "0" : "") + Math.floor((VideoControl.duration / 60)) + ":" +
                   ((VideoControl.duration % 60) < 10 ? "0" : "") + Math.round((VideoControl.duration % 60))
             color: "white"
@@ -155,8 +140,6 @@ Item {
             }
             horizontalAlignment: Text.AlignRight
         }
-
-        // A progressbar
         ProgressBar {
             anchors.centerIn: parent
             width: 380
@@ -164,25 +147,19 @@ Item {
             percentageAnimDelay: VideoControl.position === 0 ? 0 : 1
             progressPercent: VideoControl.duration === 0 ? 0 : VideoControl.position / (VideoControl.duration - 1)
         }
-
     }
-
     Photo {
         id: preview
         visible: VideoControl.videoMode !== VideoControl.Playback && video_overlay.loadImage && status !== Image.Error
         anchors.fill: parent
-
         fillMode: Image.PreserveAspectFit
         source: video_overlay.loadImage ? image : ""
-
         onStatusChanged: {
             if (status === Image.Ready) {
                 list_delegate.loaded()
             }
         }
     }
-
-    // Video placeholder
     Rectangle {
         visible: VideoControl.videoMode !== VideoControl.Playback && !preview.visible
         color: "darkgrey"
@@ -193,26 +170,15 @@ Item {
             right: parent.right
         }
     }
-
     Image {
         source: "qrc:///icons/Video_play_large.png"
         anchors.centerIn: parent
         visible: VideoControl.videoMode !== VideoControl.Playback
     }
-
-//    Image{
-//        source: "qrc:///icons/PlaybackPause.png"
-//        anchors.centerIn: parent
-//        // TODO: I have no idea what property to use, so correct this when that is more clear:
-//        visible: VideoControl.videoMode === VideoControl.Playback && VideoControl.position !== 0
-//    }
-
     function volumeSymbol(index)
     {
-        // Tethered mode overrides any storage volume.
         if(isTethered)
             return "USB"
         return guiconfig.storageSlotLetter(index)
     }
-
 }

@@ -1,5 +1,4 @@
 import QtQuick 2.0
-
 import com.hasselblad.storage 1.0
 import com.hasselblad.systemmanager 1.0
 import com.hasselblad.video 1.0
@@ -10,23 +9,18 @@ import com.hasselblad.camera 1.0
 import com.hasselblad.settings 1.0
 import com.hasselblad.globalstateinfo 1.0
 import com.hasselblad.lens 1.0
-
 import "qrc:///"
 import "qrc:///components"
 import "qrc:///components/controls"
-
 import "qrc:///scripts/Keys.js" as MKeys
 import "qrc:///scripts/commonfunc.js" as Cmn
-
 FocusScope {
     objectName: "LiveViewOverlay_root"
     id: root
-    // Dependent on height
     property real sizeFactor: Math.min(width / 1024.0, height / 728.0)
     property int textSize: constants.evfTextSize * sizeFactor
-    property bool inActiveWindow: false //If this instance used in active window. Workaround for always being loaded in EVFWindow.
+    property bool inActiveWindow: false
     focus: true
-    // Show info or not (ISO/WB and focus will always be visible):
     property bool infoVisible: false
     property bool manualFocusIndicatorVisible: true
     property alias zoomIndicatorVisible: zoomIndicator.visible
@@ -34,27 +28,21 @@ FocusScope {
     property bool isInHDMI: false
     property bool isBTMode: cambody.isBMode || cambody.isTMode
     property bool showTimer: 0 !== Camera.selfTimerCountDown ||  0 !== Camera.intervalTimerCountDown || (cambody.exposing && (isBTMode || (!isBTMode && Camera.exposureTimerCount)))
-    property bool overlayOff: GlobalStateInfo.afSelectionActive || showTimer || VideoControl.videoMode === VideoControl.Zoom || configstore.ExpMode === Config.ExpMode_ManualQuick || (guiconfig.isA6D && isInHDMI)
+    property bool overlayOff: GlobalStateInfo.afSelectionActive || showTimer || VideoControl.videoMode === VideoControl.Zoom || configstore.ExpMode === Config.ExpMode_ManualQuick
     property bool spiritLevelToggle: false
-    property bool allowSpiritLevel: guiconfig.isCFV || guiconfig.isWedge || ((suc.cambody_attached && configstore.CameraType === Config.CameraTypeHsystem) && !guiconfig.isA6D)
-
+    property bool allowSpiritLevel: true
     function closeIsoWb()
     {
         isoWbState.closeIsoWb()
     }
-
     function startZoomTimer()
     {
         zoomIndicator.startZoomTimer()
     }
-
-
     function stopZoomTimer()
     {
         zoomIndicator.stopZoomTimer()
     }
-
-
     function zoom(zoomX, zoomY)
     {
         if (System.camera_mode === System.CameraModeImage) {
@@ -70,15 +58,12 @@ FocusScope {
             }
         }
     }
-
     Timer {
         id: mfTimer
         running: false
         interval: constants.afSelectionLongPressThreshold
         repeat: false
         onTriggered: {
-            // Timer timed out, thus this is a long press
-            //
             if (VideoControl.videoMode === VideoControl.Zoom)
             {
                 VideoControl.setZoomState(false)
@@ -87,16 +72,11 @@ FocusScope {
             GlobalStateInfo.afSelectionActive = true
         }
     }
-
-
-    // Representing the area where live view will be seen. For other items to anchor to
-    // Width and height ratio should always be 4:3
     Item {
         id: liveViewVideoArea
         width: (parent.width / parent.height) > (4 / 3) ? parent.height * 4 / 3 : parent.width
         height: (parent.width / parent.height) > (4 / 3) ? parent.height : parent.width * 3 / 4
         anchors.centerIn: parent
-
         CropOverlay {
             id: crop
             anchors.fill: parent
@@ -108,7 +88,6 @@ FocusScope {
             }
         }
     }
-
     GridOverlay {
         anchors.fill: liveViewVideoArea
         id: grid
@@ -122,7 +101,6 @@ FocusScope {
             rightMargin: crop.cropWidth
         }
     }
-
     AFIndicator {
         anchors.fill: liveViewVideoArea
         visible: guiconfig.isWedge &&
@@ -131,40 +109,30 @@ FocusScope {
                   VideoControl.videoMode === VideoControl.AF) &&
                  ((Lens.lens_family === Lens.HCCLens) || (Lens.lens_family === Lens.XCLens))
         sizeFactor: root.sizeFactor
-
     }
-
     Row {
         anchors.left: parent.left
         anchors.top: parent.top
         anchors.leftMargin: sizeFactor * constants.liveViewBorderNormalMargin
         anchors.topMargin: sizeFactor * constants.liveViewBorderNormalMargin
         visible: root.infoVisible && liveViewOverlayState.state !== "SpiritLevel"
-
         spacing: sizeFactor * 10
-
         Image {
             id: wifiIcon
             visible: configstore.WIFI_power
             source: root.sizeFactor < 1 ? "qrc:///icons/LCD_LV_WiFi.png" : "qrc:///icons/EVF_LV_WiFi.png"
         }
-
         FlashStatus {
             id: flashStatus
             sizeFactor: root.sizeFactor < 1 ? 1 : root.sizeFactor
             source: root.sizeFactor < 1 ? "qrc:///icons/LCD_LV_Flash.png" : "qrc:///icons/EVF_LV_Flash.png"
         }
-
         GPSStatus {
             iconSource: root.sizeFactor < 1 ? "qrc:///icons/LCD_LV_GPS.png" : "qrc:///icons/EVF_LV_GPS.png"
             sizeFactor: root.sizeFactor < 1 ? 1 : root.sizeFactor
             id: gpsImage
         }
-
     }
-
-
-    // Small Self Timer Active indicator
     Item {
         id: smallSelfTimerIndicator
         visible: root.infoVisible &&
@@ -179,7 +147,6 @@ FocusScope {
         width: smallSelfTimerIndicatorIcon.width * smallSelfTimerIndicatorIcon.scale + 10 * sizeFactor +
                smallLblSeconds.width + smallLblFrames.width + frame_left_bracket.width + frame_right_bracket.width
         height: smallSelfTimerIndicatorIcon.height * smallSelfTimerIndicatorIcon.scale
-
         Image {
             id: smallSelfTimerIndicatorIcon
             visible: (configstore.selfTimerActive || configstore.bracketingActive || configstore.focusBracketingActive  || configstore.intervalActive) && !cambody.exposing
@@ -259,7 +226,6 @@ FocusScope {
                     return "";
                 }
             }
-
             color: constants.cameraViewNormalTextColor
             font {
                 pixelSize: textSize
@@ -268,7 +234,6 @@ FocusScope {
             style: Text.Outline
             styleColor: "black"
         }
-
         Row {
             anchors.left: smallLblSeconds.right
             anchors.leftMargin: 15*sizeFactor
@@ -314,13 +279,11 @@ FocusScope {
                         return "";
                     }
                 }
-
                 color: constants.cameraViewNormalTextColor
                 font {
                     pixelSize: textSize
                     family: constants.cameraControlTextFontName
                 }
-
                 style: Text.Outline
                 styleColor: "black"
             }
@@ -335,8 +298,6 @@ FocusScope {
             }
         }
     }
-
-    // Large Self Timer counting and B/T counting indicator
     Row {
         anchors {
             verticalCenter: liveViewVideoArea.verticalCenter
@@ -345,7 +306,6 @@ FocusScope {
         spacing: 50
         id: selfTimerIndicator
         visible: showTimer
-
         Image {
             id: selfTimerIndicatorIcon
             visible: 0 !== Camera.selfTimerCountDown
@@ -395,8 +355,6 @@ FocusScope {
             verticalAlignment: Text.AlignVCenter
         }
     }
-
-
     Text {
         id: noLiveViewText
         visible: guiconfig.isWedge && (VideoControl.videoMode === VideoControl.Off && Camera.pendingLiveView === Camera.PendNone) && !Camera.inSession
@@ -412,9 +370,6 @@ FocusScope {
         horizontalAlignment: Text.AlignHCenter
         font.pixelSize: textSize
     }
-
-
-    // Auto ISO indicator
     RoundedTextIndicator {
         visible: root.infoVisible && guiconfig.fromIsoVal(Camera.iso) === "Auto"
         width: 110 * sizeFactor
@@ -427,7 +382,6 @@ FocusScope {
         }
         text: "AUTO"
     }
-
     Text {
         id: iso
         visible: root.infoVisible
@@ -444,7 +398,6 @@ FocusScope {
         styleColor: "black"
         font.family: constants.cameraControlTextFontName
     }
-
     BatteryIndicatorScaled {
         id: battery
         canShowBattery: root.infoVisible
@@ -461,13 +414,11 @@ FocusScope {
         height: 50 * sizeFactor
         sizeFactor: root.sizeFactor
     }
-
     RoundedTextIndicator {
         id: manualFocusIndicator
         text: "MF"
-        // Manual focus if its enabled or on wedge if a non AF capable lens is connected
         visible: root.manualFocusIndicatorVisible  && !overlayOff &&
-                 (Camera.FocusMode === Config.Focus_MAN) && !guiconfig.isCFV
+                 (Camera.FocusMode === Config.Focus_MAN)
         sizeFactor: root.sizeFactor
         width: 64 * sizeFactor
         anchors {
@@ -477,15 +428,12 @@ FocusScope {
         }
         opacity: autoFocusIndicatorDividedScan.opacity
     }
-
     RoundedTextIndicator {
         id: autoFocusIndicatorDividedScan
         text: "AF"
-        // Auto focus if its enabled and divided scan range is active
         visible: root.manualFocusIndicatorVisible  &&
                  !overlayOff &&
                  (Camera.FocusMode === Config.Focus_AFS) &&
-                 !guiconfig.isCFV &&
                  (configstore.FocusScanRange !== 0) &&
                  Lens.has_divided_scan_range
         sizeFactor: root.sizeFactor
@@ -496,17 +444,12 @@ FocusScope {
             topMargin: 26 * sizeFactor
         }
     }
-
-    //    "Near" == 1
-    //    "Far"  == 2
     Image {
         id: nearFarIndicator
         visible: root.manualFocusIndicatorVisible  &&
                          !overlayOff &&
-                         !guiconfig.isCFV &&
                          (configstore.FocusScanRange !== 0) &&
                          Lens.has_divided_scan_range
-
         anchors {
             verticalCenter: autoFocusIndicatorDividedScan.verticalCenter
             right: autoFocusIndicatorDividedScan.left
@@ -514,14 +457,10 @@ FocusScope {
         }
         source:  root.sizeFactor < 1 ? (configstore.FocusScanRange === 1 ? "qrc:///icons/LCD_LV_Near.png" : "qrc:///icons/LCD_LV_Far.png") :
                                        (configstore.FocusScanRange === 1 ? "qrc:///icons/EVF_LV_Near.png" : "qrc:///icons/EVF_LV_Far.png")
-
         opacity: autoFocusIndicatorDividedScan.opacity
     }
-
-    // Blink indicator when autofocus fails
     Connections {
         target: Camera
-
         onFindOngoingChanged: {
             if(!Camera.findOngoing &&
                     (Camera.lastAfResult !== Camera.LastAfResultFound) &&
@@ -532,10 +471,8 @@ FocusScope {
             }
         }
     }
-
     SequentialAnimation {
         id: autofocusBlinkLoop
-
         loops: constants.animationErrorBlinkLoops
         NumberAnimation {
             target: autoFocusIndicatorDividedScan
@@ -554,8 +491,6 @@ FocusScope {
         }
         PauseAnimation { duration: constants.animationDurationBlink }
     }
-
-
     IsoWBSelector {
         id: iso_wb_selector
         anchors {
@@ -566,7 +501,6 @@ FocusScope {
         width: 492 * sizeFactor
         height: 91 * sizeFactor
     }
-
     BalanceScale {
         id: balanceScale
         visible: guiconfig.isWedge && root.infoVisible && (configstore.ExpMode !== Config.ExpMode_ManualQuick) && validScale && !cambody.current_stop_down
@@ -578,8 +512,6 @@ FocusScope {
         }
         sizeFactor: root.sizeFactor
     }
-
-    // AE-L Lock indicator
     RoundedTextIndicator {
         id: aeLock
         anchors {
@@ -593,7 +525,6 @@ FocusScope {
         width: 93 * sizeFactor
         sizeFactor: root.sizeFactor
     }
-
     Text {
         id: aperture
         width: 97 * root.sizeFactor
@@ -611,11 +542,6 @@ FocusScope {
         style: Text.Outline
         styleColor: "black"
         font.family: constants.cameraControlTextFontName
-        // Workaround:
-        // Just setting font.bold to true when current_stop_down is active does not work, since when font.bold is false
-        // the font is shown as bold anyway... font.bold thus have to be undefined to be shown as non bold. QML does not allow
-        // us to set any bool property to be set to undefined...
-        // The state machine below works though:
         states: [
             State {
                 name: ""
@@ -627,15 +553,14 @@ FocusScope {
             }
         ]
     }
-
     Rectangle {
         anchors.verticalCenter: aperture.verticalCenter
         anchors.verticalCenterOffset: -(aperture.font.pixelSize - aperture.baselineOffset) / 2
         anchors.horizontalCenter: root.horizontalCenter
         anchors.horizontalCenterOffset: 78 * sizeFactor
         id: evadjIcon
-        width: height //41 * sizeFactor
-        height: aeLock.height //41 * sizeFactor
+        width: height
+        height: aeLock.height
         visible: (Camera.EVADJ !== 0) && root.infoVisible && ((evadjIcon.x + evadjIcon.width) < imageLeftIndicator.x)
         color: "white"
         radius: 4 * sizeFactor
@@ -653,26 +578,19 @@ FocusScope {
                 var styleBlack = Qt.rgba(0, 0, 0, 1)
                 ctx.beginPath()
                 ctx.strokeStyle = styleBlack
-
                 ctx.moveTo(12 * sizeFactor, 7 * sizeFactor)
                 ctx.lineTo(12 * sizeFactor, 19 * sizeFactor)
-
                 ctx.moveTo(6 * sizeFactor, 13 * sizeFactor)
                 ctx.lineTo(18 * sizeFactor, 13 * sizeFactor)
-
                 ctx.moveTo(9 * sizeFactor, 34 * sizeFactor)
                 ctx.lineTo(34 * sizeFactor, 9 * sizeFactor)
-
                 ctx.moveTo(25 * sizeFactor, 30 * sizeFactor)
                 ctx.lineTo(36 * sizeFactor, 30 * sizeFactor)
-
                 ctx.stroke()
                 ctx.restore()
             }
-
         }
         onVisibleChanged: if(visible) evadjIconCanvas.requestPaint()
-
     }
     RoundedTextIndicator {
         id: eShutterIcon
@@ -685,7 +603,6 @@ FocusScope {
         width: height
         sizeFactor: root.sizeFactor
     }
-
     Text {
         id: shutterspeed
         visible: root.infoVisible && ((cambody.capabilities & Cambody.CapabilityGetTV) !== 0) && ((shutterspeed.x + shutterspeed.width) < imageLeftIndicator.x)
@@ -699,7 +616,6 @@ FocusScope {
         styleColor: "black"
         font.family: constants.cameraControlTextFontName
     }
-
     DemoModeIndicator {
         anchors {
             bottom: root.infoVisible ? imageLeftIndicator.top : parent.bottom
@@ -707,8 +623,6 @@ FocusScope {
             bottomMargin: sizeFactor * 23
         }
     }
-
-    // Images left indicator
     Row {
         id: imageLeftIndicator
         visible: root.infoVisible
@@ -719,7 +633,6 @@ FocusScope {
             rightMargin: sizeFactor * 30
             bottomMargin: sizeFactor * 24
         }
-
         Bracket {
             id: left_bracket
             leftBracket: true
@@ -729,11 +642,8 @@ FocusScope {
             borderWidth: Math.round(Math.max(1 * sizeFactor, 1))
             lineWidth: Math.round(Math.max(3 * sizeFactor, 2) + borderWidth)
         }
-
         ExposuresAvailCounter {
             id: availCounter
-            // The subtraction with 0.000001 is a workaround for a bug in QML. If no such subtraction, the texts position
-            // will be erroneous
             width: !showCounter ? implicitWidth - 0.000001 : Math.min(implicitWidth - 0.000001, availMaxWidth.implicitWidth)
             anchors.top: left_bracket.top
             anchors.topMargin: (font.pixelSize - baselineOffset) / 2 - 1
@@ -741,7 +651,6 @@ FocusScope {
             font.pixelSize: textSize
             style: Text.Outline
             styleColor: "black"
-            // The following is to get the max width for the counter
             Text {
                 visible: false
                 id: availMaxWidth
@@ -750,7 +659,6 @@ FocusScope {
                 style: Text.Outline
             }
         }
-
         Bracket {
             id: right_bracket
             leftBracket: false
@@ -760,13 +668,9 @@ FocusScope {
             borderWidth: Math.round(Math.max(1 * sizeFactor, 1))
             lineWidth: Math.round(Math.max(3 * sizeFactor, 2) + borderWidth)
         }
-
     }
-
     function getShutterSpeed()
     {
-        // Split at space
-        //        console.log("speed: '" + speed + "'");
         if(cambody.TV_out_of_range)
         {
             return "--";
@@ -778,7 +682,6 @@ FocusScope {
             if(splitPos > 0)
             {
                 return speed.slice(0, splitPos + 1) + " " + speed.slice(splitPos + 1, speed.length)
-
             }
             else
             {
@@ -786,33 +689,27 @@ FocusScope {
             }
         }
     }
-
     Connections {
         target: configstore
         onExpModeChanged: {
             isoWbState.closeIsoWb()
         }
     }
-
     Connections {
         target: System
         onTethered_modeChanged: {
             isoWbState.updateStateNames()
         }
     }
-
-
     Item {
         id: isoWbState
         property var stateNames: updateStateNames();
         property int currentState: 0
         property bool initialized: false
         state: stateNames[currentState]
-
         function updateStateNames() {
             stateNames = System.isTethered ? [ "none", "iso" ] : [ "none", "iso", "wb" ]
         }
-
         function nextIsoWbState()
         {
             var newState = currentState + 1
@@ -850,17 +747,14 @@ FocusScope {
             var wbState = stateNames.indexOf("wb")
             currentState = currentState !== noneState ? noneState : wbState
         }
-
         states: [
             State {
                 name: "none"
                 StateChangeScript {
                     script: {
-                        //Do not set bodySync state when creating component. (Start state is "none")
                         if (!isoWbState.initialized) {
                             isoWbState.initialized = true
                         } else {
-                            // It worked very bad to set BodySync.currentState in PropertyChanges, so we set it in this script instead
                             BodySync.currentState = GlobalStateInfo.afSelectionActive ? BodySync.MENU : BodySync.MAIN
                         }
                     }
@@ -871,7 +765,6 @@ FocusScope {
                 PropertyChanges { target: iso_wb_selector; showIsoList: true }
                 StateChangeScript {
                     script: {
-                        // It worked very bad to set BodySync.currentState in PropertyChanges, so we set it in this script instead
                         BodySync.currentState = BodySync.MENU
                     }
                 }
@@ -881,23 +774,20 @@ FocusScope {
                 PropertyChanges { target: iso_wb_selector; showWbList: true }
                 StateChangeScript {
                     script: {
-                        // It worked very bad to set BodySync.currentState in PropertyChanges, so we set it in this script instead
                         BodySync.currentState = BodySync.MENU
                     }
                 }
             }
         ]
     }
-
     SpiritLevel {
         id: spiritLevel
         visible: false
         anchors.fill: parent
         sizeFactor: root.sizeFactor
-        allowCross: !(guiconfig.isWedge && isInHDMI) //Wedge hdmi use cross for "exit" button
+        allowCross: !(guiconfig.isWedge && isInHDMI)
         compactMode: true
     }
-
     HTS {
         id: hts
         visible: false
@@ -905,7 +795,6 @@ FocusScope {
         sizeFactor: root.sizeFactor
         onHts_attachedChanged: checkOverlay()
     }
-
     Rectangle {
         id: spotMeterIndicator
         property bool show: false
@@ -940,7 +829,6 @@ FocusScope {
             }
         }
     }
-
     Loader {
         source: "qrc:///liveview/AFPointSelection.qml"
         id: aFPointSelection
@@ -950,7 +838,6 @@ FocusScope {
         onLoaded: {
             item.forceActiveFocus()
         }
-
         Connections {
             target: aFPointSelection.item
             onCloseAFPointSelection: {
@@ -959,15 +846,11 @@ FocusScope {
             }
         }
     }
-
     Item {
         id: liveViewOverlayState
-        // Histogram not shown for now
-        property var stateNames: [ "Natural", "Info", "Grid", "SpiritLevel" /*, "Histogram"*/, "HTS" ];
+        property var stateNames: [ "Natural", "Info", "Grid", "SpiritLevel" , "HTS" ];
         property int startIndex: 2
         state: stateNames[configstore.LiveViewOverlayIndex]
-
-
         states: [
             State {
                 name: "Natural"
@@ -977,11 +860,9 @@ FocusScope {
                 PropertyChanges { target: root; infoVisible: !overlayOff}
                 PropertyChanges { target: grid; visible: (isoWbState.state === "none") && (VideoControl.videoMode !== VideoControl.Zoom) && !overlayOff}
                 PropertyChanges { target: spotMeterIndicator; show: !overlayOff && (VideoControl.videoMode !== VideoControl.Zoom)}
-
             },
             State {
                 name: "Info"
-                //Note! If changing something here then add the same changes to state spiritlevel since this info should be a shown there too (#6574)
                 PropertyChanges { target: root; infoVisible: !overlayOff}
                 PropertyChanges { target: spotMeterIndicator; show: !overlayOff && (VideoControl.videoMode !== VideoControl.Zoom)}
             },
@@ -1002,7 +883,6 @@ FocusScope {
                 PropertyChanges { target: hts; visible: !overlayOff}
             }
         ]
-
         function toggleSpiritLevel() {
             if (spiritLevelToggle) {
                 spiritLevelToggle = false
@@ -1012,10 +892,7 @@ FocusScope {
                 liveViewOverlayState.state = "SpiritLevel"
             }
         }
-
     }
-
-    // Zoom indicator
     Item{
         id: zoomIndicator
         anchors.right: liveViewVideoArea.right
@@ -1041,7 +918,6 @@ FocusScope {
                 duration: constants.fadeOutDuration
             }
         }
-
         function startZoomTimer()
         {
             VideoControl.restartLiveViewImageTimeout()
@@ -1051,13 +927,10 @@ FocusScope {
                 zoomTimer.start()
             }
         }
-
-
         function stopZoomTimer()
         {
             zoomTimer.stop()
         }
-
         CropOverlay {
             anchors.fill: parent
             onVisibleChanged: {
@@ -1066,13 +939,11 @@ FocusScope {
                 }
             }
         }
-
         Timer {
             id: zoomTimer
             interval: constants.zoomIndicatorTimeout
             onTriggered: if(!dragAreaPressed && !GlobalStateInfo.touchpadZoomActive) zoomIndicator.opacity = 0
         }
-
         Connections {
             target: GlobalStateInfo
             onTouchpadZoomActiveChanged: {
@@ -1081,20 +952,17 @@ FocusScope {
                 }
             }
         }
-
         Rectangle {
             anchors.fill: zoomIndicator
             color: "black"
             opacity: 0.4
         }
-
         Rectangle {
             anchors.fill: zoomIndicator
             border.color: "white"
             border.width: 2
             color: "transparent"
         }
-
         Rectangle {
             id: zoomedImageIndicator
             color: "white"
@@ -1112,7 +980,6 @@ FocusScope {
             }
         }
     }
-
     function resetOverlay()
     {
         if(isValidOverlay(liveViewOverlayState.startIndex))
@@ -1124,18 +991,15 @@ FocusScope {
             setNextOverlayImpl(liveViewOverlayState.startIndex)
         }
     }
-
     function setNextOverlay()
     {
         setNextOverlayImpl(configstore.LiveViewOverlayIndex)
     }
-
     function setNextOverlayImpl(nextIndex)
     {
         if (overlayOff) {
             return
         }
-
         if (nextIndex >= (liveViewOverlayState.stateNames.length - 1))
         {
             nextIndex = 0;
@@ -1153,12 +1017,10 @@ FocusScope {
             setNextOverlayImpl(nextIndex)
         }
     }
-
     function setPrevOverlay()
     {
         setPrevOverlayImpl(configstore.LiveViewOverlayIndex)
     }
-
     function setPrevOverlayImpl(nextIndex)
     {
         if (0 === nextIndex)
@@ -1178,21 +1040,17 @@ FocusScope {
             setPrevOverlayImpl(nextIndex)
         }
     }
-
     function isValidOverlay(testIndex)
     {
         var testState = liveViewOverlayState.stateNames[testIndex]
-
         if (testState === "HTS")
             return cambody.hts_attached
-
         if(!allowSpiritLevel && (testState === "SpiritLevel"))
         {
             return false
         }
         return true
     }
-
     function checkOverlay()
     {
         if(!isValidOverlay(configstore.LiveViewOverlayIndex))
@@ -1200,7 +1058,6 @@ FocusScope {
             resetOverlay()
         }
     }
-
     Keys.onPressed: {
         if (event.isAutoRepeat)
         {
@@ -1209,9 +1066,7 @@ FocusScope {
         else
         {
             mfTimer.stop()
-
             if(Camera.inSession && !(MKeys.pressedFn("HALFPRESS", event.key) || MKeys.pressedFn("EXPOSURE", event.key))) {
-                // swallow mosts keys if we're inside a session.
                 event.accepted = true
                 return
             }
@@ -1229,12 +1084,10 @@ FocusScope {
             }
             else if (guiconfig.isWedge && !isoWbState.isoWbActive() && MKeys.pressedFnAcc("STOPDOWN", event))
             {
-                // Activate stopdown (only) while holding the button
                 cambody.doStopDown(true)
             }
             else if(!System.isTethered && (MKeys.pressedFnAcc("STAR", event) || MKeys.pressedFnAcc("ZOOM_IN", event)))
             {
-                // Zoom in to focus point. Special handling for HC lens with Wedge
                 if(guiconfig.isWedge && ((Lens.lens_family !== Lens.HCCLens) && (Lens.lens_family !== Lens.XCLens)))
                 {
                     zoom(0.5 * root.width, 0.5 * root.height)
@@ -1258,11 +1111,9 @@ FocusScope {
             }
             else if (isoWbState.isoWbActive() && MKeys.pressedFnAcc("AF_MF", event))
             {
-                // Prevent key to progress further down the line
             }
             else if (guiconfig.isWedge && MKeys.pressedFnAcc("AF_MF", event) && (Camera.canChange & Camera.PropFocusMode))
             {
-                // We do not know yet if this is a short or long press, we start a timer to find out
                 mfTimer.restart()
             }
             else if (MKeys.pressedFnAcc("SPIRITLEVEL", event))
@@ -1279,7 +1130,6 @@ FocusScope {
             }
             else if(MKeys.pressedFnAcc("CROSS", event) && guiconfig.isWedge && !isInHDMI && liveViewOverlayState.state !== "SpiritLevel")
             {
-                //Reset AF point
                 afc.resetPosition()
                 afc.selectAndSave()
             }
@@ -1288,9 +1138,7 @@ FocusScope {
                 event.accepted = false
             }
         }
-
     }
-
     Keys.onReleased: {
         if (event.isAutoRepeat)
         {
@@ -1308,13 +1156,11 @@ FocusScope {
             if(mfTimer.running)
             {
                 mfTimer.stop()
-                // Short press of AF/MF. We better handle that...
                 if (Camera.canChange & Camera.PropFocusMode)
                     Camera.FocusMode = (Camera.FocusMode === Config.Focus_MAN) ? Config.Focus_AFS : Config.Focus_MAN;
             }
         }
     }
-
     AFCalc {
         id: afc
         screenWidth: root.width
@@ -1322,7 +1168,6 @@ FocusScope {
         isActive: !GlobalStateInfo.afSelectionActive && root.inActiveWindow
         idText: "In LiveViewOverlay"
     }
-
     Connections {
         target: BodySync
         onProximityDetectNearChanged: {
@@ -1333,7 +1178,6 @@ FocusScope {
         property int lastMode: 0
         target: VideoControl
         onVideoModeChanged: {
-            //Handle specific case where zoom mode was started by ring rotation and is controlled by a timer
             if (inActiveWindow && lastMode === VideoControl.Zoom && !GlobalStateInfo.afSelectionActive && isoWbState.state === "none" &&
                     BodySync.currentState === BodySync.MENU) {
                 BodySync.currentState = BodySync.MAIN
@@ -1341,18 +1185,14 @@ FocusScope {
             lastMode = VideoControl.videoMode
         }
     }
-
     Item {
         id: mainRoot
         signal nextOverlay()
     }
-
     Component.onCompleted: {
         mainRoot.nextOverlay.connect(setNextOverlay)
     }
-
     onVisibleChanged: {
-        // Remove toggled spiritlevel when leaving EVF
         if (!visible && spiritLevelToggle)
             liveViewOverlayState.toggleSpiritLevel()
     }

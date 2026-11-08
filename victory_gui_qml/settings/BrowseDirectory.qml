@@ -1,11 +1,9 @@
 import QtQuick 2.0
 import com.hasselblad.storage 1.0
 import com.hasselblad.settings 1.0
-
 import "qrc:///settings"
 import "qrc:///settings/components"
 import "qrc:///scripts/Keys.js" as MKeys
-
 Rectangle {
     objectName: "BrowseDirectory_root"
     id: root
@@ -15,14 +13,12 @@ Rectangle {
     signal directorySelected(string dir)
     property int itemHeight: 78
     property alias listCurrentIndex: file_list.currentIndex
-    // Current items y value w.r.t. list
     property int currentItemYValue: (file_list.currentIndex >= 0) && (file_list.currentItem !== null) ? file_list.currentItem.mapToItem(file_list, file_list.contentY * 0, 0).y : 0
     property bool allowDimming: true
     property bool directoryUpHighLight: false
     property bool addFolderHighLight: false
     signal directoryUpSelected()
     signal folderAdded()
-
     function setFocus()
     {
         file_list.forceActiveFocus()
@@ -30,7 +26,6 @@ Rectangle {
         file_list.lastIndex = -1
     }
     Keys.onPressed: {
-        // Prevent F3 from being used somewhere else
         if(MKeys.pressedFnAcc("CROSS", event))
         {
             if(file_list.currentIndex == 0)
@@ -42,7 +37,6 @@ Rectangle {
         MKeys.pressedFnAcc("BROWSE", event);
         MKeys.pressedFnAcc("ZOOM_IN", event);
     }
-
     Text {
         id: header
         text: "<font color=\"" + constants.menuHighlightColor + "\">" + qsTr("BROWSE") + ":</font> " + qsTr("FOLDERS") + " - " +
@@ -55,8 +49,6 @@ Rectangle {
         color: "white"
         font.capitalization: Font.AllUppercase
     }
-
-    // Reset index when entering this
     onVisibleChanged: {
         if(visible)
         {
@@ -64,7 +56,6 @@ Rectangle {
             file_list.lastIndex = -1
         }
     }
-
     Timer {
         id: listTimer
         interval: constants.wheelTimeoutTimeMs
@@ -77,24 +68,20 @@ Rectangle {
             file_list.currentIndex = -1
         }
     }
-
     function startMenuWheelTimeout()
     {
         listTimer.restart();
     }
-
     function stopMenuWheelTimeout()
     {
         listTimer.stop();
         file_list.highlightAllow = false
     }
-
     ListView {
         objectName: "BrowseDirectory_file_list"
         id: file_list
         clip: true
         onCurrentIndexChanged: console.log("Now did CurrentIndex change", currentIndex)
-
         anchors {
             left: parent.left
             right: parent.right
@@ -103,15 +90,12 @@ Rectangle {
             bottom: bottomRect.top
         }
         focus: true
-
         boundsBehavior: guiconfig.isRunningSimulation() ? Flickable.StopAtBounds : (Flickable.DragOverBounds | Flickable.CustomBounds)
         BoundsEffectGradient {
             parent: file_list
             fadeColor: constants.hblOrange
         }
-
         property bool highlightAllow: false
-
         orientation: ListView.Vertical
         highlightMoveDuration: constants.highlightMoveDuration
         highlight: Rectangle {
@@ -119,14 +103,11 @@ Rectangle {
             height: itemHeight
             width: file_list.width
         }
-
         delegate: Item {
             objectName: "BrowseDirectory_delegate"
             height: itemHeight
             width: file_list.width
-            // Workaround since QML does not let us easily access model data roles outside a delegate:
             property var itemModel: model
-
             Image {
                 id: folderIcon
                 anchors.verticalCenter: parent.verticalCenter
@@ -134,7 +115,6 @@ Rectangle {
                 anchors.leftMargin: 59
                 source: "qrc:///icons/FolderIcon.png"
             }
-
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 anchors.verticalCenterOffset: 6
@@ -149,13 +129,10 @@ Rectangle {
                 anchors.verticalCenterOffset: 6
                 anchors.left: parent.horizontalCenter
                 anchors.leftMargin: 16
-                // Disabled for now since farm does not send proper timestamp which means model contains a value parsed from random junk:
-                // text: model.fsdate
                 text: ""
                 color: "white"
                 font.pixelSize: 40
             }
-
             MouseArea {
                 id: buttonMouseArea
                 anchors.fill: parent
@@ -185,9 +162,7 @@ Rectangle {
                 }
             }
         }
-
         property int lastIndex: 0
-
         Keys.onPressed: {
             if (event.isAutoRepeat)
             {
@@ -202,7 +177,6 @@ Rectangle {
                 stopMenuWheelTimeout()
                 if(directoryUpHighLight)
                 {
-                    // Go up one directory
                     directoryUpHighLight = false
                     file_list.lastIndex = -1
                     directoryUpSelected()
@@ -212,7 +186,6 @@ Rectangle {
                 {
                     addFolderHighLight = false
                     file_list.lastIndex = -1
-                    //If card is write protected an error popup will be opened
                     if (ContentModel.checkWriteProtection()) {
                         createFolderConfirmDialog.active = true
                     }
@@ -242,7 +215,6 @@ Rectangle {
                 startMenuWheelTimeout()
                 if(!highlightAllow)
                 {
-                    // Highlight latest
                     currentIndex = lastIndex
                     if(currentIndex == -1)
                     {
@@ -272,14 +244,13 @@ Rectangle {
                         decrementCurrentIndex()
                     }
                 }
-                lastIndex = currentIndex // This may look peculiar, but its in order!
+                lastIndex = currentIndex
             }
             else if(MKeys.pressedFn("LISTDOWN", event.key))
             {
                 startMenuWheelTimeout();
                 if(!highlightAllow)
                 {
-                    // Highlight latest
                     currentIndex = lastIndex
                     if(currentIndex == -1)
                     {
@@ -309,12 +280,11 @@ Rectangle {
                         incrementCurrentIndex()
                     }
                 }
-                lastIndex = currentIndex // This may look peculiar, but its in order!
+                lastIndex = currentIndex
             }
             else
                 event.accepted = false
         }
-
         Connections {
             target: file_list.model
             onListSizeChanged: {
@@ -325,7 +295,6 @@ Rectangle {
             }
         }
     }
-
     Rectangle {
         visible: !file_list.highlightAllow || file_list.currentIndex === -1 || ((currentItemYValue > file_list.height) ||
                                                    (currentItemYValue < (file_list.height - itemHeight - height)))
@@ -338,10 +307,8 @@ Rectangle {
             GradientStop { position: 1.0; color: "black" }
         }
     }
-
     Rectangle {
         id: topGradient
-        //visible: false
         visible: !file_list.highlightAllow || file_list.currentIndex === -1 || ((currentItemYValue > height) ||
                                                    (currentItemYValue < -itemHeight))
         anchors.top: file_list.top
@@ -353,7 +320,6 @@ Rectangle {
             GradientStop { position: 1.0; color: "transparent" }
         }
     }
-
     Rectangle {
         id: bottomRect
         anchors {
@@ -364,18 +330,6 @@ Rectangle {
         height: 50
         color: "black"
     }
-
-    // Turn off backlight when screen is black (when there are no items to show)
-    /*
-    states: [
-        State {
-            name: "NoItems"
-            when: (file_list.count == 0) && (ErrorControl.code === Errors.ErrorNone) && root.allowDimming
-            PropertyChanges { target: backlight; brightness: constants.blackScreenBrightness }
-        }
-    ]
-    */
-
     Component.onDestruction: {
         allowDimming = false
     }
@@ -383,5 +337,3 @@ Rectangle {
         file_list.positionViewAtEnd()
     }
 }
-
-

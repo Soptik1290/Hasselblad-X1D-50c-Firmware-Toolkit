@@ -1,5 +1,4 @@
 import QtQuick 2.0
-
 Rectangle {
     id: root
     visible: parent.visible
@@ -12,7 +11,6 @@ Rectangle {
     property alias labelX: label.x
     property alias labelWidth: label.width
     property bool moveLabelUp: false
-
     Text {
         id: label
         objectName: "ConfirmationButton_label"
@@ -22,14 +20,11 @@ Rectangle {
         horizontalAlignment: Text.AlignHCenter
         visible: parent.visible
     }
-
     Image {
         id: arrow
         source: "qrc:///icons/popupButtonArrow.png"
         visible: parent.visible
     }
-
-    // Manage button orientation state.
     states: [
         State {
             when: !sideOriented
@@ -57,11 +52,10 @@ Rectangle {
                 anchors {
                     horizontalCenter: label.horizontalCenter
                     bottom: root.bottom
-                    topMargin: 0//-constants.popupBottomTextMargin
+                    topMargin: 0
                 }
             }
         },
-
         State {
             when: sideOriented
             name: "sideOriented"
@@ -94,5 +88,5 @@ Rectangle {
                 }
             }
         }
-    ] // states
+    ]
 }

@@ -1,7 +1,5 @@
 import QtQuick 2.5
 import "qrc:///scripts/Keys.js" as MKeys
-
-// Slider
 Rectangle {
     id: sliderWrapper
     objectName: "sliderWrapper"
@@ -29,14 +27,10 @@ Rectangle {
     property bool changeInProcess: false
     property real latestValue: value
     property real originalValue: 1
-
     onRealValueChanged: valueIsChanged = true
     Component.onCompleted: valueIsChanged = false
-
     height: childrenRect.height + 15
-
     property int sideMargin: (width - (icon.x + icon.width) - 60)/ 10 * (11 - tickCount) / 2 + 30
-
     function adjustNewValue(newValue)
     {
         newValue = Math.round(newValue / stepSize) * stepSize
@@ -52,20 +46,15 @@ Rectangle {
         latestValue = newValue
         value = newValue
         changedNewValue(newValue);
-
     }
-
     function stepUp()
     {
         adjustNewValue(value + stepSize)
     }
-
     function stepDown()
     {
         adjustNewValue(value -stepSize)
     }
-
-    // Icon with backdrop
     Image {
         id: icon
         anchors {
@@ -82,7 +71,6 @@ Rectangle {
             z: -1
         }
     }
-
     Item {
         id: slider
         anchors {
@@ -93,8 +81,6 @@ Rectangle {
             top: parent.top
             bottom: parent.bottom
         }
-
-        // Horizontal line
         Rectangle {
             id: horizontalLine
             color: lineColor
@@ -106,24 +92,6 @@ Rectangle {
                 topMargin: 89
             }
         }
-/*
-        // Ticks, variable amount. Create dynamically, since we have variable number of ticks
-        property string sc: "import QtQuick 2.0; Rectangle {
-                width: 5;
-                height: 20;
-                color: lineColor;
-                anchors.verticalCenter: horizontalLine.verticalCenter
-                property int index
-                x: horizontalLine.width / (tickCount - 1) * index - width / 2 + horizontalLine.x
-            }"
-        Component.onCompleted: {
-            for (var iTick = 0; iTick < tickCount; ++iTick){
-                var tick = Qt.createQmlObject(sc, slider, 'tick' + iTick);
-                tick.index = iTick
-            }
-        }
-*/
-        // Zero marker
         Rectangle {
             id: zeroMarker
             width: lineThickness;
@@ -132,7 +100,6 @@ Rectangle {
             anchors.verticalCenter: horizontalLine.verticalCenter
             x: horizontalLine.x - width / 2 + horizontalLine.width / (maxValue - minValue) * (- minValue)
         }
-
         MouseArea {
             id: zeroMarkerMouseArea
             preventStealing: false
@@ -149,8 +116,6 @@ Rectangle {
             propagateComposedEvents: false
             onPressAndHold: changedNewValue(0)
         }
-
-        // Sliding marker
         Rectangle {
             id: slidingMarker
             anchors.verticalCenter: horizontalLine.verticalCenter
@@ -163,7 +128,6 @@ Rectangle {
             height: markerSize
             x: horizontalLine.x - width / 2 + horizontalLine.width / (maxValue - minValue) * (value - minValue)
         }
-
         MouseArea {
             id: slidingMarkerDragArea
             property bool isSliding: containsPress || drag.active
@@ -184,14 +148,11 @@ Rectangle {
                 maximumX: horizontalLine.x + horizontalLine.width - slidingMarker.width / 2
                 threshold: horizontalLine.width / ((maxValue - minValue) / stepSize) / 2
             }
-
             drag.onActiveChanged: if (!drag.active) adjustNewValue(realValue)
         }
-
         MouseArea {
             id: leftClickArea
             onClicked: adjustNewValue(value - stepSize)
-
             preventStealing: true
             anchors {
                 left: slider.left
@@ -204,11 +165,9 @@ Rectangle {
             }
             propagateComposedEvents: true
         }
-
         MouseArea {
             id: rightClickArea
             onClicked: adjustNewValue(value + stepSize)
-
             preventStealing: true
             anchors {
                 left: slidingMarkerDragArea.right
@@ -221,9 +180,6 @@ Rectangle {
             }
             propagateComposedEvents: true
         }
-
-
-        // Sliding text
         Text {
             id: slidingText
             z: 2
@@ -241,7 +197,7 @@ Rectangle {
                 weight: constants.cameraViewFontWeight
             }
             Rectangle {
-                visible: false//slidingMarkerDragArea.isSliding
+                visible: false
                 anchors {
                     centerIn: parent
                     verticalCenterOffset: -iconBorderSize
@@ -252,13 +208,11 @@ Rectangle {
                 z: -1
             }
         }
-
         Text {
             id: slidingTextUnit
             z: 2
             text: " EV"
             x: {
-                // Prevent text to be shown outside of slider
                 var currentX = (slidingMarker.x + slidingMarker.width / 2)
                 var currentStartX = (slidingMarker.x + slidingMarker.width / 2) - slidingText.width
                 if(currentX > textEndX)
@@ -280,9 +234,8 @@ Rectangle {
             anchors.top: parent.top
             anchors.topMargin: 12
             font.family: constants.cameraControlTextFontName
-
             Rectangle {
-                visible: false//slidingMarkerDragArea.isSliding
+                visible: false
                 anchors {
                     centerIn: parent
                     verticalCenterOffset: -iconBorderSize
@@ -294,7 +247,6 @@ Rectangle {
             }
         }
     }
-
     MouseArea {
         id: iconZeroArea
         width: 50

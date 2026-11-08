@@ -1,36 +1,27 @@
 import QtQuick 2.0
 import com.hasselblad.upgrade 1.0
 import com.hasselblad.systemmanager 1.0
-
-
 import "qrc:///components"
 import "qrc:///components/buttons"
 import "qrc:///scripts/Keys.js" as MKeys
-
 Rectangle {
     objectName: "UpgradeCheck_root"
     id: root
     color: "black"
     z:200
     focus: true
-
     property alias initialState: content_root.state
     property int textOffset: 60
     property int sideMargin: 50
     property int numberOfItemsVisibleInList: constants.numberOfItemsVisibleInList
     property alias model: listView.model
-
     function exitDialog()
     {
-        // Exit dialog here
         parent.active = false
         Upgrader.inUse = false
     }
-
-    // Subtext
     Text {
         id: header
-        //width: parent.width
         anchors {
             top: parent.top
             topMargin: textOffset
@@ -43,17 +34,13 @@ Rectangle {
         font.pixelSize: 60
         text: qsTr("Firmware Update") + guiconfig.emptyString
         fontSizeMode: Text.HorizontalFit
-//        font.capitalization: Font.AllUppercase
         horizontalAlignment: Text.AlignHCenter
     }
-
-    // Subtext
     Text {
         id: subText
         anchors {
             top: parent.top
             topMargin: textOffset + 184
-            //horizontalCenter: parent.horizontalCenter
             bottom: parent.bottom
         }
         width: parent.width
@@ -62,7 +49,6 @@ Rectangle {
         wrapMode: Text.Wrap
         font.pixelSize: 45
     }
-
     Image {
         id: imgExclamationMark
         source: "qrc:///icons/exclamationMark.png"
@@ -72,9 +58,6 @@ Rectangle {
             topMargin: textOffset + 85
         }
     }
-
-
-    // Cancel Button
     MenuButton {
         id: leftButton
         objectName: "UpgradeCheck_leftButton"
@@ -92,8 +75,6 @@ Rectangle {
         onClicked: exitDialog()
         text: qsTr("Cancel") + guiconfig.emptyString
     }
-
-    // Upgrade button
     MenuButton{
         id: rightButton
         objectName: "UpgradeCheck_rightButton"
@@ -111,7 +92,6 @@ Rectangle {
         onClicked: rightClick()
         text: qsTr("Update") + guiconfig.emptyString
     }
-
     function rightClick()
     {
         if (content_root.state == "ask" && listView.count > 0) {
@@ -123,16 +103,12 @@ Rectangle {
             content_root.state = "confirm"
         }
     }
-
-    // To avoid main to pickup changes..
     Component.onCompleted: {
         Upgrader.inUse = true
     }
-
     Component.onDestruction: {
         Upgrader.inUse = false
     }
-
     Item {
         id: content_root
         anchors {
@@ -145,7 +121,6 @@ Rectangle {
             topMargin: 10
             bottomMargin: 20
         }
-        // Border
         ListView {
             objectName: "UpgradeCheck_listview"
             id: listView
@@ -163,7 +138,6 @@ Rectangle {
                 if (count === 0 && content_root.state == "list")
                     content_root.state = "no_upgrades"
             }
-
             Keys.onPressed: {
                 event.accepted = true
                 if(MKeys.pressedFn("LISTUP", event.key))
@@ -175,11 +149,9 @@ Rectangle {
                 else
                     event.accepted = false
             }
-
             Keys.onReturnPressed: {
                 cancel_button.focus = true
             }
-
             highlight: Rectangle {
                 color: constants.popupBackgroundColor
                 height: listView.height / numberOfItemsVisibleInList
@@ -188,7 +160,6 @@ Rectangle {
                     anchors.fill: parent
                 }
             }
-
             delegate: Item {
                 objectName: "UpgradeCheck_listview_delegate"
                 id: theItem
@@ -220,14 +191,11 @@ Rectangle {
                 border.width: 2
                 border.color: constants.popupBorderColor
             }
-
         }
-
         Connections {
             target: Upgrader
             onSearchDone: content_root.state = listView.count > 0 ? "list" : "no_upgrades"
         }
-
         state: "search"
         states: [
             State {
@@ -262,7 +230,6 @@ Rectangle {
                 PropertyChanges { target: leftButton; visible: true; enabled: true; }
                 PropertyChanges { target: rightButton; visible: true; enabled: true }
                 PropertyChanges { target: imgExclamationMark; visible: false }
-
             },
             State {
                 name: "no_upgrades"
@@ -287,14 +254,11 @@ Rectangle {
             onTriggered: content_root.state = "search"
         }
     }
-
-    // Prevent closing when clicking outside of popup
     MouseArea {
         z: -1
         anchors.fill: parent
         onClicked: {}
     }
-
     Loader {
         id: confirmDialog
         objectName: "UpgradeCheck_confirmDialog"
@@ -318,7 +282,6 @@ Rectangle {
                 content_root.state = "list"
             }
         }
-
         Connections {
             target: confirmDialog.item
             onRightSelected : {

@@ -1,5 +1,4 @@
 import QtQuick 2.0
-
 Item {
     objectName: "NotificationMessage_root"
     id: root
@@ -10,7 +9,6 @@ Item {
         anchors.fill: parent
         color: "black"
     }
-
     Text {
         id: label
         text: qsTr(headingText) + guiconfig.emptyString
@@ -24,7 +22,6 @@ Item {
         horizontalAlignment: Text.AlignHCenter
         font.capitalization: Font.AllUppercase
     }
-
     Timer {
         id: timer
         running: true
@@ -33,4 +30,3 @@ Item {
         repeat: false
     }
 }
-

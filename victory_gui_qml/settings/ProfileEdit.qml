@@ -1,31 +1,24 @@
 import QtQuick 2.0
-
 import "qrc:///components/buttons"
 import "qrc:///components/popups"
 import "qrc:///scripts/Keys.js" as MKeys
 import "qrc:///components"
-
 Popover {
     id: root
-
     property int profileIndex: 0
     property string name: ""
     property int gridspacing: constants.popupGridSpacing
-
     heading: ""
     updateBodySyncState: false
     contentItem: grid
     onFocusChanged: if (focus) grid.forceActiveFocus()
     property string action: ""
-
     function setSelected() {}
     function openProcessing() {}
-
     function startWheelTimeout()
     {
         wheelTimer.restart();
     }
-
     Timer {
         id: wheelTimer
         interval: constants.wheelTimeoutTimeMs
@@ -36,20 +29,16 @@ Popover {
             root.focus = true
         }
     }
-
     content: Item {
         anchors.fill: parent
-
         Row {
             id: row
             anchors.top: parent.top
             anchors.topMargin: -30
             anchors.horizontalCenter: parent.horizontalCenter
-
             Image {
                 id: profileIcon
                 source: (profileIndex === 0) ? "qrc:///icons/SpiritNormalMode.png" : "qrc:///icons/SpiritUserMode.png"
-
                 Text {
                     visible: profileIndex > 0
                     anchors.horizontalCenter: parent.horizontalCenter
@@ -72,12 +61,10 @@ Popover {
                 width: Math.min(maxWidth, implicitWidth)
             }
         }
-
         GridView {
             id: grid
             focus: true
             interactive: false
-
             anchors {
                 fill: parent
                 topMargin: model.count === 3 ? 40 : 70
@@ -88,16 +75,13 @@ Popover {
             boundsBehavior: Flickable.StopAtBounds
             keyNavigationWraps: false
             currentIndex: -1
-
             onCurrentIndexChanged: {
                 startWheelTimeout()
             }
-
             function setSelected()
             {
                 gotClick(currentIndex)
             }
-
             function gotClick(ix)
             {
                 console.log("index", ix)
@@ -112,14 +96,11 @@ Popover {
                     console.log("rename profile (not implemented yet)", profileIndex)
                 }
             }
-
             cellWidth: width
             cellHeight: height / (model.count === 3 ? model.count : 2.4)
             model: buttonModel
-
             delegate: Item {
                 id: grid_delegate
-
                 width: grid.cellWidth
                 height: grid.cellHeight - gridspacing
                 Rectangle {
@@ -130,7 +111,6 @@ Popover {
                     anchors.leftMargin: -constants.popupSideMargins
                     anchors.rightMargin: -constants.popupSideMargins
                 }
-
                 MenuButton {
                     objectName: "profiles_menuButton"
                     anchors {
@@ -140,7 +120,7 @@ Popover {
                     maxWidth: parent.width - 30
                     minWidth: maxWidth
                     text: qsTr(buttonText) + guiconfig.emptyString
-                    isEnabled: (!(index > 0 && profileIndex === 0) && index < 2) //Do not allow save/rename for default profile
+                    isEnabled: (!(index > 0 && profileIndex === 0) && index < 2)
                     spacing: 10
                     borderColor: isEnabled ? (index === grid.currentIndex ? constants.buttonBorderHighlightColor : constants.buttonBorderColor) : constants.buttonDisabledColor
                     onClicked: {
@@ -155,10 +135,8 @@ Popover {
             id: buttonModel
             ListElement { buttonText: QT_TR_NOOP("Load") }
             ListElement { buttonText: QT_TR_NOOP("Save") }
-            //ListElement { buttonText: QT_TR_NOOP("Rename") }
         }
     }
-
     GenericConfirm {
         id: confirm
         anchors.fill: parent

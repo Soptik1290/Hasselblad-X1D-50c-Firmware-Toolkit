@@ -1,18 +1,13 @@
 import QtQuick 2.0
 import com.hasselblad.demostate 1.0
 import com.hasselblad.storage 1.0
-
 import "qrc:///settings"
 import "qrc:///liveview"
-
 Image {
     id: img
-    //fillMode: Image.PreserveAspectFit
-    //clip: true
     asynchronous: true
     cache: false
     property bool showOverExposureMask: false
-
     Connections {
         target: ContentModel
         onIsBrowsingPossibleChanged: {
@@ -24,18 +19,15 @@ Image {
             }
         }
     }
-
     onStatusChanged: {
         console.log("Photo status: ", status)
         if (status === Image.Error)
             console.log("Failed to load texture", img.source, "download possible:", ContentModel.isBrowsingPossible)
     }
-
     Rectangle {
         id: rectangle
         visible: false
         anchors.fill: parent
-
         Text {
             id: text
             anchors.horizontalCenter: parent.horizontalCenter
@@ -46,7 +38,6 @@ Image {
             font.family: constants.metaDataTextFontName
         }
     }
-
     states: [
         State {
             name: "failure"
@@ -68,7 +59,6 @@ Image {
             PropertyChanges { target: rectangle; visible: false }
         }
     ]
-
     ShaderEffect {
         id: exp_effect
         visible: img.showOverExposureMask
@@ -76,7 +66,6 @@ Image {
         width: parent.width
         height: parent.height
         property variant src: img
-
         vertexShader: "
           uniform highp mat4 qt_Matrix;
           attribute highp vec4 qt_Vertex;
@@ -99,7 +88,6 @@ Image {
                                   tex.a) * qt_Opacity;
             }"
     }
-
     CropOverlay {
         id: cropOverlay
         anchors.fill: parent
@@ -108,4 +96,3 @@ Image {
         cropy: (typeof cropY !== "undefined") ? cropY : 0
     }
 }
-

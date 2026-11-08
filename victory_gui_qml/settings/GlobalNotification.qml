@@ -1,8 +1,6 @@
 import QtQuick 2.0
-
 import com.hasselblad.globalstateinfo 1.0
 import com.hasselblad.camera 1.0
-
 Item {
     objectName: "GlobalNotification"
     id: root
@@ -12,16 +10,11 @@ Item {
     property bool allow: true
     property bool showPopup: true
     property string mode: ""
-
-    // "Internal" properties
-
     property real sizeFactor: Math.min(width / 640.0, height / 480.0)
     property bool isErrorPopup: (mode === "no_crop_in_video")
     property bool allowMode : (mode === "crop_mode" && !Camera.exposing) ||
                               (mode === "no_crop_in_video") ||
                               (mode === "show_global_note" && !Camera.exposing)
-
-    //The popup, used when not showing the overlay text
     Rectangle {
         id: frame
         visible: showPopup || isErrorPopup
@@ -45,7 +38,6 @@ Item {
             font.capitalization: Font.AllUppercase
             font.family: constants.menuItemFontName
         }
-        // The text message. Display when not used as error popup
         Text {
             id: infoText
             visible: !root.isErrorPopup
@@ -57,8 +49,6 @@ Item {
             horizontalAlignment: Text.AlignHCenter
             color: "white"
         }
-
-        // The icon
         Image {
             id: errorIcon
             anchors {
@@ -70,8 +60,6 @@ Item {
             visible: root.isErrorPopup
             scale: sizeFactor
         }
-
-        //The error popup text
         Text {
             id: subTextItem
             visible: root.isErrorPopup
@@ -92,8 +80,6 @@ Item {
             wrapMode: Text.WordWrap
         }
     }
-
-    //The overlay text. Used mainly in liveview and not when showing an error.
     Text {
         id: overlayText
         visible: !(showPopup || isErrorPopup) && (mode !== "show_global_note")
@@ -108,18 +94,15 @@ Item {
         style: Text.Outline;
         styleColor: "black"
     }
-
     Connections {
         target: GlobalStateInfo
         onOverlayModeChanged: {
-            //Use connection instead of binding since we reset the mode locally
             mode = GlobalStateInfo.overlayMode
         }
         onEvfActiveChanged: {
             closePopup()
         }
     }
-
     Timer {
         id: timer
         interval: 2000
@@ -127,13 +110,11 @@ Item {
             root.mode = ""
         }
     }
-
     onAllowChanged: {
         if (!allow) {
             closePopup()
         }
     }
-
     onAllowModeChanged: {
         if (allowMode) {
             timer.restart()
@@ -141,11 +122,9 @@ Item {
             closePopup()
         }
     }
-
     onShowPopupChanged: {
         closePopup()
     }
-
     function closePopup() {
         timer.stop()
         root.mode = ""

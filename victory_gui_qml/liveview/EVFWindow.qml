@@ -1,6 +1,5 @@
 import QtQuick 2.2
 import QtQuick.Window 2.1
-
 import com.hasselblad.camera 1.0
 import com.hasselblad.video 1.0
 import com.hasselblad.systemmanager 1.0
@@ -9,10 +8,8 @@ import com.hasselblad.storage 1.0
 import com.hasselblad.bodysync 1.0
 import com.hasselblad.error 1.0
 import com.hasselblad.globalstateinfo 1.0
-
 import "qrc:/settings"
 import "qrc:///scripts/Keys.js" as MKeys
-
 Window {
     id: root
     objectName: "EVFWindow_root"
@@ -31,15 +28,12 @@ Window {
     property Item previouslyActiveItem: null
     property alias subloader_lv_active: wedgeliveview.active
     property alias subloader_video_active: wedgeLiveViewVideo.active
-
     signal setToBrowse()
     signal setToMain()
     signal setToControl()
-
     onShowPreviewChanged: {
         GlobalStateInfo.evfInPreview = showPreview
     }
-
     function closePreView()
     {
         showPreview = false;
@@ -50,24 +44,16 @@ Window {
         preView.startIndex = showLastItem ? -1 : GlobalStateInfo.mediaIndex
         preView.startTimer = startTimer
         showPreview = true;
-        // QUICK HACK!!!
-        // Under some circumstances this binding can be destroyed, so we correct it here
-        // Should be done in a better way, but since it is just a few hours until release, this will do
-        // This could be destroyed if zooming in and out in EVF, or using ISO settings (ISO/WB button) in EVF
         BodySync.currentState = Qt.binding(function() { return cambody.exposing ? BodySync.DISABLE_WHEELS : GlobalStateInfo.afSelectionActive ? BodySync.MENU : (evfWindow.item.showPreview ? BodySync.PLAY : BodySync.MAIN) })
-        // END OF QUICK HACK
-
         if (VideoControl.videoMode !== VideoControl.Off) {
             Camera.setLiveViewState(false)
             VideoControl.setVideoRecordState(false)
         }
     }
-
     function focusErrorView()
     {
         fatalError.focus = true
     }
-
     function setPreviouslyActiveItem()
     {
         if(activeFocusItem !== null)
@@ -76,21 +62,15 @@ Window {
         }
         console.log("Previously active item set to: ", previouslyActiveItem)
     }
-
     onActiveFocusItemChanged: {
         if(null != activeFocusItem) {
             console.log("ActiveFocusItem changed:", activeFocusItem, guiconfig.itemProperties(activeFocusItem, false, true, 0))
-            // DEBUG: Enable this timer to get full dump of QML object-hierarchy.
-            //dumpActiveFocusTimer.restart()
         }
     }
-
     GlobalNotification {
         allow: scope.state === "Image" || scope.state === "Video" || scope.state === "PreView"
         showPopup: VideoControl.videoMode === VideoControl.Off
     }
-
-    //Need an extra overlay here to crop the liveview until the correct state is set and the LiveViewOverlay has been loaded
     CropOverlay {
         anchors.fill: parent
         visible: scope.state === "" && VideoControl.videoMode !== VideoControl.Zoom && System.camera_mode === System.CameraModeImage
@@ -100,8 +80,6 @@ Window {
             }
         }
     }
-
-
     Connections {
         target: BodySync
         onHdmiCableConnectedChanged: {
@@ -123,26 +101,22 @@ Window {
             }
         }
     }
-
     FocusScope {
         objectName: "EVFWindow_focusScope"
         id: scope
-        // Avoid update if the window is not visible...
         visible: false
         anchors.fill: parent
         focus: true
-
         Keys.onPressed: {
             if (event.isAutoRepeat) {
                 return
             }
-
             var doBrowse = MKeys.pressedFnAcc("PLAY", event)
             var doMain = false
             if(!doBrowse)
                 doMain = MKeys.pressedFnAcc("MENU", event)
             if (doBrowse && !isInHDMI && states.state !== "PreView") {
-                openPreView(true, false)//showLastItem, startTimer
+                openPreView(true, false)
             } else if (doBrowse || doMain) {
                 if(!System.isTethered && isInHDMI) {
                     Camera.setLiveViewState(false)
@@ -166,22 +140,17 @@ Window {
                 console.log("Unhandled key:", event.key)
             }
         }
-
         Keys.onReleased: {
             if (event.isAutoRepeat)
                 return
-
             commonKeyHandleReleased(event)
         }
-
-        // Temporarily have a grey background to see things
         Rectangle {
             objectName: "EVFWindow_GreyRectangle"
             anchors.fill: parent
             color: "grey"
             visible: guiconfig.isRunningSimulation()
         }
-
         Loader {
             source: "qrc:///liveview/LiveViewImage.qml"
             objectName: "EVFImageLiveView"
@@ -190,7 +159,6 @@ Window {
             asynchronous: true
             active: false
             property bool show_overlay: false
-
             onLoaded: {
                 item.isInHDMI = root.isInHDMI
                 item.enabled = true
@@ -198,7 +166,6 @@ Window {
                 item.focus = show_overlay
                 item.forceActiveFocus()
             }
-
             onShow_overlayChanged: {
                 active = true
                 if (item !== null) {
@@ -208,10 +175,8 @@ Window {
                 }
                 wedgeliveview.focus = show_overlay
             }
-
             onActiveFocusChanged: if(!activeFocus) scope.forceActiveFocus()
         }
-
         Loader {
             source: "qrc:///liveview/LiveViewVideo.qml"
             objectName: "EVFWindow_LiveViewVideo"
@@ -220,7 +185,6 @@ Window {
             asynchronous: true
             active: false
             property bool show_overlay: false
-
             onLoaded: {
                 item.enabled = true
                 item.isInHDMI = root.isInHDMI
@@ -228,7 +192,6 @@ Window {
                 item.focus = show_overlay
                 item.forceActiveFocus()
             }
-
             onShow_overlayChanged: {
                 active = true
                 if (item !== null) {
@@ -239,7 +202,6 @@ Window {
             }
             onActiveFocusChanged: if(!activeFocus) scope.forceActiveFocus()
         }
-
         Loader {
             property int startIndex: -1
             property bool startTimer: false
@@ -257,7 +219,6 @@ Window {
                 } else {
                     showPreview = false
                     evfPreviewTimer.stop()
-                    // Just make sure we have something listening to button events when this is deactivated
                     scope.forceActiveFocus()
                 }
             }
@@ -269,12 +230,6 @@ Window {
             }
             Connections {
                 target: preView.item
-//                onCurrentItemLoaded: {
-//                    if (preView.startTimer) {
-//                        preView.startTimer = false
-//                        evfPreviewTimer.restart()
-//                    }
-//                }
                 onKeyPressed: {
                     if (scope.state === "PreView") {
                         evfPreviewTimer.stop()
@@ -282,18 +237,15 @@ Window {
                 }
             }
         }
-
         Timer {
             id: evfPreviewTimer
             interval: (configstore.EVFPreviewTimeout > 0) ? configstore.EVFPreviewTimeout : 0
             onTriggered: {
-                //Check inSession to not start LV in continuous drive mode
                 if (!Camera.inSession) {
                     Camera.setLiveViewState(true)
                 }
             }
         }
-
         Loader {
             objectName: "PreStart_loader"
             id: hdmiPreLiveView
@@ -306,14 +258,12 @@ Window {
             onEnabledChanged: {
                 if(!enabled)
                 {
-                    // Just make sure we have something listening to button events when this is deactivated
                     scope.forceActiveFocus()
                 }
             }
             onActiveFocusChanged: {
                 if(!activeFocus)
                 {
-                    // Just make sure we have something listening to button events when this is deactivated
                     scope.forceActiveFocus()
                 }
             }
@@ -329,19 +279,15 @@ Window {
             enabled: false
             onEnabledChanged: {
                 if(!enabled) {
-                    // Just make sure we have something listening to button events when this is deactivated
                     scope.forceActiveFocus()
                 }
             }
             onActiveFocusChanged: {
                 if(!activeFocus) {
-                    // Just make sure we have something listening to button events when this is deactivated
                     scope.forceActiveFocus()
                 }
             }
         }
-
-        // Error popup for ackable errors....
         Loader {
             objectName: "errorAckPopupLoader"
             id: errorPopupLoader
@@ -350,14 +296,11 @@ Window {
             source: "qrc:///components/popups/ErrorPopup.qml"
             focus: active
             property int previousBodyState: BodySync.MAIN
-
             onActiveFocusChanged: {
-                //For some reason the item does not always get focus
                 if (activeFocus) {
                     item.focus = true
                 }
             }
-
             onActiveChanged: {
                 if (active)
                 {
@@ -365,18 +308,15 @@ Window {
                         GlobalStateInfo.errorPopupOwner = BodySync.focusSurface
                         previouslyActiveItem = root.activeFocusItem
                         item.forceActiveFocus()
-
                         previousBodyState = BodySync.currentState
                         if(guiconfig.isWedge)
                         {
-                            // Prevent things to change due to scroll wheels
                             BodySync.currentState = BodySync.MENU;
                         }
                     }
                 }
                 else
                 {
-                    //Only do cleanup if this popup is the owner (i.e. was the first popup to show the error)
                     if (GlobalStateInfo.errorPopupOwner === "overlay" && ErrorControl.code === Errors.ErrorNone) {
                         GlobalStateInfo.errorPopupOwner = ""
                         if (previouslyActiveItem == null) {
@@ -385,7 +325,6 @@ Window {
                         console.log("Resetting active item to: ", previouslyActiveItem)
                         previouslyActiveItem.forceActiveFocus()
                         previouslyActiveItem = null
-
                         if(guiconfig.isWedge)
                         {
                             BodySync.currentState = previousBodyState;
@@ -395,7 +334,6 @@ Window {
             }
             onLoaded: item.showAckButton = false
         }
-
         Loader {
             objectName: "EVF_DialModeOverlay_Loader"
             id: dialMode
@@ -406,10 +344,8 @@ Window {
             onLoaded: {
                 console.log("EVF Dial is loaded")
             }
-            // Somehow the width is not yet already updated when onLoaded is emitted.
             onVisibleChanged: if(visible && (item !== null)) item.sizeFactor = width / 1024
         }
-
         Loader {
             id: fatalError
             objectName: "fatalError"
@@ -417,19 +353,16 @@ Window {
             active: false
             anchors.fill: parent
         }
-
         onStateChanged: console.log("New EVF state: ", state)
         states: [
             State {
                 name: "batteryexhausted"
-                // Battery is exhausted. Special treatment
                 when: (ErrorControl.code === Errors.ErrorBatteryExhausted) && !root.disabled
                 PropertyChanges { target: fatalError; active: true; source: "qrc:///components/popups/BatteryExhausted.qml"  }
                 PropertyChanges { target: fatalError; focus: true; restoreEntryValues: false }
             },
             State {
                 name: "Error"
-                // An error which is not ackable -> serious...
                 when: ErrorControl.code !== Errors.ErrorNone && !ErrorControl.isAckable && !root.disabled
                 StateChangeScript {
                     script: {
@@ -437,7 +370,6 @@ Window {
                                                  {
                                                      "errcodeText" : ErrorControl.code,
                                                      "subText" : ErrorControl.message,
-                                                     /*"bottomText":,*/
                                                      "icon": "qrc:///icons/exclamationMark.png",
                                                      "showButtons": false
                                                  });
@@ -464,7 +396,6 @@ Window {
             State {
                 name: "hdmiPlayback"
                 when: (VideoControl.videoMode === VideoControl.Playback && isInHDMI)
-                //Do not activate any overlays for HDMI. Is this correct?
             },
             State {
                 name: "Video"
@@ -477,9 +408,6 @@ Window {
                 PropertyChanges { target: wedgeliveview; show_overlay: true }
             }
         ]
-
     }
-
     onClosing:Qt.quit()
 }
-

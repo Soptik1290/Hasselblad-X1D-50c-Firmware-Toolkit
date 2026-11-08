@@ -1,5 +1,4 @@
 import QtQuick 2.5
-
 import com.hasselblad.storage 1.0
 import com.hasselblad.settings 1.0
 import com.hasselblad.config 1.0
@@ -13,7 +12,6 @@ import com.hasselblad.camera 1.0
 import com.hasselblad.gps 1.0
 import com.hasselblad.usbif 1.0
 import com.hasselblad.globalstateinfo 1.0
-
 import "qrc:/"
 import "qrc:/components"
 import "qrc:/components/buttons"
@@ -21,44 +19,33 @@ import "qrc:/components/controls"
 import "qrc:/components/popups"
 import "qrc:/controlscreen"
 import "qrc:/scripts/Keys.js" as MKeys
-
 FocusScope {
     objectName: "ControlScreen_focusScope"
     id: scope
-    // When we have popup, prevent parent to swipe
     property bool popupOpen: popup.status !== Loader.Null
     property bool preventSwipe: popupOpen || Camera.inSession
     property bool allowHighlightBracket: false
-
-    // ViewModel
     ControlScreenViewModel {
         id: viewModel
     }
-
-    // Dummy mouse area. Without it, swipe away does not work properly. QML Magic...
     MouseArea {
         anchors.fill: parent
     }
-
-    // TODO: Check if this is really needed
     Connections {
         target: viewModel
         onVideoModeChanged: {
             states.state = ""
         }
     }
-
     function isHidden(element) {
         if (!element.visible || element.opacity === 0)
             return true;
         return false;
     }
-
     function testAndSetFocusRight(testValue, testItem, startItem)
     {
         console.log("Camera.canShow", Camera.canShow)
         console.log("Camera.canChange", Camera.canChange)
-        // Prevent runaway...
         if(testItem !== startItem)
         {
             if(testValue)
@@ -71,12 +58,10 @@ FocusScope {
             }
         }
     }
-
     function setFocusOnNextRight(currentItem)
     {
         setFocusOnNextRightImpl(currentItem, currentItem)
     }
-
     function setFocusOnNextRightImpl(currentItem, startItem)
     {
         switch(currentItem)
@@ -119,10 +104,8 @@ FocusScope {
             break;
         }
     }
-
     function testAndSetFocusLeft(testValue, testItem, startItem)
     {
-        // Prevent runaway...
         if(testItem !== startItem)
         {
             if(testValue)
@@ -135,12 +118,10 @@ FocusScope {
             }
         }
     }
-
     function setFocusOnNextLeft(currentItem)
     {
         setFocusOnNextLeftImpl(currentItem, currentItem)
     }
-
     function setFocusOnNextLeftImpl(currentItem, startItem)
     {
         switch(currentItem)
@@ -183,33 +164,26 @@ FocusScope {
             break;
         }
     }
-
     function isoWbHandler()
     {
-
         if (!popupOpen) {
             if (System.isTethered) {
-                // Do nothing
             } else if (Camera.canChange & Camera.PropSV)
                 states.state = "iso"
             else if (Camera.canChange & Camera.PropWBMode)
                 states.state = "whitebalance"
         } else if(states.state === "iso") {
-            // Save selected value
             popup.item.setSelected()
             states.state = ""
-            // Don't allow wb to be selectable if in tethered mode (phocus control wb)
             if (!System.isTethered && Camera.canChange & Camera.PropWBMode) {
                 states.state = "whitebalance"
                 whitebalance_control.popupShowed = true
             }
         } else if(states.state === "whitebalance") {
-            // Save selected value
             popup.item.setSelected()
             states.state = ""
         }
     }
-
     function isoHandler()
     {
         if (!popupOpen) {
@@ -220,11 +194,9 @@ FocusScope {
             states.state = ""
         }
     }
-
     function wbHandler()
     {
         if (!popupOpen) {
-            // Don't allow wb to be selectable if in tethered mode (phocus control wb)
             if (!System.isTethered && Camera.canChange & Camera.PropWBMode) {
                 states.state = "whitebalance"
                 whitebalance_control.popupShowed = true
@@ -234,7 +206,6 @@ FocusScope {
             states.state = ""
         }
     }
-
     function startCameraLiveView()
     {
         stopWheelTimeout();
@@ -242,13 +213,10 @@ FocusScope {
         var start = (VideoControl.videoMode === VideoControl.Off);
         Camera.setLiveViewState(start);
     }
-
-    // Close popups if Dial mode changes
     Connections {
         target: BodySync
         onCurrentDialModeChanged: states.state = ""
     }
-
     Connections {
         target: configstore
         onExpModeChanged: {
@@ -256,7 +224,6 @@ FocusScope {
             scope.allowHighlightBracket = false;
         }
     }
-
     Timer {
         id: wheelTimer
         interval: constants.wheelTimeoutTimeMs
@@ -264,33 +231,25 @@ FocusScope {
         repeat: false
         onTriggered: {
             allowHighlightBracket = false
-            //            console.log("Camera Screen forcing focus")
             root.forceActiveFocus();
         }
     }
-
     function startWheelTimeout()
     {
-        //        console.log("starting control screen wheel timer")
         wheelTimer.restart();
     }
-
     function stopWheelTimeout()
     {
-        //        console.log("stopping control screen wheel timer")
         wheelTimer.stop();
     }
-
     function closePopup()
     {
         states.state = ""
     }
-
     onFocusChanged: {
         if(!focus)
-            stopWheelTimeout() // always when we loose focus, drop the wheel timer so that we don't steal focus from some other view.
+            stopWheelTimeout()
     }
-
     Rectangle {
         color: constants.cameraViewLineColor
         anchors.bottom: parent.bottom
@@ -298,21 +257,17 @@ FocusScope {
         anchors.right: parent.right
         height: constants.viewEndLineWidth
     }
-
     Rectangle {
         id: root
         objectName: "ControlScreen_root"
         anchors.fill: parent
         anchors.bottomMargin: constants.viewEndLineWidth
-        // convenience bool, it's tested on so many places.
         property bool isFullAuto: configstore.ExpMode === Config.ExpMode_FullAuto
         color: constants.cameraViewBackgroundColor
         focus: true
         property Item lastFocused
-
         Keys.onPressed: {
             console.log("CameraView got key pressed")
-
             if((MKeys.pressedFnAcc("NAVRIGHT", event) || MKeys.pressedFnAcc("AF_D", event)) && !allowHighlightBracket)
             {
                 setFocusOnNextRight(isoSetting)
@@ -347,10 +302,6 @@ FocusScope {
             else if(MKeys.pressedFnAcc("ISO_WB", event) && guiconfig.isWedge)
             {
                 stopWheelTimeout()
-
-                // First time, show isoSetting
-                // Second time, show WB
-                // Third time, show none
                 isoWbHandler()
             }
             else if(MKeys.pressedFnAcc("AE_L", event) && guiconfig.isWedge)
@@ -363,7 +314,6 @@ FocusScope {
                 }
             }
         }
-
         Item {
             objectName: "ControlScreen_states"
             id: states
@@ -433,7 +383,6 @@ FocusScope {
                         }
                     }
                 }
-
             ]
             transitions: [
                 Transition {
@@ -447,9 +396,7 @@ FocusScope {
                     }
                 }
             ]
-
         }
-
         Item {
             anchors {
                 top: parent.top
@@ -468,7 +415,6 @@ FocusScope {
                     right: parent.right
                 }
                 spacing: constants.cameraViewMargin
-
                 BracketedCameraControl {
                     id: whitebalance_control
                     visible: viewModel.whiteBalanceControlVisible
@@ -483,7 +429,6 @@ FocusScope {
                                               : Camera.WBMode === 4  ? "qrc:/icons/WBal_Fluor.png"
                                               : Camera.WBMode === 6  ? "qrc:/icons/WBal_Empty.png"
                                               : "qrc:/icons/WBal_Unknown.png";
-
                     showBracket: Camera.canChange & Camera.PropWBMode
                     onClicked: {
                         if(showBracket)
@@ -529,24 +474,20 @@ FocusScope {
                         anchors.verticalCenterOffset: 16
                         opacity: whitebalance_control.symbolOpacity
                         color: constants.popupTextColor
-                        text: configstore.WBManualTemp// + (configstore.WBManualTemp < 10000 ? " " : "") + "K"
+                        text: configstore.WBManualTemp
                         font.pixelSize: 32
                         font.bold: false
                     }
-
                 }
-
                 Connections {
                     target: configstore
                     onWBManualTintChanged: {
                         whitebalance_control.startBlink()
                     }
                 }
-
                 BracketedCameraControl {
                     id: af_control
                     allowHighligtBracket: scope.allowHighlightBracket
-                    // Show manual in the case that wedge has no contrast AF compatible lens
                     symbol: !showBracket ?
                                 (Camera.FocusMode === Config.Focus_AFS ? "qrc:/icons/AF-Single_inactive.png" : "qrc:/icons/AF-Manual_inactive.png") :
                                 Camera.FocusMode === Config.Focus_AFS ? "qrc:/icons/AF_Single.png" :
@@ -554,7 +495,6 @@ FocusScope {
                                 Camera.FocusMode === Config.Focus_AFT ? "qrc:/icons/AF_TrueFocus.png" :
                                 Camera.FocusMode === Config.Focus_MAN ? "qrc:/icons/AF_Manual.png" :
                                 "qrc:/icons/AF_Single.png";
-
                     visible: viewModel.afControlVisible
                     showBracket: Camera.canChange & Camera.PropFocusMode
                     onClicked: {
@@ -598,7 +538,6 @@ FocusScope {
                     }
                 }
             }
-
             Row {
                 visible: Camera.canShow & Camera.PropSV
                 layoutDirection: Qt.RightToLeft
@@ -614,7 +553,6 @@ FocusScope {
                     batteryWidth: 23
                     height: 59
                 }
-
                 TextCameraControl {
                     id: isoSetting
                     allowHighlightBracket: scope.allowHighlightBracket
@@ -629,7 +567,6 @@ FocusScope {
                     spacing: 6
                     outlineText: !(Camera.canChange & Camera.PropSV)
                     forceHighlight: isoMouseArea.containsPress
-
                     Keys.onPressed: {
                         if(scope.allowHighlightBracket)
                         {
@@ -645,7 +582,6 @@ FocusScope {
                                 }
                                 else
                                     event.accepted = false
-
                             }
                             else if(MKeys.pressedFnAcc("NAVLEFT", event)) {
                                 startWheelTimeout()
@@ -668,7 +604,6 @@ FocusScope {
                             }
                         }
                     }
-
                     MouseArea {
                         enabled: !isoSetting.outlineText
                         id: isoMouseArea
@@ -678,7 +613,6 @@ FocusScope {
                     }
                 }
             }
-
         }
         Rectangle {
             id: first_line
@@ -689,8 +623,6 @@ FocusScope {
             anchors.right: parent.right
             height: 2
         }
-
-
         TextCameraControl {
             visible: viewModel.apertureSettingVisible
             id: apertureSetting
@@ -702,13 +634,11 @@ FocusScope {
             valueSize: constants.cameraSettingLargeTextSize
             spacing: 2
             outlineText: ((Camera.canChange & Camera.PropAV) === 0) && viewModel.selectedExposureModeValid
-
             MouseArea {
                 id: apertureMouseArea
                 anchors.fill: parent
                 hoverEnabled: true
                 onClicked: {
-                    // Only do this if allowed
                     if (!apertureSetting.outlineText)
                     {
                         states.state = "aperture"
@@ -720,12 +650,10 @@ FocusScope {
                     }
                 }
             }
-
             anchors.top: first_line.bottom
             anchors.topMargin: 23
             anchors.left: first_line.left
             anchors.leftMargin: constants.cameraViewMargin
-
             Keys.onPressed: {
                 if(scope.allowHighlightBracket) {
                     if(MKeys.pressedFnAcc("NAVRIGHT", event)) {
@@ -739,10 +667,7 @@ FocusScope {
                         else {
                             stopWheelTimeout()
                             scope.allowHighlightBracket = false;
-                            // TODO: Call this when properties connected
-                            //                            popApertureQuickAdjust.toggle(root)
                         }
-
                     }
                     else if(MKeys.pressedFnAcc("NAVLEFT", event)) {
                         startWheelTimeout()
@@ -760,8 +685,6 @@ FocusScope {
                 }
             }
         }
-
-
         ShutterSpeedControl {
             id: shutterSpeedSetting
             objectName: "ControlScreen_shutterSpeedSetting"
@@ -771,7 +694,6 @@ FocusScope {
             outlineText: ((Camera.canChange & Camera.PropTV) === 0) && viewModel.selectedExposureModeValid
             showIcon: configstore.eshutter && !viewModel.videoMode
             shutterSpeedValue: cambody.TV_out_of_range ? "--" : cambody.shutterSpeed
-
             anchors.top: first_line.bottom
             anchors.topMargin: 23
             anchors.right: first_line.right
@@ -789,8 +711,6 @@ FocusScope {
                         }
                         else {
                             stopWheelTimeout()
-                            // TODO: Call this when properties connected
-                            //                            popShutterSpeedQuickAdjust.toggle(root)
                         }
                     }
                     else if(MKeys.pressedFnAcc("NAVLEFT", event)) {
@@ -807,7 +727,6 @@ FocusScope {
                         {
                             driveControl.forceActiveFocus()
                         }
-
                     }
                     else if(MKeys.pressedFnAcc("UP", event)) {
                         startWheelTimeout()
@@ -815,8 +734,6 @@ FocusScope {
                     }
                 }
             }
-
-
             MouseArea {
                 id: shutterSpeedMouseArea
                 anchors.fill: parent
@@ -827,13 +744,10 @@ FocusScope {
                         states.state = "shutterspeed"
                     }
                     else {
-                        // TODO: Call this when properties connected
-                        //                        popShutterSpeedQuickAdjust.toggle(root)
                     }
                 }
             }
         }
-
         ExposureButton {
             id: exposureButton
             anchors {
@@ -852,7 +766,6 @@ FocusScope {
                     else if(MKeys.pressedFnAcc("SELECT", event)) {
                         scope.allowHighlightBracket = false;
                         stopWheelTimeout()
-                        // Expose
                         startExposure()
                     }
                     else if(MKeys.pressedFnAcc("NAVLEFT", event)) {
@@ -865,13 +778,10 @@ FocusScope {
                 if(MKeys.pressedFnAcc("SELECT", event)) {
                     scope.allowHighlightBracket = true;
                     stopWheelTimeout()
-                    // Stop Expose
                     stopExposure()
                 }
             }
-
         }
-
         Item {
             anchors.left: evSetting.left
             anchors.right: parent.right
@@ -887,16 +797,7 @@ FocusScope {
                 anchors.left: parent.left
                 visible: cambody.AEL
             }
-            Image {
-                asynchronous: true
-                source: !guiconfig.isWedge ? "qrc:/icons/MirrorUp.png" : ""
-                anchors.bottom: parent.bottom
-                anchors.left: aelock.right
-                anchors.leftMargin: 10
-                visible: !guiconfig.isWedge && (cambody.current_body_mode === Cambody.BodyModeSRelease)
-            }
         }
-
         Text {
             id: camBodyText
             anchors.bottom: second_line.top
@@ -906,24 +807,19 @@ FocusScope {
             color: "white"
             font.pixelSize: 24
             font.family: constants.cameraControlTextFontName
-
             text: Settings.stringTranslated("CameraType", configstore.cameraTypeAsString) + guiconfig.emptyString
             visible: ((configstore.CameraType === Config.CameraTypeFlashsync) ||
-                      (configstore.CameraType === Config.CameraTypePinhole) ||
-                       guiconfig.isCFV)
+                      (configstore.CameraType === Config.CameraTypePinhole))
         }
-
         TextCameraControl {
             id: evSetting
             label: "EV"
             labelSize: constants.cameraViewSettingEVLabelSize
             spacing: 2
             value: {
-                // Sanity check
                 if((cambody.AV >= 0) && (cambody.AV <= 156) && (cambody.TV >= -192) && (cambody.TV <= 168))
                 {
-                    // Good
-                    return ((cambody.AV + cambody.TV)/12).toFixed(1) // EV = Ev/12 ... according to Exposure Control System coding document.
+                    return ((cambody.AV + cambody.TV)/12).toFixed(1)
                 }
                 else
                 {
@@ -933,18 +829,15 @@ FocusScope {
             valueSize: constants.cameraViewSettingEVTextSize
             labelLow: true
             labelMargin: 4
-
             anchors {
                 bottom: second_line.top
                 left: second_line.left
                 leftMargin: constants.cameraViewMargin
             }
-
             visible: !(cambody.isBMode || cambody.isTMode) &&
                      (((cambody.capabilities & Cambody.CapabilityGetAV) !== 0) &&
                      ((cambody.capabilities & Cambody.CapabilityGetTV) !== 0))
         }
-
         Item {
             id: exposureAdjustSetting
             visible: viewModel.exposureAdjustSettingVisible
@@ -954,8 +847,6 @@ FocusScope {
                 right: second_line.right
                 rightMargin: constants.cameraViewMargin
             }
-
-
             Row {
                 anchors {
                     right: parent.right
@@ -964,7 +855,6 @@ FocusScope {
                 layoutDirection: Qt.RightToLeft
                 visible: Camera.canShow & Camera.PropEVADJ
                 property bool isEnabled: Camera.canChange & Camera.PropEVADJ
-
                 id: exposureAdjustRow
                 spacing: 9
                 Image {
@@ -990,7 +880,6 @@ FocusScope {
                     font.family: constants.cameraControlTextFontName
                     horizontalAlignment: Text.AlignRight
                 }
-
             }
             Row {
                 anchors {
@@ -1000,12 +889,9 @@ FocusScope {
                 }
                 id: flashAdjustRow
                 property bool isEnabled: Camera.canChange & Camera.PropFlashEVADJ
-
                 layoutDirection: Qt.RightToLeft
-                // Only show flashAdj if it's set to compensate the value in any direction.
                 visible: ((Camera.FLASH_EVADJ !== 0) || (Camera.canShow & Camera.PropEVADJ != Camera.PropEVADJ)) &&
                          (Camera.canShow & Camera.PropEVADJ)
-
                 spacing: 9
                 Image {
                     asynchronous: true
@@ -1028,13 +914,11 @@ FocusScope {
                     }
                     style: flashAdjustRow.isEnabled ? Text.Normal : Text.Outline
                     styleColor: "white"
-
                     font.pixelSize: constants.cameraViewSettingEVTextSize
                     font.family: constants.cameraControlTextFontName
                     horizontalAlignment: Text.AlignRight
                 }
             }
-
             MouseArea {
                 enabled: exposureAdjustRow.isEnabled || flashAdjustRow.isEnabled
                 id: exposureAdjustMouseArea
@@ -1085,7 +969,6 @@ FocusScope {
                 }
             }
         }
-
         Rectangle {
             id: second_line
             color: constants.cameraViewLineColor
@@ -1097,13 +980,10 @@ FocusScope {
             }
             height: first_line.height
         }
-
         Row {
             anchors.bottom: aelockItem.bottom
             anchors.horizontalCenter: parent.horizontalCenter
             spacing: 14
-
-            // Embed in Items that are always visible, otherwise icons move around when some icon is not visible...
             Item {
                 visible: true
                 width: childrenRect.width
@@ -1131,9 +1011,7 @@ FocusScope {
                     iconSource: "qrc:/icons/ControlScreen_GPS.png"
                 }
             }
-
         }
-
         TimerIndicator {
             id: timerIndicator
             visible: (configstore.selfTimerActive || configstore.intervalActive || configstore.bracketingActive  || configstore.focusBracketingActive) && !viewModel.videoMode
@@ -1143,7 +1021,6 @@ FocusScope {
                 bottomMargin: constants.cameraViewMargin - 10
             }
         }
-
         Item {
             id: bottom_controls
             anchors {
@@ -1155,31 +1032,25 @@ FocusScope {
                 right: first_line.right
                 rightMargin: constants.cameraViewMargin
             }
-
-            // Row from left
             Row {
                 id: bottom_row
                 anchors.bottom: parent.bottom
                 anchors.left: parent.left
                 spacing: constants.cameraViewMargin
-
                 BracketedCameraControl {
                     id: exposureControl
                     anchors.verticalCenter: parent.verticalCenter
                     property bool allowChange: viewModel.exposureControlAllowedToChange
-
                     allowHighligtBracket: scope.allowHighlightBracket && allowChange
                     showBracket: allowChange
                     forceBackground: (configstore.ExpMode === Config.ExpMode_ManualQuick) && (GlobalStateInfo.haveHalfPress || GlobalStateInfo.haveLiveViewPress)
                     symbol: viewModel.exposureControlSymbol
-
                     onClicked: {
                         if(showBracket) {
                             states.state =  "exposure_mode"
                             popupShowed = true
                         }
                     }
-
                     Keys.onPressed: {
                         if(scope.allowHighlightBracket) {
                             if(MKeys.pressedFnAcc("NAVRIGHT", event)) {
@@ -1207,13 +1078,10 @@ FocusScope {
                             }
                         }
                     }
-
                 }
-
                 MenuButton {
                     id: videoRecord
                     isImageButton: true
-
                     buttonData: viewModel.videoRecordMode ? "qrc:/icons/RecordingStopLarge.png"
                                 : (focus && scope.allowHighlightBracket && !mousePressed)
                                                             ? "qrc:/icons/StartVideoLiveViewOrange.png"
@@ -1223,11 +1091,9 @@ FocusScope {
                     height: exposureControl.height
                     maxWidth: 120
                     visible: viewModel.videoMode
-
                     onClicked: {
                         startCameraLiveView()
                     }
-
                     Keys.onPressed: {
                         if(scope.allowHighlightBracket) {
                             if(MKeys.pressedFnAcc("SELECT", event)) {
@@ -1248,7 +1114,6 @@ FocusScope {
                         }
                     }
                 }
-
                 MenuButton {
                     id: liveView
                     width: 108
@@ -1260,11 +1125,9 @@ FocusScope {
                     buttonData: (focus && scope.allowHighlightBracket && !mousePressed) ? "qrc:/icons/CS-LV-Orange.png"
                                                                                         : "qrc:/icons/CS-LV.png"
                     visible: viewModel.liveViewVisible
-
                     onClicked: {
                         startCameraLiveView()
                     }
-
                     Keys.onPressed: {
                         if(scope.allowHighlightBracket) {
                             if(MKeys.pressedFnAcc("SELECT", event)) {
@@ -1281,16 +1144,12 @@ FocusScope {
                         }
                     }
                 }
-
                 BracketedCameraControl {
                     id: meterControl
                     allowHighligtBracket: scope.allowHighlightBracket
                     symbol: viewModel.meterControlSymbol
-
                     opacity: (viewModel.selectedLightMeterModeValid  && (Camera.canShow & Camera.PropLMMode)) ? 100 : 0
                     showBracket: Camera.canChange & Camera.PropLMMode
-                    // This control must be set to visible to allow next control to be in right position.
-                    // If it should not be shown, opacity takes care of that...
                     visible: (Camera.canShow & Camera.PropLMMode) || (Camera.canShow & Camera.PropDriveMode)
                     onClicked: {
                         if (showBracket)
@@ -1299,7 +1158,6 @@ FocusScope {
                             popupShowed = true
                         }
                     }
-
                     Keys.onPressed: {
                         if(scope.allowHighlightBracket)
                         {
@@ -1337,10 +1195,8 @@ FocusScope {
                     id: driveControl
                     allowHighligtBracket: scope.allowHighlightBracket
                     symbol: viewModel.driveControlSymbol
-
                     visible: Camera.canShow & Camera.PropDriveMode
                     showBracket: Camera.canChange & Camera.PropDriveMode
-
                     onClicked: {
                         if(showBracket)
                         {
@@ -1348,7 +1204,6 @@ FocusScope {
                             popupShowed = true
                         }
                     }
-
                     Keys.onPressed: {
                         if(scope.allowHighlightBracket) {
                             if (MKeys.pressedFnAcc("NAVRIGHT", event)) {
@@ -1384,15 +1239,12 @@ FocusScope {
                     }
                 }
             }
-
-            // Row from right
             Row {
                 id: bottom_row_right
                 anchors.bottom: parent.bottom
                 anchors.right: parent.right
                 spacing: 7
                 layoutDirection: Qt.RightToLeft
-                // CFast:
                 Grid {
                     id: cardStatus
                     anchors.top: bottom_row_right.top
@@ -1402,32 +1254,24 @@ FocusScope {
                     rowSpacing: 20
                     columnSpacing: 5
                     visible: (farm.ram_only_mode !== Farm.RamModeRamOnly) && (System.tethered_mode === System.TetheredModeOff || !Usbif.usbLink)
-
-                    // Top row
                     CardStatusRectangle {
                         text: GuiConfig.SlDualSD === guiconfig.storageSlots ? guiconfig.storageSlotLetter(Config.Card0) : guiconfig.storageSlotLetter(Config.Card1)
                         status: GuiConfig.SlDualSD === guiconfig.storageSlots ? ContentModel.card0Status : ContentModel.card1Status
                     }
-
                     CardStatusImage {
                         status: GuiConfig.SlDualSD === guiconfig.storageSlots ? ContentModel.card0Status : ContentModel.card1Status
                     }
-
-                    // Bottom row
                     CardStatusRectangle {
                         text: GuiConfig.SlDualSD === guiconfig.storageSlots ? guiconfig.storageSlotLetter(Config.Card1) : guiconfig.storageSlotLetter(Config.Card0)
                         status: GuiConfig.SlDualSD === guiconfig.storageSlots ? ContentModel.card1Status : ContentModel.card0Status
                     }
-
                     CardStatusImage {
                         status: GuiConfig.SlDualSD === guiconfig.storageSlots ? ContentModel.card1Status : ContentModel.card0Status
                     }
                 }
-
                 DemoModeIndicator {
                     anchors.verticalCenter: parent.verticalCenter
                 }
-
                 USBIndicator {
                     id: usbIndicator
                     anchors.verticalCenter: parent.verticalCenter
@@ -1436,14 +1280,12 @@ FocusScope {
                     property bool inTethered: System.tethered_mode !== System.TetheredModeOff && Usbif.usbLink
                     onInTetheredChanged: if(inTethered) startBlink();
                 }
-
                 Row {
                     Image {
                         id: left_bracket
                         anchors.top: parent.top
                         source: "qrc:/icons/left_bracket.png"
                     }
-
                     ExposuresAvailCounter {
                         id: availCounter
                         anchors.top: left_bracket.top
@@ -1452,7 +1294,6 @@ FocusScope {
                         allowTwoLineText: true
                         width: (farm.ram_only_mode === Farm.RamModeRamOnly) || (System.tethered_mode !== System.TetheredModeOff) ? 100 : 153 + 10
                     }
-
                     Image {
                         id: right_bracket
                         anchors.top: parent.top
@@ -1461,7 +1302,6 @@ FocusScope {
                 }
             }
         }
-
         Component {
             id: popupApertureSettings
             PopupListSelector {
@@ -1470,13 +1310,11 @@ FocusScope {
                 isToLeft: true
                 model: Settings.apertureValues
                 currentlySelectedValue: cambody.aperture
-
                 onSelectedValueChanged: {
                     cambody.aperture = value
                 }
             }
         }
-
         Component {
             id: popupShutterSpeedSettings
             PopupListSelector {
@@ -1485,13 +1323,11 @@ FocusScope {
                 isToLeft: false
                 model: Settings.shutterspeedValues
                 currentlySelectedValue: cambody.shutterSpeed
-
                 onSelectedValueChanged: {
                     cambody.shutterSpeed = value
                 }
             }
         }
-
         Component {
             id: popupISO
             PopupListSelector {
@@ -1500,25 +1336,21 @@ FocusScope {
                 isToLeft: false
                 model: Settings.isoValues
                 currentlySelectedValue: guiconfig.fromIsoVal(Camera.iso)
-
                 onSelectedValueChanged: {
                     Camera.iso = guiconfig.toIsoVal(value)
                 }
             }
         }
-
         Loader {
             id: popup
             objectName: "ControlScreen_popupLoader"
             asynchronous: false
             anchors.fill: parent
             onLoaded: popup.item.forceActiveFocus()
-
             Connections {
                 target: popup.item
                 onVisibleChanged: {
                     if ((popup.item != null) && !popup.item.visible) {
-                        //Need to set both state and forceActiveFocus() since we sometimes are called here when already in state ""
                         states.state = ""
                         root.forceActiveFocus()
                     }
@@ -1532,6 +1364,5 @@ FocusScope {
             root.forceActiveFocus();
         }
     }
-
     Component.onCompleted: console.log("ControlScreen completed")
 }

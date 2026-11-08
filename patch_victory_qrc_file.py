@@ -121,7 +121,7 @@ class ResourceMap:
     def slot_size(self, entry):
         next_offset = self.next_offset[entry["data_offset"]]
         if next_offset is None:
-            return None
+            return (NAMES_BASE - DATA_BASE) - entry["data_offset"]
         return next_offset - entry["data_offset"]
 
 
